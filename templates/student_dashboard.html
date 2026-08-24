@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الطالب - منصة لبيب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        oliveGreen: '#4E6B45',
+                        oliveLight: '#708E67',
+                        beigeBg: '#F4EFE6',
+                        beigeCard: '#FAF7F2',
+                        textDark: '#1E241B',
+                        accentGold: '#C79A3B',
+                        accentOrange: '#D97706',
+                    },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; color: #1E241B; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .snackbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 14px 24px; border-radius: 12px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 20px; opacity: 1; } }
+        input[type="radio"] { accent-color: #4E6B45; }
+    </style>
+</head>
+<body class="pb-32">
+
+    <!-- Header / AppBar -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-oliveGreen/10 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500">أهلاً بك يا طفلي المتميز 👋</p>
+                    <p id="studentNameDisplay" class="text-sm font-bold text-textDark">طالب لبيب</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 bg-oliveGreen/10 px-3 py-1.5 rounded-full border border-oliveGreen/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2V9a2 2 0 00-2-2H9a2 2 0 00-2 2v10a2 2 0 002 2zm7-9a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    <span id="walletBalance" class="text-xs font-bold text-textDark">0 حصص</span>
+                    <button onclick="openRechargeModal()" class="bg-accentOrange text-white text-[10px] font-bold px-2 py-1 rounded-md">+ شحن</button>
+                </div>
+                <button onclick="openNotificationsModal()" class="text-textDark relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        
+        <!-- Welcome Card -->
+        <div class="bg-oliveGreen rounded-2xl p-6 flex justify-between items-center mb-6">
+            <div class="text-white">
+                <h2 class="text-lg font-bold mb-2">أهلاً بك في منصة لبيب التعليمية 🎁</h2>
+                <p class="text-sm text-white/80 leading-relaxed">جاهز لرحلة الفهم الذكي؟ اطلب حصتك وتابع حالة قبول المعلمين بكل إنسيابية.</p>
+            </div>
+            <div class="bg-white/15 p-3 rounded-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+            </div>
+        </div>
+
+        <!-- New Class Request Section -->
+        <div class="bg-white p-5 rounded-2xl border-[1.5px] border-oliveGreen/30 shadow-sm mb-6">
+            <div class="flex items-center mb-4">
+                <div class="p-2.5 bg-oliveGreen/10 rounded-xl ml-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-textDark">تحتاج إلى شرح درس إضافي؟ 🧠</h3>
+                    <p class="text-xs text-gray-500">اطلب حصة جديدة فوراً أو جدولها لوقت لاحق</p>
+                </div>
+            </div>
+            <button onclick="openBookingModal()" class="w-full bg-accentOrange text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                طلب حصة جديدة الآن 🚀
+            </button>
+        </div>
+
+        <!-- Active Requests -->
+        <h3 class="text-lg font-bold text-textDark mb-3">🗓️ حالة الطلبات والحصص الحالية</h3>
+        <div id="activeRequestsContainer" class="mb-6">
+            <div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">
+                جاري تحميل الطلبات...
+            </div>
+        </div>
+
+        <!-- Completed Sessions -->
+        <h3 class="text-lg font-bold text-textDark mb-3">📚 أرشيف دروسك وملخصات السبورة</h3>
+        <div id="completedSessionsContainer" class="space-y-3 mb-6">
+            <div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">
+                جاري تحميل الأرشيف...
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Floating Help Button -->
+    <button onclick="openHelpModal()" class="fixed bottom-6 left-6 bg-oliveGreen text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-oliveLight transition z-30">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
+        <span class="font-bold">المساعدة والإنقاذ</span>
+        <span id="supportBadge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-white">0</span>
+    </button>
+
+    <!-- Modals -->
+    <!-- 1. Booking New Class Modal -->
+    <div id="bookingModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg> حجز حصة تعليمية جديدة</h3>
+            
+            <label class="text-xs text-gray-500 block mb-2">اختر المادة الدراسية المطلوبة:</label>
+            <select id="bookingSubject" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                <option>القرآن الكريم والتجويد</option><option>التربية الإسلامية</option><option>الفقه وأصوله</option>
+                <option>اللغة العربية</option><option>النحو والصرف</option><option>الأدب العربي</option>
+                <option>الرياضيات</option><option>الجبر</option><option>الهندسة</option>
+                <option>حساب التفاضل والتكامل</option><option>الإحصاء</option><option>الفيزياء</option>
+                <option>الكيمياء</option><option>الأحياء</option><option>العلوم العامة</option>
+                <option>اللغة الإنجليزية</option><option>اللغة الفرنسية</option><option>الجغرافيا</option>
+                <option>التاريخ</option><option>علم الاجتماع</option><option>الفلسفة والمنطق</option>
+                <option>التربية الوطنية والمدنية</option><option>الحاسب الآلي</option><option>البرمجة</option>
+                <option>الروبوتات والذكاء الاصطناعي</option><option>التربية الفنية</option><option>التربية الموسيقية</option>
+                <option>التربية البدنية</option><option>التربية الخاصة</option><option>صعوبات التعلم</option>
+                <option>رياض الأطفال</option><option>علم النفس</option><option>التوجيه والإرشاد</option>
+            </select>
+
+            <label class="text-xs text-gray-500 block mb-2">ما هي مرحلتك الدراسية؟</label>
+            <select id="bookingGrade" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                <option value="">اختر الصف الدراسي</option>
+                <option>روضة الأطفال (تمهيدي)</option>
+                <option>الصف الأول الابتدائي</option><option>الصف الثاني الابتدائي</option><option>الصف الثالث الابتدائي</option>
+                <option>الصف الرابع الابتدائي</option><option>الصف الخامس الابتدائي</option><option>الصف السادس الابتدائي</option>
+                <option>الصف الأول المتوسط</option><option>الصف الثاني المتوسط</option><option>الصف الثالث المتوسط</option>
+                <option>الصف الأول الثانوي</option><option>الصف الثاني الثانوي</option><option>الصف الثالث الثانوي</option>
+                <option>التعليم الجامعي المستمر</option>
+            </select>
+
+            <label class="text-xs text-gray-500 block mb-2">نوع الحجز:</label>
+            <div class="flex gap-4 mb-4 text-sm">
+                <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="now" checked> فوراً ⚡</label>
+                <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="schedule"> مجدولة 🗓️</label>
+            </div>
+
+            <div id="scheduleFields" class="hidden mb-4">
+                <label class="text-xs text-gray-500 block mb-2">حدد موعد الحصة:</label>
+                <div class="flex gap-2">
+                    <input type="date" id="scheduleDate" class="flex-1 bg-beigeCard rounded-xl p-2 text-xs">
+                    <input type="time" id="scheduleTime" class="flex-1 bg-beigeCard rounded-xl p-2 text-xs">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeModal('bookingModal')" class="text-gray-500 text-sm">إلغاء</button>
+                <button onclick="submitBooking()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">تأكيد الطلب 📥</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Recharge Wallet Modal -->
+    <div id="rechargeModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> شحن رصيد الحصص (تحويل بنكي)</h3>
+            
+            <p class="text-xs text-gray-500 mb-4">اختر الباقة المطلوبة وحول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع لإرسال الطلب للإدارة:</p>
+            
+            <div class="space-y-2 mb-4">
+                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="package" value="1|حصة واحدة (35 ر.س)" checked> حصة واحدة (35 ر.س)
+                </label>
+                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="package" value="5|باقة 5 حصص (150 ر.س)"> باقة 5 حصص (150 ر.س)
+                </label>
+                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="package" value="12|باقة التفوق 12 حصة (320 ر.س)"> باقة التفوق 12 حصة (320 ر.س)
+                </label>
+            </div>
+
+            <input type="text" id="referenceNumber" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+
+            <label class="text-xs font-bold block mb-2">صورة إشعار التحويل (إجباري):</label>
+            <input type="file" id="receiptImage" accept="image/*" class="hidden">
+            <div id="receiptUploadBox" onclick="document.getElementById('receiptImage').click()" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
+                اضغط لرفع صورة الإشعار
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeModal('rechargeModal')" class="text-gray-500 text-sm">إلغاء</button>
+                <button id="submitRechargeBtn" onclick="submitRecharge()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">إرسال للإدارة 📤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Notifications Modal -->
+    <div id="notificationsModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> الإشعارات الحية</h3>
+            <div id="notificationsList" class="space-y-3 text-sm text-gray-700 max-h-60 overflow-y-auto">
+                <p class="text-center text-gray-400">جاري تحميل الإشعارات...</p>
+            </div>
+            <button onclick="closeModal('notificationsModal')" class="mt-6 w-full text-oliveGreen font-bold py-2 border border-oliveGreen rounded-xl">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- 4. Support Chat Modal -->
+    <div id="helpModal" class="modal fixed inset-0 bg-black/50 z-50 items-end justify-center p-0">
+        <div class="bg-white rounded-t-3xl w-full max-w-md h-[80vh] flex flex-col">
+            <div class="bg-oliveGreen p-4 flex justify-between items-center rounded-t-3xl">
+                <h3 class="font-bold text-lg text-white">مركز الدعم الفني 🆘</h3>
+                <button onclick="closeModal('helpModal')" class="text-white/80 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div id="supportMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-beigeBg">
+                <p class="text-center text-gray-400 text-xs">جاري تحميل المحادثة...</p>
+            </div>
+            <div class="p-3 bg-white border-t flex gap-2">
+                <input type="text" id="supportInput" onkeydown="handleSupportEnter(event)" placeholder="اكتب رسالتك هنا..." class="flex-1 bg-beigeCard rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                <button onclick="sendSupportMessage()" class="bg-oliveGreen text-white p-2 rounded-xl hover:bg-oliveLight">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+            authDomain: "labeeb-app-2026.firebaseapp.com",
+            projectId: "labeeb-app-2026",
+            storageBucket: "labeeb-app-2026.firebasestorage.app",
+            messagingSenderId: "201953565667",
+            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let displayName = "طالب لبيب";
+
+        // ==========================================
+        // 🔥 التهيئة (Initialization)
+        // ==========================================
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                listenToSupportBadges(); 
+                listenToNotifications(); // ✨ تشغيل الاستماع للإشعارات
+                
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    const data = userDoc.data();
+                    displayName = data.name || "طالب لبيب";
+                    document.getElementById('studentNameDisplay').innerText = displayName;
+                }
+                
+                listenToWallet();
+                listenToActiveRequests();
+                listenToCompletedSessions();
+            } else {
+                window.location.href = '/';
+            }
+        });
+
+        // Real-time Listeners
+        function listenToWallet() {
+            db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
+                if (doc.exists) {
+                    const balance = doc.data().sessionCredits || 0;
+                    document.getElementById('walletBalance').innerText = `${balance} حصص`;
+                }
+            });
+        }
+
+        function listenToActiveRequests() {
+            const container = document.getElementById('activeRequestsContainer');
+            db.collection('sessions')
+                .where('studentId', '==', currentUser.uid)
+                .where('status', 'in', ['pending', 'accepted', 'scheduled', 'active'])
+                .onSnapshot((snapshot) => {
+                    if (snapshot.empty) {
+                        container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">لا توجد طلبات نشطة حالياً. يمكنك طلب حصة جديدة من الزر أعلاه 👆</div>`;
+                        return;
+                    }
+                    container.innerHTML = '';
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const subject = data.subject || 'الرياضيات';
+                        const status = data.status || 'pending';
+                        const teacherName = data.teacherName || data.teacher || data.instructorName || '';
+                        const hasTeacher = teacherName && teacherName.trim() !== '' && teacherName !== 'null';
+                        const isAccepted = status === 'accepted' || status === 'active' || hasTeacher;
+
+                        let actionHtml = '';
+                        if (isAccepted) {
+                            const bookingType = data.bookingType || 'now';
+                            const scheduledAt = data.scheduledAt;
+                            let canStart = true;
+                            let timeText = '';
+
+                            if (bookingType === 'schedule' && scheduledAt) {
+                                const startTime = scheduledAt.toDate();
+                                const diff = (startTime - new Date()) / 60000;
+                                if (diff <= 5 && diff >= -60) {
+                                    canStart = true;
+                                } else {
+                                    canStart = false;
+                                    timeText = diff > 5 ? `تبدأ خلال ${Math.round(diff)} دقيقة` : 'انتهت صلاحية الدخول';
+                                }
+                            }
+
+                            if (canStart) {
+                                actionHtml = `<button onclick="joinSession('${doc.id}')" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl">دخول 🎙️</button>`;
+                            } else {
+                                actionHtml = `<span class="bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl">${timeText}</span>`;
+                            }
+                        }
+
+                        const card = `
+                            <div class="bg-white p-5 rounded-2xl border-[1.5px] ${isAccepted ? 'border-green-500/50' : 'border-accentOrange/30'} flex items-center mb-3">
+                                <div class="p-3.5 rounded-xl ${isAccepted ? 'bg-green-500/10' : 'bg-accentOrange/10'} ml-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 ${isAccepted ? 'text-green-600' : 'text-accentOrange'}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-bold text-textDark">مادة ${subject}</h4>
+                                    <p class="text-xs ${isAccepted ? 'text-green-700 font-bold' : 'text-gray-500'}">${isAccepted ? (hasTeacher ? `تم إسنادك إلى المعلم: ${teacherName} 🎉` : 'تم قبول طلبك بنجاح وجاري بدء الجلسة 🎉') : 'الطلب معلق... بانتظار قبول المعلم ⏳'}</p>
+                                </div>
+                                ${actionHtml}
+                            </div>
+                        `;
+                        container.innerHTML += card;
+                    });
+                }, (error) => {
+                    container.innerHTML = `<div class="bg-red-50 p-5 rounded-2xl border border-red-300 text-center text-sm text-red-600 font-bold">تعذر تحميل الطلبات حالياً. تأكد من اتصال الإنترنت أو إعدادات قاعدة البيانات.</div>`;
+                });
+        }
+
+                function listenToCompletedSessions() {
+            const container = document.getElementById('completedSessionsContainer');
+            db.collection('sessions')
+                .where('studentId', '==', currentUser.uid)
+                .where('status', '==', 'completed')
+                .onSnapshot((snapshot) => {
+                    if (snapshot.empty) {
+                        container.innerHTML = `
+                            <div class="bg-beigeCard p-4 rounded-2xl border border-gray-200">
+                                <div class="flex items-center mb-3">
+                                    <div class="bg-oliveGreen p-2 rounded-full ml-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /></svg></div>
+                                    <div><h4 class="text-sm font-bold">درس الرياضيات (درس تجريبي)</h4><p class="text-xs text-gray-500">المعلم: أ. أحمد علي • سابقاً</p><p class="text-xs text-accentOrange">التقييم: ⭐⭐⭐⭐⭐</p></div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="flex-1 border border-gray-400 text-gray-500 text-xs font-bold py-2 rounded-lg" disabled>لا يوجد تسجيل</button>
+                                    <button class="flex-1 bg-gray-300 text-white text-xs font-bold py-2 rounded-lg" disabled>لا يوجد ملف للسبورة</button>
+                                </div>
+                            </div>`;
+                        return;
+                    }
+
+                    // ✨ تحويل النتائج إلى مصفوفة وترتيبها (الأحدث أولاً) في الواجهة لتجنب الحاجة لـ Firestore Index
+                    const sessions = [];
+                    snapshot.forEach((doc) => {
+                        sessions.push({ id: doc.id, data: doc.data() });
+                    });
+                    sessions.sort((a, b) => {
+                        const aTime = a.data.completedAt ? a.data.completedAt.toMillis() : 0;
+                        const bTime = b.data.completedAt ? b.data.completedAt.toMillis() : 0;
+                        return bTime - aTime; // ترتيب تنازلي
+                    });
+
+                    container.innerHTML = '';
+                    sessions.forEach((session) => {
+                        const data = session.data;
+                        const subject = data.subject || 'درس تعليمي';
+                        const teacher = data.teacherName || data.teacher || 'معلم لبيب';
+                        const date = data.date || 'سابقاً';
+                        const rating = data.rating || '⭐⭐⭐⭐⭐';
+                        const audioUrl = data.audioRecordingUrl || '';
+                        const pdfUrl = data.boardPdfUrl || '';
+
+                        const hasAudio = audioUrl && audioUrl.startsWith('http');
+                        const hasPdf = pdfUrl && pdfUrl.startsWith('http');
+
+                        const card = `
+                            <div class="bg-beigeCard p-4 rounded-2xl border border-gray-200">
+                                <div class="flex items-center mb-3">
+                                    <div class="bg-oliveGreen p-2 rounded-full ml-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /></svg></div>
+                                    <div><h4 class="text-sm font-bold">درس ${subject}</h4><p class="text-xs text-gray-500">المعلم: ${teacher} • ${date}</p><p class="text-xs text-accentOrange">التقييم: ${rating}</p></div>
+                                </div>
+                                <hr class="my-3">
+                                <div class="flex gap-2">
+                                    <button onclick="playAudio('${audioUrl}', '${subject}')" ${hasAudio ? '' : 'disabled'} class="flex-1 border ${hasAudio ? 'border-oliveGreen text-oliveGreen' : 'border-gray-400 text-gray-500'} text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        ${hasAudio ? 'استماع للدرس 🎙️' : 'لا يوجد تسجيل'}
+                                    </button>
+                                    <button onclick="downloadPdf('${pdfUrl}')" ${hasPdf ? '' : 'disabled'} class="flex-1 ${hasPdf ? 'bg-oliveGreen text-white' : 'bg-gray-300 text-white'} text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                        ${hasPdf ? 'تحميل السبورة PDF 📄' : 'لا يوجد ملف للسبورة'}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        container.innerHTML += card;
+                    });
+                });
+        }
+
+        // Actions
+        async function joinSession(sessionId) {
+            const studentName = encodeURIComponent(displayName);
+            window.location.href = `/live-session?sessionId=${sessionId}&role=student&studentName=${studentName}`;
+        }
+
+        function playAudio(url, subject) {
+            if (!url || !url.startsWith('http')) {
+                showSnackBar('لا يوجد تسجيل صوتي صالح لهذه الجلسة', '#D97706');
+                return;
+            }
+            window.open(url, '_blank');
+            showSnackBar(`جاري تشغيل تسجيل: ${subject}`, '#4E6B45');
+        }
+
+        function downloadPdf(url) {
+            if (!url || !url.startsWith('http')) {
+                showSnackBar('جاري تجهيز رابط ملف السبورة... 📄', '#D97706');
+                return;
+            }
+            window.open(url, '_blank');
+        }
+
+        // Modal Logic
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function openBookingModal() {
+            openModal('bookingModal');
+            document.querySelectorAll('input[name="bookingType"]').forEach(radio => {
+                radio.onchange = (e) => {
+                    document.getElementById('scheduleFields').classList.toggle('hidden', e.target.value !== 'schedule');
+                };
+            });
+        }
+
+        async function submitBooking() {
+            const subject = document.getElementById('bookingSubject').value;
+            const grade = document.getElementById('bookingGrade').value; 
+            const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
+            
+            if (!grade) { showSnackBar('الرجاء اختيار مرحلتك الدراسية', '#D97706'); return; } 
+
+            let scheduledDate = null;
+            if (bookingType === 'schedule') {
+                const dateVal = document.getElementById('scheduleDate').value;
+                const timeVal = document.getElementById('scheduleTime').value;
+                if (!dateVal || !timeVal) {
+                    showSnackBar('الرجاء اختيار تاريخ ووقت الحصة', '#D97706');
+                    return;
+                }
+                scheduledDate = new Date(`${dateVal}T${timeVal}`);
+            }
+
+            closeModal('bookingModal');
+            showSnackBar('جاري إرسال طلب الحصة...', '#4E6B45');
+
+            try {
+                const token = await currentUser.getIdToken();
+                const formData = new FormData();
+                formData.append('studentName', displayName);
+                formData.append('subject', subject);
+                formData.append('topic', subject);
+                formData.append('grade', grade); 
+
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'فشل إنشاء الطلب');
+                }
+
+                const result = await response.json();
+                const sessionId = result.sessionId;
+
+                if (bookingType === 'schedule') {
+                    await db.collection('sessions').doc(sessionId).update({
+                        'bookingType': 'schedule',
+                        'scheduledAt': firebase.firestore.Timestamp.fromDate(scheduledDate),
+                        'scheduledTime': `${scheduledDate.getHours()}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`
+                    });
+                } else {
+                    await db.collection('sessions').doc(sessionId).update({
+                        'bookingType': 'now'
+                    });
+                }
+
+                showSnackBar(`تم إرسال طلب الحصة بنجاح! بانتظار قبول المعلم ⏳\nمعرّف الجلسة: ${sessionId.substring(0, 8)}...`, '#4E6B45');
+
+            } catch (e) {
+                showSnackBar(`❌ فشل الطلب: ${e.message}`, '#ef4444');
+            }
+        }
+
+        function openRechargeModal() {
+            openModal('rechargeModal');
+            document.getElementById('receiptImage').onchange = (e) => {
+                const fileName = e.target.files[0]?.name || 'اضغط لرفع صورة الإشعار';
+                document.getElementById('receiptUploadBox').innerText = fileName;
+            };
+        }
+
+        async function submitRecharge() {
+            const refNum = document.getElementById('referenceNumber').value.trim();
+            const fileInput = document.getElementById('receiptImage');
+            const submitBtn = document.getElementById('submitRechargeBtn');
+
+            if (!refNum) { showSnackBar('الرجاء إدخال رقم المرجع أو الإيصال', '#D97706'); return; }
+            if (!fileInput.files[0]) { showSnackBar('الرجاء رفع صورة إشعار التحويل', '#D97706'); return; }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'جاري الإرسال...';
+
+            try {
+                const token = await currentUser.getIdToken();
+                const packageVal = document.querySelector('input[name="package"]:checked').value;
+                const [sessionsCount, packageTitle] = packageVal.split('|');
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('folder', 'recharge_receipts');
+
+                const uploadRes = await fetch('/api/cloudinary/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+
+                if (!uploadData.url) throw new Error('فشل رفع الصورة');
+
+                await db.collection('recharge_requests').add({
+                    studentId: currentUser.uid,
+                    studentName: displayName,
+                    packageTitle: packageTitle,
+                    sessionsCount: parseInt(sessionsCount),
+                    referenceNumber: refNum,
+                    receiptImageUrl: uploadData.url,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                closeModal('rechargeModal');
+                showSnackBar('تم إرسال طلب الشحن بنجاح! بانتظار مراجعة الإدارة ⏳', '#4E6B45');
+                
+                document.getElementById('referenceNumber').value = '';
+                document.getElementById('receiptImage').value = '';
+                document.getElementById('receiptUploadBox').innerText = 'اضغط لرفع صورة الإشعار';
+
+            } catch (e) {
+                showSnackBar(`حدث خطأ: ${e.message}`, '#ef4444');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'إرسال للإدارة 📤';
+            }
+        }
+        
+        // ==========================================
+        // 🔔 Notifications Logic
+        // ==========================================
+        function listenToNotifications() {
+            db.collection('users').doc(currentUser.uid).collection('notifications')
+                .orderBy('createdAt', 'desc')
+                .limit(10)
+                .onSnapshot((snapshot) => {
+                    const container = document.getElementById('notificationsList');
+                    const badge = document.getElementById('notifBadge');
+                    let unreadCount = 0;
+                    container.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        container.innerHTML = '<p class="text-center text-gray-400">لا توجد إشعارات حالياً.</p>';
+                        if(badge) badge.classList.add('hidden');
+                        return;
+                    }
+
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        if (!data.read) unreadCount++;
+                        
+                        const item = document.createElement('div');
+                        item.className = `p-3 rounded-xl border ${data.read ? 'bg-gray-50 border-gray-200' : 'bg-oliveGreen/5 border-oliveGreen/30 font-bold'}`;
+                        item.innerHTML = `
+                            <p class="text-sm">${data.title || ''}</p>
+                            <p class="text-xs text-gray-500 mt-1">${data.body || ''}</p>
+                        `;
+                        container.appendChild(item);
+                    });
+
+                    if (badge) {
+                        if (unreadCount > 0) {
+                            badge.innerText = unreadCount;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    }
+                });
+        }
+
+                async function openNotificationsModal() { 
+            openModal('notificationsModal'); 
+            // ✨ إخفاء الشارة فوراً في الواجهة
+            const badge = document.getElementById('notifBadge');
+            if (badge) badge.classList.add('hidden');
+
+            if (!currentUser) return;
+            try {
+                const q = await db.collection('users').doc(currentUser.uid).collection('notifications').where('read', '==', false).get();
+                const batch = db.batch();
+                q.forEach((doc) => {
+                    batch.update(doc.ref, { 'read': true });
+                });
+                await batch.commit();
+            } catch (e) {
+                console.error("Error marking notifications as read:", e);
+            }
+        }
+
+        // ==========================================
+        // 💬 Support Chat Logic
+        // ==========================================
+        function openHelpModal() { 
+            openModal('helpModal'); 
+            listenToSupportMessages();
+            if (currentUser) {
+                db.collection('support_chats').doc(currentUser.uid).update({
+                    unreadByStudentCount: 0
+                }).catch(() => {}); 
+            }
+            const badge = document.getElementById('supportBadge');
+            if (badge) badge.classList.add('hidden');
+        }
+
+        let supportUnsub = null;
+        function listenToSupportMessages() {
+            if (supportUnsub) supportUnsub();
+            const container = document.getElementById('supportMessages');
+            container.innerHTML = '<p class="text-center text-gray-400 text-xs">جاري تحميل المحادثة...</p>';
+            
+            supportUnsub = db.collection('support_chats').doc(currentUser.uid).collection('messages')
+                .orderBy('createdAt', 'asc')
+                .onSnapshot((snapshot) => {
+                    container.innerHTML = '';
+                    if (snapshot.empty) {
+                        container.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">مرحباً بك في الدعم الفني. كيف يمكننا مساعدتك؟</p>';
+                        return;
+                    }
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const isMine = data.sender === 'student';
+                        const bubble = document.createElement('div');
+                        bubble.className = `p-2 rounded-lg text-sm max-w-[75%] ${isMine ? 'bg-oliveGreen text-white mr-auto' : 'bg-gray-200 text-textDark ml-auto'}`;
+                        bubble.innerText = data.text;
+                        container.appendChild(bubble);
+                    });
+                    container.scrollTop = container.scrollHeight;
+                });
+        }
+
+        function listenToSupportBadges() {
+            if (!currentUser) return;
+            db.collection('support_chats').doc(currentUser.uid).onSnapshot((doc) => {
+                const badge = document.getElementById('supportBadge');
+                if (!badge) return;
+                
+                if (doc.exists) {
+                    const unread = doc.data().unreadByStudentCount || 0;
+                    if (unread > 0) {
+                        badge.innerText = unread;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function handleSupportEnter(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendSupportMessage();
+            }
+        }
+
+        async function sendSupportMessage() {
+            const input = document.getElementById('supportInput');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            try {
+                await db.collection('support_chats').doc(currentUser.uid).set({
+                    studentId: currentUser.uid,
+                    studentName: displayName,
+                    lastMessage: text,
+                    lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'open',
+                    unreadByAdminCount: firebase.firestore.FieldValue.increment(1) 
+                }, { merge: true });
+
+                await db.collection('support_chats').doc(currentUser.uid).collection('messages').add({
+                    text: text,
+                    sender: 'student',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) {
+                showSnackBar('فشل إرسال الرسالة: ' + e.message, '#ef4444');
+            }
+        }
+
+        // Snackbar Utility
+        function showSnackBar(text, color) {
+            const snackbar = document.createElement('div');
+            snackbar.className = 'snackbar';
+            snackbar.style.backgroundColor = color;
+            snackbar.innerText = text;
+            document.body.appendChild(snackbar);
+            setTimeout(() => snackbar.remove(), 3500);
+        }
+    </script>
+</body>
+</html>

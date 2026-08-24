@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تدفق التسجيل - منصة لبيب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Firebase Web SDK (Compat for easy usage) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        oliveGreen: '#4E6B45',
+                        oliveLight: '#708E67',
+                        beigeBg: '#F4EFE6',
+                        beigeCard: '#FAF7F2',
+                        textDark: '#1E241B',
+                        textMuted: '#6B7280',
+                        accentGold: '#C79A3B',
+                        accentOrange: '#D97706',
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; }
+        .hidden-step { display: none; }
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { bottom: -50px; opacity: 0; }
+            to { bottom: 20px; opacity: 1; }
+        }
+    </style>
+</head>
+<body class="text-textDark">
+
+    <!-- Hidden Recaptcha Container -->
+    <div id="recaptcha-container" style="position: fixed; bottom: 0; right: 0; z-index: -1;"></div>
+
+    <main class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-xl p-7 w-full max-w-[550px]">
+            
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-5">
+                <button onclick="previousStep()" class="text-textDark">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    </svg>
+                </button>
+                <div class="bg-accentOrange/10 px-3 py-1 rounded-lg">
+                    <span id="roleTitle" class="text-accentOrange font-bold text-sm">الطالب الطموح</span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="flex gap-1.5 mb-7">
+                <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen"></div>
+                <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
+                <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
+                <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
+            </div>
+
+            <!-- Step 0: Phone Number -->
+            <div id="step-0" class="step-content">
+                <h2 class="text-xl font-bold mb-2">أهلاً بك، سجل دخولك برقم الجوال</h2>
+                <p class="text-sm text-gray-500 mb-6 leading-relaxed">قم بإدخال رقم هاتفك المحمول وسيصلك رمز تحقق حقيقي عبر رسالة نصية.</p>
+                
+                <label class="text-sm font-bold block mb-2">رقم الجوال لتسجيل الدخول</label>
+                <div class="flex items-center bg-beigeCard rounded-xl overflow-hidden">
+                    <select id="countryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
+                        <option value="+966">🇸🇦 +966</option>
+                        <option value="+970">🇵🇸 +970</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+965">🇰🇼 +965</option>
+                        <option value="+962">🇯🇴 +962</option>
+                        <option value="+20">🇪🇬 +20</option>
+                    </select>
+                    <div class="h-5 w-px bg-gray-300 mx-1"></div>
+                    <input type="tel" id="phoneNumber" placeholder="5xxxxxxxx" class="bg-transparent py-3 px-2 flex-1 focus:outline-none text-sm">
+                </div>
+
+                <div id="teacherSignupLink" class="text-center mt-5 hidden">
+                    <button onclick="goToStep(2)" class="text-accentOrange font-bold text-sm underline">ليس لدي حساب؟ عمل حساب معلم جديد الآن</button>
+                </div>
+            </div>
+
+            <!-- Step 1: OTP Verification -->
+            <div id="step-1" class="step-content hidden-step">
+                <h2 class="text-xl font-bold mb-2">أدخل رمز التحقق الفوري</h2>
+                <p class="text-sm text-gray-500 mb-6 leading-relaxed">
+                    تم إرسال رمز مكون من 6 أرقام إلى رقمك 
+                    <span id="displayPhone" class="font-bold text-accentOrange"></span>
+                </p>
+                
+                <div dir="ltr" class="flex justify-between gap-2 mb-5" id="otpInputs">
+                    <input type="text" inputmode="numeric" maxlength="1" class="otp-input w-12 h-14 text-center text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <input type="text" inputmode="numeric" maxlength="1" class="otp-input w-12 h-14 text-center text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <input type="text" inputmode="numeric" maxlength="1" class="otp-input w-12 h-14 text-center text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <input type="text" inputmode="numeric" maxlength="1" class="otp-input w-12 h-14 text-center text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <input type="text" inputmode="numeric" maxlength="1" class="otp-input w-12 h-14 text-center text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <input type="text" inputmode="numeric" maxlength="1" class="otp-input w-12 h-14 text-center text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                </div>
+
+                <div class="text-center">
+                    <span id="timerText" class="text-gray-500 text-sm">إعادة إرسال الرمز خلال 59 ثانية</span>
+                    <button id="resendBtn" onclick="resendOtp()" class="hidden text-accentOrange font-bold text-sm">إعادة إرسال رمز التحقق الفوري</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Teacher Signup -->
+            <div id="step-2" class="step-content hidden-step">
+                <h2 class="text-xl font-bold mb-1">إنشاء حساب معلم جديد</h2>
+                <p class="text-sm text-gray-500 mb-4">سجل معنا كمعلم معتمد. بعد تعبئة البيانات سنتحقق من رقمك برسالة نصية.</p>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-sm font-bold block mb-1">رقم الموبايل</label>
+                        <input type="tel" id="signupPhone" placeholder="5xxxxxxxx" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    </div>
+                    <div>
+                        <label class="text-sm font-bold block mb-1">الاسم رباعي بالكامل</label>
+                        <input type="text" id="fullName" placeholder="أدخل اسمك الرباعي كما هو بالهوية الوطنية" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="text-sm font-bold block mb-1">الدولة</label>
+                            <select id="country" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                                <option value="">اختر الدولة</option>
+                                <option>المملكة العربية السعودية</option>
+                                <option>فلسطين</option>
+                                <option>جمهورية مصر العربية</option>
+                                <option>الإمارات العربية المتحدة</option>
+                                <option>الأردن</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-sm font-bold block mb-1">المدينة</label>
+                            <select id="city" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                                <option value="">اختر المدينة</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="text-sm font-bold block mb-2">اختر التخصصات التي تدرسها (يمكنك اختيار أكثر من تخصص):</label>
+                        <div id="specialtyList" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-bold block mb-2">الفئة العمرية / الصفوف التي تدرسها (يمكن اختيار أكثر من فئة):</label>
+                        <div id="targetAgeList" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
+                    </div>
+
+                    <!-- Certificate Upload -->
+                    <input type="file" id="certInput" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="uploadFile('cert')">
+                    <div id="certUploadBox" onclick="document.getElementById('certInput').click()" class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
+                        <div id="certIcon" class="text-accentOrange">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        </div>
+                        <span id="certText" class="text-sm text-gray-700">اختر الشهادة لرفعها مباشرة</span>
+                    </div>
+
+                    <!-- ID Upload -->
+                    <input type="file" id="idInput" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="uploadFile('id')">
+                    <div id="idUploadBox" onclick="document.getElementById('idInput').click()" class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
+                        <div id="idIcon" class="text-accentOrange">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </div>
+                        <span id="idText" class="text-sm text-gray-700">اختر الهوية الشخصية أو جواز السفر لرفعها</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Review Pending -->
+            <div id="step-3" class="step-content hidden-step text-center">
+                <div class="my-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <h2 class="text-lg font-bold mb-3">تم تقديم طلبك بنجاح وجاري مراجعته!</h2>
+                <p id="pendingMsg" class="text-sm text-gray-500 mb-6 leading-relaxed"></p>
+                <button onclick="window.location.href='/'" class="border border-oliveGreen text-oliveGreen font-bold py-2 px-6 rounded-xl hover:bg-oliveGreen hover:text-white transition">العودة للرئيسية</button>
+            </div>
+
+            <!-- Step 4: Subject & Timing (Student) -->
+            <div id="step-4" class="step-content hidden-step">
+                <h2 class="text-lg font-bold mb-3">تحديد تفاصيل وموعد الحصة الدراسية</h2>
+                
+                <div class="mb-4">
+                    <label class="text-sm font-bold text-oliveGreen block mb-1">1. ما اسمك؟</label>
+                    <input type="text" id="studentName" placeholder="اكتب اسمك هنا" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                </div>
+
+                <div class="mb-4">
+                    <label class="text-sm font-bold text-oliveGreen block mb-1">2. أ. اختر المادة التعليمية:</label>
+                    <div id="subjectList" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="text-sm font-bold text-oliveGreen block mb-1">2. ب. ما هي مرحلتك الدراسية؟</label>
+                    <select id="studentGrade" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                        <option value="">اختر الصف الدراسي</option>
+                        <option>روضة الأطفال (تمهيدي)</option>
+                        <option>الصف الأول الابتدائي</option>
+                        <option>الصف الثاني الابتدائي</option>
+                        <option>الصف الثالث الابتدائي</option>
+                        <option>الصف الرابع الابتدائي</option>
+                        <option>الصف الخامس الابتدائي</option>
+                        <option>الصف السادس الابتدائي</option>
+                        <option>الصف الأول المتوسط</option>
+                        <option>الصف الثاني المتوسط</option>
+                        <option>الصف الثالث المتوسط</option>
+                        <option>الصف الأول الثانوي</option>
+                        <option>الصف الثاني الثانوي</option>
+                        <option>الصف الثالث الثانوي</option>
+                        <option>التعليم الجامعي المستمر</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-sm font-bold text-oliveGreen block mb-1">3. متى ترغب في بدء الحصة؟</label>
+                    <div class="flex gap-2">
+                        <button id="btnNow" onclick="setBookingType('now')" class="flex-1 py-2 border rounded-xl text-sm font-bold">فوراً الآن</button>
+                        <button id="btnSchedule" onclick="setBookingType('schedule')" class="flex-1 py-2 border rounded-xl text-sm font-bold">جدولة لوقت لاحق</button>
+                    </div>
+                    <div id="scheduleFields" class="hidden mt-3 flex gap-2">
+                        <input type="date" id="scheduleDate" class="flex-1 bg-beigeCard rounded-xl py-2 px-3 text-sm focus:outline-none">
+                        <input type="time" id="scheduleTime" class="flex-1 bg-beigeCard rounded-xl py-2 px-3 text-sm focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Primary Action Button -->
+            <button id="primaryBtn" onclick="handlePrimaryButton()" class="w-full bg-oliveGreen text-white font-bold py-3.5 rounded-xl mt-6 hover:bg-oliveLight transition flex items-center justify-center">
+                <span id="btnText">استمرار للمرحلة التالية</span>
+                <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            </button>
+
+        </div>
+    </main>
+
+    <script>
+        // ==========================================
+        // 🔥 Firebase Configuration
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+            authDomain: "labeeb-app-2026.firebaseapp.com",
+            projectId: "labeeb-app-2026",
+            storageBucket: "labeeb-app-2026.firebasestorage.app",
+            messagingSenderId: "201953565667",
+            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ==========================================
+        // ⚙️ State Variables
+        // ==========================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role') || 'student';
+        
+        let currentStep = 0;
+        let isSignUpMode = false;
+        let isLoading = false;
+        let verificationId = null;
+        let confirmationResult = null;
+        let selectedCountryCode = '+966';
+        let timerInterval = null;
+        let secondsLeft = 59;
+
+        let selectedCountry = null;
+        let selectedCity = null;
+        let selectedSubject = null;
+        let bookingType = 'now';
+        
+        let certificateUrl = null;
+        let certificateName = '';
+        let isProcessingFile = false;
+        let idUrl = null;
+        let idName = '';
+        let isProcessingIdFile = false;
+
+        const citiesMap = {
+            'المملكة العربية السعودية': ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام'],
+            'فلسطين': ['غزة', 'خان يونس', 'القدس', 'رام الله', 'الخليل'],
+            'جمهورية مصر العربية': ['القاهرة', 'الإسكندرية', 'المنصورة']
+        };
+
+        // 📚 قائمة المواد الموحدة (للطالب والمعلم)
+        const subjects = [
+            'القرآن الكريم والتجويد', 'التربية الإسلامية', 'الفقه وأصوله', 'اللغة العربية', 'النحو والصرف', 'الأدب العربي',
+            'الرياضيات', 'الجبر', 'الهندسة', 'حساب التفاضل والتكامل', 'الإحصاء', 'الفيزياء', 'الكيمياء', 'الأحياء', 'العلوم العامة',
+            'اللغة الإنجليزية', 'اللغة الفرنسية', 'الجغرافيا', 'التاريخ', 'علم الاجتماع', 'الفلسفة والمنطق', 'التربية الوطنية والمدنية',
+            'الحاسب الآلي', 'البرمجة', 'الروبوتات والذكاء الاصطناعي', 'التربية الفنية', 'التربية الموسيقية', 'التربية البدنية',
+            'التربية الخاصة', 'صعوبات التعلم', 'رياض الأطفال', 'علم النفس', 'التوجيه والإرشاد'
+        ];
+        let selectedSpecialties = [];
+
+        // 🎯 قائمة الفئات العمرية (للمعلم)
+        const teachingTargetAges = [
+            'روضة الأطفال (تمهيدي)', 'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي',
+            'الصف الرابع الابتدائي', 'الصف الخامس الابتدائي', 'الصف السادس الابتدائي',
+            'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط',
+            'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي',
+            'التعليم الجامعي المستمر'
+        ];
+        let selectedTargetAges = [];
+
+        // دالة رسم أزرار المواد/التخصصات
+        function renderList(array, containerId, selectedArray) {
+            const list = document.getElementById(containerId);
+            if(!list) return;
+            list.innerHTML = '';
+            array.forEach(item => {
+                const btn = document.createElement('button');
+                btn.innerText = item;
+                btn.type = 'button';
+                btn.onclick = () => {
+                    if (selectedArray.includes(item)) {
+                        const index = selectedArray.indexOf(item);
+                        selectedArray.splice(index, 1);
+                        btn.classList.remove('bg-oliveGreen', 'text-white', 'border-oliveGreen');
+                        btn.classList.add('bg-white', 'text-textDark', 'border-gray-300');
+                    } else {
+                        selectedArray.push(item);
+                        btn.classList.add('bg-oliveGreen', 'text-white', 'border-oliveGreen');
+                        btn.classList.remove('bg-white', 'text-textDark', 'border-gray-300');
+                    }
+                    
+                    // إذا كان الحاوية خاصة بالطالب، حدّث المادة المختارة
+                    if (containerId === 'subjectList') {
+                        selectedSubject = selectedArray.length > 0 ? selectedArray[selectedArray.length - 1] : null;
+                    }
+                };
+                btn.className = 'bg-white border border-gray-300 text-textDark text-xs font-bold py-2 px-3 rounded-lg hover:bg-gray-100 transition';
+                list.appendChild(btn);
+            });
+        }
+
+        // ==========================================
+        // 🛠️ Initialization
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set Role Title
+            document.getElementById('roleTitle').innerText = role === 'student' ? 'الطالب الطموح' : 'المعلم لبيب';
+            if (role === 'teacher') document.getElementById('teacherSignupLink').classList.remove('hidden');
+
+            // Render Subjects for Student & Teacher
+            renderList(subjects, 'subjectList', []);
+            renderList(subjects, 'specialtyList', selectedSpecialties);
+            renderList(teachingTargetAges, 'targetAgeList', selectedTargetAges);
+
+            // Country City Logic
+            document.getElementById('country').addEventListener('change', (e) => {
+                selectedCountry = e.target.value;
+                const citySelect = document.getElementById('city');
+                citySelect.innerHTML = '<option value="">اختر المدينة</option>';
+                if (citiesMap[selectedCountry]) {
+                    citiesMap[selectedCountry].forEach(c => {
+                        citySelect.innerHTML += `<option>${c}</option>`;
+                    });
+                }
+            });
+
+            // OTP Inputs Auto Advance
+            const otpInputs = document.querySelectorAll('.otp-input');
+            otpInputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    if (e.target.value.length === 1 && index < 5) {
+                        otpInputs[index + 1].focus();
+                    } else if (e.target.value.length === 0 && index > 0) {
+                        otpInputs[index - 1].focus();
+                    }
+                });
+            });
+
+            // Set default booking type
+            setBookingType('now');
+        });
+
+        // ==========================================
+        // 🔄 Navigation & UI Control
+        // ==========================================
+        function showStep(step) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden-step'));
+            document.getElementById(`step-${step}`).classList.remove('hidden-step');
+            
+            // Update progress bar
+            document.querySelectorAll('.step-bar').forEach((bar, idx) => {
+                if (idx <= step) bar.classList.replace('bg-oliveGreen/15', 'bg-oliveGreen');
+                else bar.classList.replace('bg-oliveGreen', 'bg-oliveGreen/15');
+            });
+
+            // Update Button Text
+            const btnText = document.getElementById('btnText');
+            if (step === 4) btnText.innerText = 'تأكيد الحصة والدخول الفوري 🚀';
+            else if (step === 2) btnText.innerText = 'تقديم طلب الحساب للمراجعة ✨';
+            else if (step === 3) btnText.innerText = ''; // Hide button on step 3
+            else btnText.innerText = 'استمرار للمرحلة التالية';
+
+            document.getElementById('primaryBtn').style.display = step === 3 ? 'none' : 'flex';
+        }
+
+        function goToStep(step) {
+            currentStep = step;
+            showStep(step);
+        }
+
+        function previousStep() {
+            if (currentStep === 1 || currentStep === 2 || currentStep === 3 || currentStep === 4) {
+                goToStep(0);
+            } else {
+                window.location.href = '/';
+            }
+        }
+
+        function setBookingType(type) {
+            bookingType = type;
+            const btnNow = document.getElementById('btnNow');
+            const btnSchedule = document.getElementById('btnSchedule');
+            
+            if (type === 'now') {
+                btnNow.classList.add('bg-accentOrange/10', 'border-accentOrange', 'text-accentOrange');
+                btnNow.classList.remove('border-gray-200');
+                btnSchedule.classList.remove('bg-accentOrange/10', 'border-accentOrange', 'text-accentOrange');
+                btnSchedule.classList.add('border-gray-200');
+                document.getElementById('scheduleFields').classList.add('hidden');
+            } else {
+                btnSchedule.classList.add('bg-accentOrange/10', 'border-accentOrange', 'text-accentOrange');
+                btnSchedule.classList.remove('border-gray-200');
+                btnNow.classList.remove('bg-accentOrange/10', 'border-accentOrange', 'text-accentOrange');
+                btnNow.classList.add('border-gray-200');
+                document.getElementById('scheduleFields').classList.remove('hidden');
+            }
+        }
+
+        function toggleLoading(state) {
+            isLoading = state;
+            document.getElementById('btnText').classList.toggle('hidden', state);
+            document.getElementById('btnSpinner').classList.toggle('hidden', !state);
+            document.getElementById('primaryBtn').disabled = state;
+        }
+
+        function showSnackBar(text, color) {
+            const snackbar = document.createElement('div');
+            snackbar.className = 'snackbar';
+            snackbar.style.backgroundColor = color;
+            snackbar.innerText = text;
+            document.body.appendChild(snackbar);
+            setTimeout(() => {
+                snackbar.remove();
+            }, 3500);
+        }
+
+        // ==========================================
+        // ☁️ Cloudinary Upload Logic (Calls FastAPI)
+        // ==========================================
+        async function uploadFile(type) {
+            const inputId = type === 'cert' ? 'certInput' : 'idInput';
+            const fileInput = document.getElementById(inputId);
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const user = auth.currentUser;
+            if (!user) {
+                showSnackBar('يجب تسجيل الدخول أولاً لرفع الملفات', '#D97706');
+                return;
+            }
+
+            if (type === 'cert') { isProcessingFile = true; document.getElementById('certText').innerText = 'جاري رفع الشهادة...'; }
+            else { isProcessingIdFile = true; document.getElementById('idText').innerText = 'جاري رفع الهوية / جواز السفر...'; }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', type === 'cert' ? 'certificates' : 'identity_documents');
+
+            try {
+                const token = await user.getIdToken();
+                const response = await fetch('/api/cloudinary/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.url) {
+                    if (type === 'cert') {
+                        certificateUrl = data.url;
+                        certificateName = file.name;
+                        document.getElementById('certText').innerText = `تم رفع الشهادة: ${file.name}`;
+                        document.getElementById('certText').classList.add('text-oliveGreen', 'font-bold');
+                        document.getElementById('certIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
+                        showSnackBar('تم رفع الشهادة بنجاح 📄', '#4E6B45');
+                    } else {
+                        idUrl = data.url;
+                        idName = file.name;
+                        document.getElementById('idText').innerText = `تم رفع الهوية: ${file.name}`;
+                        document.getElementById('idText').classList.add('text-oliveGreen', 'font-bold');
+                        document.getElementById('idIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
+                        showSnackBar('تم رفع الهوية أو جواز السفر بنجاح 🪪', '#4E6B45');
+                    }
+                } else {
+                    throw new Error(data.detail || 'Upload failed');
+                }
+            } catch (error) {
+                if (type === 'cert') {
+                    document.getElementById('certText').innerText = 'فشل رفع الشهادة';
+                    showSnackBar(`فشل رفع الملف: ${error.message}`, '#D97706');
+                } else {
+                    document.getElementById('idText').innerText = 'فشل رفع الهوية';
+                    showSnackBar(`فشل رفع ملف الهوية: ${error.message}`, '#D97706');
+                }
+            } finally {
+                if (type === 'cert') isProcessingFile = false;
+                else isProcessingIdFile = false;
+            }
+        }
+
+        // ==========================================
+        // 📱 OTP Logic
+        // ==========================================
+        function startOtpTimer() {
+            secondsLeft = 59;
+            document.getElementById('timerText').classList.remove('hidden');
+            document.getElementById('resendBtn').classList.add('hidden');
+            timerInterval = setInterval(() => {
+                secondsLeft--;
+                document.getElementById('timerText').innerText = `إعادة إرسال الرمز خلال ${secondsLeft} ثانية`;
+                if (secondsLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timerText').classList.add('hidden');
+                    document.getElementById('resendBtn').classList.remove('hidden');
+                }
+            }, 1000);
+        }
+
+        function normalizePhone(rawPhone) {
+            let cleaned = rawPhone.trim().replace(/[\s\-()]/g, '');
+            if (cleaned.startsWith('+')) return cleaned;
+            if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+            return `${selectedCountryCode}${cleaned}`;
+        }
+
+        function sendOtp(rawPhone) {
+            toggleLoading(true);
+            selectedCountryCode = document.getElementById('countryCode').value;
+            const fullPhone = normalizePhone(rawPhone);
+
+            const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                'size': 'invisible',
+                'callback': (response) => {
+                    // reCAPTCHA solved
+                }
+            });
+
+            auth.signInWithPhoneNumber(fullPhone, appVerifier)
+                .then((result) => {
+                    confirmationResult = result;
+                    verificationId = result.verificationId;
+                    toggleLoading(false);
+                    goToStep(1);
+                    document.getElementById('displayPhone').innerText = `${selectedCountryCode} ${rawPhone}`;
+                    startOtpTimer();
+                    showSnackBar('تم إرسال رمز التحقق بنجاح 📩', '#4E6B45');
+                }).catch((error) => {
+                    console.error('Firebase Auth Send OTP Error:', error);
+                    toggleLoading(false);
+                    showSnackBar(`تعذر إرسال الرمز: ${error.message}`, '#D97706');
+                });
+        }
+
+        function resendOtp() {
+            const phone = isSignUpMode ? document.getElementById('signupPhone').value : document.getElementById('phoneNumber').value;
+            sendOtp(phone);
+        }
+
+        // ==========================================
+        // 🛡️ Verification & Routing
+        // ==========================================
+        async function verifyOtp() {
+            const otpCodes = document.querySelectorAll('.otp-input');
+            const otp = Array.from(otpCodes).map(input => input.value.trim()).join('');
+            
+            if (otp.length < 6) {
+                showSnackBar('الرجاء إدخال الرمز كاملاً (6 أرقام)', '#D97706');
+                return;
+            }
+
+            toggleLoading(true);
+            try {
+                if (!confirmationResult) throw { message: 'انتهت الجلسة، يرجى طلب رمز تحقق جديد.' };
+                
+                const userCredential = await confirmationResult.confirm(otp);
+                const user = userCredential.user;
+                const phone = isSignUpMode ? normalizePhone(document.getElementById('signupPhone').value) : normalizePhone(document.getElementById('phoneNumber').value);
+
+                if (isSignUpMode) {
+                    await registerTeacherDirectly(user, phone);
+                    return;
+                }
+
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                const userData = userDoc.exists ? userDoc.data() : null;
+
+                // 🛡️ فحص صارم للصلاحيات لمنع تداخل الأدوار
+                if (userData && userData.role) {
+                    if (role === 'student' && userData.role === 'teacher') {
+                        await auth.signOut();
+                        throw new Error('هذا الرقم مسجل كمعلم. يرجى الدخول من بوابة المعلمين.');
+                    }
+                    if (role === 'teacher' && userData.role === 'student') {
+                        await auth.signOut();
+                        throw new Error('هذا الرقم مسجل كطالب. يرجى الدخول من بوابة الطلاب.');
+                    }
+                    if (role === 'teacher' && userData.role === 'admin') {
+                        await auth.signOut();
+                        throw new Error('هذا الرقم مخصص للإدارة فقط. يرجى استخدام لوحة تحكم المدير.');
+                    }
+                }
+
+                if (role === 'student') {
+                    if (!userData) {
+                        await db.collection('users').doc(user.uid).set({
+                            uid: user.uid,
+                            name: '',
+                            phone: phone,
+                            role: 'student',
+                            status: 'active',
+                            sessionCredits: 0, // ✨ تم إلغاء الحصة الترحيبية
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    } else if (userData.name && userData.name.trim() !== '' && userData.name !== 'طالب لبيب') {
+                        const studentName = encodeURIComponent(userData.name);
+                        window.location.href = `/student-dashboard?uid=${user.uid}&name=${studentName}&subject=الرياضيات&type=now`;
+                        return;
+                    }
+                    toggleLoading(false);
+                    goToStep(4);
+                } else { // Teacher
+                    if (userData && userData.role === 'teacher') {
+                        const status = userData.status || 'pending_approval';
+                        if (status === 'approved') {
+                            const teacherName = encodeURIComponent(userData.name || 'معلم لبيب');
+                            window.location.href = `/teacher-dashboard?name=${teacherName}`;
+                        } else {
+                            toggleLoading(false);
+                            goToStep(3);
+                            document.getElementById('pendingMsg').innerText = `أهلاً بك يا أستاذ ${userData.name || ''} في منصة لبيب. طلبك قيد المراجعة، يرجى انتظار قبول طلبك من لوحة إدارة المنصة ⏳`;
+                            showSnackBar('حسابك قيد المراجعة، يرجى انتظار قبول طلبك من لوحة إدارة المنصة ⏳', '#D97706');
+                        }
+                    } else {
+                        toggleLoading(false);
+                        document.getElementById('signupPhone').value = document.getElementById('phoneNumber').value;
+                        isSignUpMode = true;
+                        goToStep(2);
+                        showSnackBar('لا يوجد حساب معلم بهذا الرقم، أكمل بياناتك للتسجيل ✨', '#D97706');
+                    }
+                }
+            } catch (error) {
+                console.error('Verification Error:', error);
+                toggleLoading(false);
+                showSnackBar(`خطأ في التحقق: ${error.message || 'رمز التحقق غير صحيح، حاول مجدداً'}`, '#D97706');
+            }
+        }
+
+        async function registerTeacherDirectly(user, phone) {
+            try {
+                await db.collection('users').doc(user.uid).set({
+                    uid: user.uid,
+                    name: document.getElementById('fullName').value.trim(),
+                    phone: phone,
+                    role: 'teacher',
+                    country: document.getElementById('country').value,
+                    city: document.getElementById('city').value,
+                    subjects: selectedSpecialties, 
+                    targetAge: selectedTargetAges, 
+                    certificates: certificateUrl ? [certificateUrl] : [],
+                    certificateName: certificateName,
+                    identityUrl: idUrl,
+                    identityFileName: idName,
+                    status: 'pending_approval',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                toggleLoading(false);
+                goToStep(3);
+                document.getElementById('pendingMsg').innerText = `أهلاً بك يا أستاذ ${document.getElementById('fullName').value.trim()} في منصة لبيب. تم رفع شهادتك وهويتك وحفظ طلبك في قاعدة البيانات، وستصلك رسالة فور تفعيل الحساب من الإدارة.`;
+                showSnackBar('تم تقديم طلب التسجيل بنجاح ✅ سيتم مراجعة بياناتك قريباً', '#4E6B45');
+            } catch (error) {
+                toggleLoading(false);
+                showSnackBar(`حدث خطأ أثناء التسجيل: ${error.message}`, '#D97706');
+            }
+        }
+
+        async function createSessionRequest() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const studentName = document.getElementById('studentName').value.trim();
+            const subject = selectedSubject;
+            const studentGrade = document.getElementById('studentGrade').value;
+
+            if (!studentName) { showSnackBar('الرجاء إدخال اسمك أولاً للمتابعة', '#D97706'); return; }
+            if (!subject) { showSnackBar('الرجاء اختيار المادة التعليمية أولاً', '#D97706'); return; }
+            if (!studentGrade) { showSnackBar('الرجاء اختيار مرحلتك الدراسية', '#D97706'); return; }
+            if (bookingType === 'schedule' && (!document.getElementById('scheduleDate').value || !document.getElementById('scheduleTime').value)) {
+                showSnackBar('الرجاء اختيار تاريخ ووقت الحصة', '#D97706'); return;
+            }
+
+            toggleLoading(true);
+            try {
+                // 1. حفظ اسم الطالب ومرحلته في الداتابيز
+                await db.collection('users').doc(user.uid).set({
+                    name: studentName,
+                    grade: studentGrade,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                // 2. استدعاء الباك-ند لإنشاء الجلسة بعد فحص الرصيد بشكل آمن
+                const token = await user.getIdToken();
+                const formData = new FormData();
+                formData.append('studentName', studentName);
+                formData.append('subject', subject);
+                formData.append('topic', subject);
+                formData.append('grade', studentGrade);
+
+                const response = await fetch('/api/session/create', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'فشل إنشاء الطلب');
+                }
+
+                const result = await response.json();
+                const sessionId = result.sessionId;
+
+                // 3. إذا كان الطلب مجدول، نحدث الوقت في الجلسة
+                if (bookingType === 'schedule') {
+                    const dateStr = document.getElementById('scheduleDate').value;
+                    const timeStr = document.getElementById('scheduleTime').value;
+                    await db.collection('sessions').doc(sessionId).update({
+                        bookingType: 'schedule',
+                        scheduledAt: firebase.firestore.Timestamp.fromDate(new Date(`${dateStr}T${timeStr}`)),
+                        scheduledTime: timeStr
+                    });
+                }
+
+                // 4. الدخول للوحة التحكم
+                const nameEncoded = encodeURIComponent(studentName);
+                const subjectEncoded = encodeURIComponent(subject);
+                window.location.href = `/student-dashboard?uid=${user.uid}&name=${nameEncoded}&subject=${subjectEncoded}&type=${bookingType}`;
+
+            } catch (error) {
+                console.error('Create Session Error:', error);
+                toggleLoading(false);
+                
+                showSnackBar(`تم تسجيلك بنجاح، ولكن: ${error.message}. سيتم تحويلك للشحن.`, '#D97706');
+                
+                const fallbackName = encodeURIComponent(studentName);
+                const fallbackSubject = encodeURIComponent(subject || 'الرياضيات');
+                setTimeout(() => {
+                    window.location.href = `/student-dashboard?uid=${user.uid}&name=${fallbackName}&subject=${fallbackSubject}&type=${bookingType}`;
+                }, 3000);
+            }
+        }
+
+        // ==========================================
+        // 🎯 Main Button Handler
+        // ==========================================
+        function handlePrimaryButton() {
+            if (isLoading) return;
+
+            if (currentStep === 0) {
+                const phone = document.getElementById('phoneNumber').value.trim();
+                if (phone.length < 9) { showSnackBar('الرجاء إدخال رقم جوال صحيح', '#D97706'); return; }
+                isSignUpMode = false;
+                sendOtp(phone);
+            } 
+            else if (currentStep === 1) {
+                verifyOtp();
+            } 
+            else if (currentStep === 2) {
+                // Validate Teacher Form
+                if (!document.getElementById('signupPhone').value.trim() || 
+                    !document.getElementById('fullName').value.trim() || 
+                    !document.getElementById('country').value || 
+                    !document.getElementById('city').value || 
+                    selectedSpecialties.length === 0 || 
+                    selectedTargetAges.length === 0 || 
+                    !certificateUrl || !idUrl) {
+                    showSnackBar('الرجاء إدخال كافة الحقول ورفع الشهادة والهوية المطلوبة', '#D97706');
+                    return;
+                }
+                isSignUpMode = true;
+                const user = auth.currentUser;
+                const phone = normalizePhone(document.getElementById('signupPhone').value);
+                if (user) {
+                    registerTeacherDirectly(user, phone);
+                } else {
+                    sendOtp(document.getElementById('signupPhone').value);
+                }
+            } 
+            else if (currentStep === 4) {
+                createSessionRequest();
+            }
+        }
+    </script>
+</body>
+</html>

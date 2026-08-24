@@ -1,0 +1,125 @@
+/* ==========================================
+   🎨 منصة لبيب - نظام الثيم (LabeebTheme)
+   ========================================== */
+
+:root {
+  /* الألوان الأساسية */
+  --olive-green: #4E6B45;   /* زيتي خفيف ومريح للعين */
+  --olive-light: #708E67;   /* زيتي أفتح للأزرار الثانوية */
+  --beige-bg: #F4EFE6;      /* بيج دافئ للخلفية */
+  --beige-card: #FAF7F2;    /* بيج فاتح جداً للكروت */
+
+  /* النصوص */
+  --text-dark: #1E241B;     /* نص داكن مريح للقراءة */
+  --text-muted: #6B7280;    /* نص ثانوي باهت */
+
+  /* ألوان التأكيد */
+  --accent-gold: #C79A3B;   /* ذهبي للتأكيدات */
+  --accent-orange: #D97706; /* برتقالي للشخبطة والتنبيهات */
+}
+
+/* تطبيق الخط والاتجاه العام */
+body {
+  font-family: 'Cairo', sans-serif;
+  background-color: var(--beige-bg);
+  color: var(--text-dark);
+  direction: rtl;
+  text-align: right;
+  margin: 0;
+  padding: 0;
+}
+
+/* تعريف فئات الألوان للاستخدام السريع مع Tailwind */
+.bg-olive-green { background-color: var(--olive-green) !important; }
+.bg-olive-light { background-color: var(--olive-light) !important; }
+.bg-beige-bg { background-color: var(--beige-bg) !important; }
+.bg-beige-card { background-color: var(--beige-card) !important; }
+
+.text-dark { color: var(--text-dark) !important; }
+.text-muted { color: var(--text-muted) !important; }
+.text-gold { color: var(--accent-gold) !important; }
+.text-orange { color: var(--accent-orange) !important; }
+
+.text-olive-green { color: var(--olive-green) !important; }
+.text-olive-light { color: var(--olive-light) !important; }
+
+/* تنسيق الكروت الأساسية (محاكاة CardThemeData) */
+.card-labeeb {
+  background-color: var(--beige-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(78, 107, 69, 0.1);
+}
+
+/* تنسيق الأزرار الأساسية (محاكاة ElevatedButtonThemeData) */
+.btn-labeeb {
+  background-color: var(--olive-green);
+  color: white;
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+}
+
+.btn-labeeb:hover {
+  background-color: var(--olive-light);
+}
+
+.btn-labeeb-secondary {
+  background-color: var(--olive-light);
+  color: white;
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-labeeb-secondary:hover {
+  background-color: var(--olive-green);
+}
+
+/* العناوين */
+.headline-large {
+  color: var(--text-dark);
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.headline-medium {
+  color: var(--text-dark);
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.title-large {
+  color: var(--text-dark);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* نصوص الجسم */
+.body-large {
+  color: var(--text-dark);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.body-medium {
+  color: var(--text-dark);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.body-small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

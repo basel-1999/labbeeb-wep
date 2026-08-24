@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة المعلم - منصة لبيب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Firebase Web SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Session Check Service for Mic/Network checks -->
+    <script src="/static/js/session_service.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        oliveGreen: '#4E6B45',
+                        oliveLight: '#708E67',
+                        beigeBg: '#F4EFE6',
+                        beigeCard: '#FAF7F2',
+                        textDark: '#1E241B',
+                        accentGold: '#C79A3B',
+                        accentOrange: '#D97706',
+                    },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; color: #1E241B; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .snackbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 14px 24px; border-radius: 12px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 20px; opacity: 1; } }
+    </style>
+</head>
+<body class="pb-20">
+
+    <!-- Header / AppBar -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-oliveGreen">لبيب | بوابة المعلم</h1>
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-oliveGreen/15 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </div>
+                <div>
+                    <p id="teacherNameDisplay" class="text-sm font-bold text-textDark">أ. باسل أبو هدة</p>
+                    <p id="teacherStatusDisplay" class="text-xs text-gray-500">حساب جديد</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        
+        <!-- State 1: Loading Profile -->
+        <div id="loadingView" class="flex justify-center items-center h-64">
+            <svg class="animate-spin h-10 w-10 text-oliveGreen" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        </div>
+
+        <!-- State 2: Registration Form -->
+        <div id="registrationForm" class="hidden max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-8">
+            <h2 class="text-xl font-bold text-oliveGreen mb-2">🎓 إكمال ملف المعلم ورفع الشهادات</h2>
+            <p class="text-sm text-gray-500 mb-6">يرجى تعبئة بيانات التخصص وإرفاق الشهادة الجامعية للاعتماد من قبل إدارة المنصة.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-bold block mb-2">اختر التخصصات التي تدرسها (يمكنك اختيار أكثر من تخصص):</label>
+                    <div id="specialtyListDash" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-bold block mb-2">الفئة العمرية / الصفوف التي تدرسها (يمكن اختيار أكثر من فئة):</label>
+                    <div id="targetAgeListDash" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-bold block mb-1">سنوات الخبرة</label>
+                    <input type="number" id="experienceInput" class="w-full bg-beigeCard rounded-lg p-3 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-oliveGreen" placeholder="عدد سنوات الخبرة">
+                </div>
+                <div>
+                    <label class="text-sm font-bold block mb-2">الشهادة الجامعية أو المؤهل:</label>
+                    <input type="file" id="certificateInput" accept="image/*,.pdf" class="hidden">
+                    <div id="certUploadBox" onclick="document.getElementById('certificateInput').click()" class="border-2 border-dashed border-oliveGreen/50 rounded-lg p-4 text-center text-sm text-oliveGreen cursor-pointer hover:bg-oliveGreen/5">
+                        اضغط لاختيار ملف الشهادة (PDF / الصورة)
+                    </div>
+                </div>
+                <button id="submitRegBtn" onclick="submitRegistration()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-oliveLight transition">
+                    <span id="regBtnText">إرسال الطلب للاعتماد</span>
+                    <svg id="regBtnSpinner" class="hidden animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- State 3: Pending Approval -->
+        <div id="pendingApproval" class="hidden max-w-md mx-auto bg-white rounded-2xl shadow-md p-8 text-center mt-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-accentOrange mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <h2 class="text-xl font-bold text-textDark mb-2">طلبك قيد المراجعة</h2>
+            <p class="text-sm text-gray-500 mb-6">شكراً لتقديمك! يتم حالياً تدقيق شهاداتك وبياناتك من قبل فريق منصة "لبيب". سنقوم بتفعيل لوحة تحكمك فور الاعتماد.</p>
+            <button onclick="checkTeacherAccount()" class="border border-oliveGreen text-oliveGreen font-bold py-2 px-4 rounded-lg flex items-center gap-2 mx-auto hover:bg-oliveGreen/10">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                تحديث حالة الطلب
+            </button>
+        </div>
+
+        <!-- State 4: Approved Dashboard -->
+        <div id="dashboardView" class="hidden">
+            <div class="bg-white border border-oliveGreen/30 rounded-2xl p-4 flex items-center mb-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-oliveGreen ml-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                <p class="text-sm text-textDark">ملاحظة: لوحة التحكم خالية من النوافذ التلقائية. يمكنك بدء الجلسات المقبولة مباشرة في مواعيدها.</p>
+            </div>
+
+            <h2 class="text-xl font-bold text-textDark mb-4">📋 جدول الجلسات المقبولة والقادمة</h2>
+            <div id="sessionsContainer" class="space-y-4">
+                <div class="bg-white p-10 rounded-2xl text-center text-gray-500">لا توجد جلسات مسندة إليك حالياً.</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Pre-flight Checklist Modal -->
+    <div id="preFlightModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6">
+            <h3 class="text-center font-bold text-lg mb-6">الفحص المسبق للجلسة</h3>
+            
+            <div class="space-y-4 mb-6">
+                <div class="flex items-center gap-3">
+                    <div id="micIcon" class="p-2 bg-red-100 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm">فحص الميكروفون</p>
+                        <p id="micStatus" class="text-xs text-gray-500">لم يتم اكتشاف ميكروفون</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div id="netIcon" class="p-2 bg-red-100 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm">اتصال الإنترنت</p>
+                        <p id="netStatus" class="text-xs text-gray-500">الشبكة غير متصلة أو ضعيفة</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mb-6">
+                <button id="runCheckBtn" onclick="runPreFlightChecks()" class="bg-oliveGreen text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-oliveLight">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    إجراء الفحص الآن
+                </button>
+                <div id="checkSpinner" class="hidden animate-spin h-6 w-6 text-oliveGreen"></div>
+            </div>
+
+            <div class="flex justify-between gap-3">
+                <button onclick="closeModal('preFlightModal')" class="text-gray-500 font-bold text-sm">إلغاء</button>
+                <button onclick="startSession()" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-green-700">بدء الجلسة الآن 🎓</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+            authDomain: "labeeb-app-2026.firebaseapp.com",
+            projectId: "labeeb-app-2026",
+            storageBucket: "labeeb-app-2026.firebasestorage.app",
+            messagingSenderId: "201953565667",
+            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const teacherName = urlParams.get('name') || 'أ. باسل أبو هدة';
+
+        let currentUser = null;
+        let teacherStatus = null;
+        let activeSessionsListener = null;
+        let selectedSessionData = null;
+        let micReady = false;
+        let netReady = false;
+
+        document.getElementById('teacherNameDisplay').innerText = teacherName;
+
+        // ==========================================
+        // 📚 قائمة التخصصات الدراسية للمعلم
+        // ==========================================
+        const teachingSpecialtiesDash = [
+            'القرآن الكريم والتجويد', 'التربية الإسلامية', 'الفقه وأصوله', 'اللغة العربية', 'النحو والصرف', 'الأدب العربي',
+            'الرياضيات', 'الجبر', 'الهندسة', 'حساب التفاضل والتكامل', 'الإحصاء', 'الفيزياء', 'الكيمياء', 'الأحياء', 'العلوم العامة',
+            'اللغة الإنجليزية', 'اللغة الفرنسية', 'الجغرافيا', 'التاريخ', 'علم الاجتماع', 'الفلسفة والمنطق', 'التربية الوطنية والمدنية',
+            'الحاسب الآلي', 'البرمجة', 'الروبوتات والذكاء الاصطناعي', 'التربية الفنية', 'التربية الموسيقية', 'التربية البدنية',
+            'التربية الخاصة', 'صعوبات التعلم', 'رياض الأطفال', 'علم النفس', 'التوجيه والإرشاد'
+        ];
+        let selectedSpecialtiesDash = [];
+
+        function renderSpecialtyListDash() {
+            const list = document.getElementById('specialtyListDash');
+            if(!list) return;
+            list.innerHTML = '';
+            teachingSpecialtiesDash.forEach(sub => {
+                const btn = document.createElement('button');
+                btn.innerText = sub;
+                btn.type = 'button';
+                btn.onclick = () => {
+                    if (selectedSpecialtiesDash.includes(sub)) {
+                        selectedSpecialtiesDash = selectedSpecialtiesDash.filter(s => s !== sub);
+                        btn.classList.remove('bg-oliveGreen', 'text-white', 'border-oliveGreen');
+                        btn.classList.add('bg-white', 'text-textDark', 'border-gray-300');
+                    } else {
+                        selectedSpecialtiesDash.push(sub);
+                        btn.classList.add('bg-oliveGreen', 'text-white', 'border-oliveGreen');
+                        btn.classList.remove('bg-white', 'text-textDark', 'border-gray-300');
+                    }
+                };
+                btn.className = 'bg-white border border-gray-300 text-textDark text-xs font-bold py-2 px-3 rounded-lg hover:bg-gray-100 transition';
+                list.appendChild(btn);
+            });
+        }
+
+        // 🎯 قائمة الفئات العمرية
+        const teachingTargetAgesDash = [
+            'روضة الأطفال (تمهيدي)', 'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي',
+            'الصف الرابع الابتدائي', 'الصف الخامس الابتدائي', 'الصف السادس الابتدائي',
+            'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط',
+            'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي',
+            'التعليم الجامعي المستمر'
+        ];
+        let selectedTargetAgesDash = [];
+
+        function renderTargetAgeListDash() {
+            const list = document.getElementById('targetAgeListDash');
+            if(!list) return;
+            list.innerHTML = '';
+            teachingTargetAgesDash.forEach(age => {
+                const btn = document.createElement('button');
+                btn.innerText = age;
+                btn.type = 'button';
+                btn.onclick = () => {
+                    if (selectedTargetAgesDash.includes(age)) {
+                        selectedTargetAgesDash = selectedTargetAgesDash.filter(a => a !== age);
+                        btn.classList.remove('bg-oliveGreen', 'text-white', 'border-oliveGreen');
+                        btn.classList.add('bg-white', 'text-textDark', 'border-gray-300');
+                    } else {
+                        selectedTargetAgesDash.push(age);
+                        btn.classList.add('bg-oliveGreen', 'text-white', 'border-oliveGreen');
+                        btn.classList.remove('bg-white', 'text-textDark', 'border-gray-300');
+                    }
+                };
+                btn.className = 'bg-white border border-gray-300 text-textDark text-xs font-bold py-2 px-3 rounded-lg hover:bg-gray-100 transition';
+                list.appendChild(btn);
+            });
+        }
+
+        // استدعاء الدوال عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSpecialtyListDash();
+            renderTargetAgeListDash();
+        });
+
+        // ==========================================
+        // 🔍 التحقق من حالة المعلم
+        // ==========================================
+                // متغير عام لحفظ تخصصات المعلم
+                let mySpecialties = [];
+        let myTargetAges = []; // ✨
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    mySpecialties = userDoc.data().subjects || [];
+                    myTargetAges = userDoc.data().targetAge || []; // ✨
+                }
+                checkTeacherAccount();
+            } else {
+                window.location.href = '/';
+            }
+        });
+
+        function checkTeacherAccount() {
+            document.getElementById('loadingView').classList.remove('hidden');
+            document.getElementById('registrationForm').classList.add('hidden');
+            document.getElementById('pendingApproval').classList.add('hidden');
+            document.getElementById('dashboardView').classList.add('hidden');
+
+            db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    teacherStatus = data.status ?? 'pending_approval';
+                    
+                    updateStatusUI(teacherStatus);
+
+                    if (teacherStatus === 'approved') {
+                        startListeningToSessions();
+                    }
+                } else {
+                    teacherStatus = null;
+                    updateStatusUI(null);
+                }
+            });
+        }
+
+        function updateStatusUI(status) {
+            document.getElementById('loadingView').classList.add('hidden');
+            
+            const statusText = document.getElementById('teacherStatusDisplay');
+            
+            if (status === 'approved') {
+                statusText.innerText = 'معلم معتمد';
+                statusText.classList.remove('text-gray-500');
+                statusText.classList.add('text-green-600');
+                document.getElementById('dashboardView').classList.remove('hidden');
+            } else if (status === 'pending_approval') {
+                statusText.innerText = 'قيد المراجعة';
+                statusText.classList.remove('text-gray-500');
+                statusText.classList.add('text-accentOrange');
+                document.getElementById('pendingApproval').classList.remove('hidden');
+            } else {
+                statusText.innerText = 'حساب جديد';
+                statusText.classList.add('text-gray-500');
+                document.getElementById('registrationForm').classList.remove('hidden');
+            }
+        }
+
+        // ==========================================
+        // 📤 رفع الشهادة (FastAPI)
+        // ==========================================
+        document.getElementById('certificateInput').addEventListener('change', (e) => {
+            const fileName = e.target.files[0]?.name || 'اضغط لاختيار ملف الشهادة (PDF / الصورة)';
+            document.getElementById('certUploadBox').innerText = fileName;
+            document.getElementById('certUploadBox').classList.add('font-bold');
+        });
+
+        async function submitRegistration() {
+            const experience = document.getElementById('experienceInput').value.trim();
+            const fileInput = document.getElementById('certificateInput');
+
+            if (selectedSpecialtiesDash.length === 0) { showSnackBar('يرجى اختيار تخصص واحد على الأقل', '#D97706'); return; }
+            if (selectedTargetAgesDash.length === 0) { showSnackBar('يرجى اختيار فئة عمرية واحدة على الأقل', '#D97706'); return; }
+            if (!experience) { showSnackBar('يرجى إدخال عدد السنوات', '#D97706'); return; }
+            if (!fileInput.files[0]) { showSnackBar('يرجى اختيار ملف الشهادة أولاً', '#ef4444'); return; }
+
+            document.getElementById('regBtnText').classList.add('hidden');
+            document.getElementById('regBtnSpinner').classList.remove('hidden');
+
+            try {
+                const token = await currentUser.getIdToken();
+                
+                // 1. Upload to FastAPI
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('folder', 'certificates');
+
+                const uploadRes = await fetch('/api/cloudinary/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+
+                if (!uploadData.url) throw new Error('فشل رفع الملف إلى Cloudinary.');
+
+                // 2. Save to Firestore via FastAPI
+                const regFormData = new FormData();
+                regFormData.append('subject', selectedSpecialtiesDash.join('، '));
+                regFormData.append('targetAge', selectedTargetAgesDash.join('، '));
+                regFormData.append('experience', parseInt(experience) || 0);
+                regFormData.append('certificateUrl', uploadData.url);
+                regFormData.append('certificateName', fileInput.files[0].name);
+
+                const regRes = await fetch('/api/teacher/register', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: regFormData
+                });
+
+                if (!regRes.ok) {
+                    const err = await regRes.json();
+                    throw new Error(err.detail || 'فشل حفظ البيانات');
+                }
+
+                showSnackBar('تم إرسال بياناتك وشهادتك للإدارة بنجاح!', '#4E6B45');
+
+            } catch (e) {
+                showSnackBar(`حدث خطأ أثناء الرفع: ${e.message}`, '#ef4444');
+            } finally {
+                document.getElementById('regBtnText').classList.remove('hidden');
+                document.getElementById('regBtnSpinner').classList.add('hidden');
+            }
+        }
+
+           // ==========================================
+        // 🔔 الاستماع للجلسات
+        // ==========================================
+        function startListeningToSessions() {
+            const container = document.getElementById('sessionsContainer');
+            
+            if (activeSessionsListener) activeSessionsListener();
+
+            activeSessionsListener = db.collection('sessions')
+                .onSnapshot((snapshot) => {
+                    const loadedSessions = [];
+
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const status = data.status ?? 'pending';
+                        const assignedTeacherId = data.teacherId;
+
+                        const isPending = status === 'pending';
+                        const isMySession = assignedTeacherId === currentUser.uid;
+
+                        // ✨ الفلترة الذكية (تطبق فقط على الطلبات المعلقة الجديدة)
+                        if (isPending) {
+                            // إذا كان الطلب معلقاً، تحقق هل هو من تخصصي ومرحلتي؟ إذا لا، تخطاه
+                            if (!mySpecialties.includes(data.subject)) return; 
+                            if (data.grade && !myTargetAges.includes(data.grade)) return; 
+                        }
+
+                        // إظهار الطلب إذا كان (معلقاً ومطابقاً) أو (مسنداً إليّ ولم ينتهِ بعد)
+                        if ((isPending || isMySession) && status !== 'completed' && status !== 'cancelled') {
+                            let startTime;
+                            const bookingType = data.bookingType ?? 'now';
+                            const scheduledAt = data.scheduledAt;
+
+                            if (bookingType === 'schedule' && scheduledAt) {
+                                startTime = scheduledAt.toDate();
+                            } else if (data.createdAt) {
+                                startTime = data.createdAt.toDate();
+                                startTime.setMinutes(startTime.getMinutes() + 5);
+                            } else {
+                                startTime = new Date();
+                                startTime.setMinutes(startTime.getMinutes() + 10);
+                            }
+
+                            loadedSessions.push({
+                                id: doc.id,
+                                student: data.studentName ?? 'طالب لبيب',
+                                grade: data.grade ?? 'المرحلة الدراسية',
+                                subject: data.subject ?? 'عام',
+                                topic: data.topic ?? data.subject ?? 'درس مباشر',
+                                timeText: data.scheduledTime ?? 'الموعد المحدد',
+                                startTime: startTime,
+                                rawStatus: status,
+                                statusText: status === 'completed' ? 'مكتملة' : (status === 'pending' ? 'طلب جديد بانتظار القبول' : 'جاهزة للبدء')
+                            });
+                        }
+                    });
+
+                    if (loadedSessions.length === 0) {
+                        container.innerHTML = `<div class="bg-white p-10 rounded-2xl text-center text-gray-500">لا توجد جلسات مسندة إليك حالياً.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = '';
+                    loadedSessions.forEach((req) => {
+                        const now = new Date();
+                        const diff = (req.startTime - now) / 1000; // seconds
+                        const isStartAllowed = diff <= (15 * 60) && diff >= -(60 * 60);
+                        const isPending = req.rawStatus === 'pending';
+
+                        let actionHtml = '';
+                        if (isPending) {
+                            actionHtml = `<button onclick="acceptSession('${req.id}')" class="bg-oliveGreen text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> قبول الطلب الآن</button>`;
+                        } else {
+                            actionHtml = `
+                                <button onclick="showSnackBar('تم فتح نافذة رفع المواد والملخصات.', '#4E6B45')" class="border border-oliveGreen text-oliveGreen text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> إرفاق ملفات</button>
+                                <button onclick="openPreFlightModal('${req.id}', '${req.student}')" ${!isStartAllowed ? 'disabled' : ''} class="${isStartAllowed ? 'bg-accentOrange text-white' : 'bg-gray-300 text-gray-500'} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    ${isStartAllowed ? 'بدء الجلسة / الفحص 🎙️' : 'في انتظار الموعد'}
+                                </button>
+                            `;
+                        }
+
+                        const statusBadge = isPending ? '🟡 طلب جديد بانتظار القبول' : (isStartAllowed ? '🔴 القاعة جاهزة للبدء الآن' : `${req.timeText} (تبدأ خلال ${Math.round(diff / 60)} دقيقة)`);
+                        const statusColor = isPending ? 'text-gray-500' : (isStartAllowed ? 'text-green-600' : 'text-accentOrange');
+
+                        const card = `
+                            <div class="bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="bg-oliveGreen/10 text-oliveGreen text-xs font-bold px-2 py-1 rounded">طلب #${req.id.substring(0,6)}</span>
+                                        <span class="${statusColor} text-xs font-bold">${statusBadge}</span>
+                                    </div>
+                                    <h4 class="text-base font-bold text-textDark">الطالب: ${req.student}</h4>
+                                    <p class="text-xs text-gray-500">${req.subject} • ${req.grade} (موضوع الدرس: ${req.topic})</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    ${actionHtml}
+                                </div>
+                            </div>
+                        `;
+                        container.innerHTML += card;
+                    });
+                });
+        }
+
+        async function acceptSession(sessionId) {
+            try {
+                const token = await currentUser.getIdToken();
+                const formData = new FormData();
+                formData.append('teacherId', currentUser.uid);
+                formData.append('teacherName', teacherName);
+
+                const res = await fetch(`/api/session/accept/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (res.ok) {
+                    showSnackBar('تم قبول الطلب بنجاح! 🎯', '#10b981');
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'فشل القبول');
+                }
+            } catch (e) {
+                showSnackBar(`فشل القبول: ${e.message}`, '#ef4444');
+            }
+        }
+
+        // ==========================================
+        // 🩺 الفحص المسبق (Pre-flight)
+        // ==========================================
+        function openPreFlightModal(sessionId, studentName) {
+            selectedSessionData = { id: sessionId, student: studentName };
+            micReady = false;
+            netReady = false;
+            document.getElementById('micStatus').innerText = 'لم يتم اكتشاف ميكروفون';
+            document.getElementById('netStatus').innerText = 'الشبكة غير متصلة أو ضعيفة';
+            openModal('preFlightModal');
+        }
+
+        async function runPreFlightChecks() {
+            document.getElementById('runCheckBtn').classList.add('hidden');
+            document.getElementById('checkSpinner').classList.remove('hidden');
+
+            // Check Mic
+            micReady = await SessionCheckService.checkMicrophone();
+            const micIcon = document.getElementById('micIcon');
+            const micStatus = document.getElementById('micStatus');
+            if (micReady) {
+                micIcon.classList.remove('bg-red-100');
+                micIcon.classList.add('bg-green-100');
+                micIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                micStatus.innerText = 'الميكروفون يعمل بنجاح';
+                micStatus.classList.remove('text-gray-500');
+                micStatus.classList.add('text-green-600');
+            }
+
+            // Check Network
+            const latency = await SessionCheckService.checkNetworkLatency();
+            netReady = latency > 0 && latency < 1000;
+            const netIcon = document.getElementById('netIcon');
+            const netStatus = document.getElementById('netStatus');
+            if (netReady) {
+                netIcon.classList.remove('bg-red-100');
+                netIcon.classList.add('bg-green-100');
+                netIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                netStatus.innerText = `الاتصال ممتاز (${latency} ms)`;
+                netStatus.classList.remove('text-gray-500');
+                netStatus.classList.add('text-green-600');
+            }
+
+            document.getElementById('runCheckBtn').classList.remove('hidden');
+            document.getElementById('checkSpinner').classList.add('hidden');
+        }
+
+        function startSession() {
+            closeModal('preFlightModal');
+            if (!micReady) {
+                showSnackBar('⚠️ تنبيه: لم يتم اكتشاف ميكروفون. يتم الدخول للجلسة والمحاولة بالخلفية...', '#D97706');
+            }
+
+            const sessionId = encodeURIComponent(selectedSessionData.id || 'unknown_session');
+            const studentName = encodeURIComponent(selectedSessionData.student || 'طالب');
+            window.location.href = `/live-session?sessionId=${sessionId}&role=teacher&studentName=${studentName}`;
+        }
+
+        // ==========================================
+        // 🛠️ Utilities
+        // ==========================================
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function showSnackBar(text, color) {
+            const snackbar = document.createElement('div');
+            snackbar.className = 'snackbar';
+            snackbar.style.backgroundColor = color;
+            snackbar.innerText = text;
+            document.body.appendChild(snackbar);
+            setTimeout(() => snackbar.remove(), 3500);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة البث المباشر - منصة لبيب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Agora Web SDK -->
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+    <!-- PDF & Screenshot Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        oliveGreen: '#4E6B45',
+                        accentOrange: '#D97706',
+                    },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #1E1E1E; color: white; overflow: hidden; }
+        #whiteboard { background-color: white; cursor: crosshair; touch-action: none; width: 100%; height: 100%; display: block; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .snackbar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { bottom: 0; opacity: 0; } to { bottom: 80px; opacity: 1; } }
+
+                /* 🎨 Animations CSS */
+        .anim-object { position: absolute; font-size: 100px; z-index: 50; pointer-events: none; animation: popUp 2.5s ease-out forwards; }
+        @keyframes popUp { 0% { transform: scale(0) rotate(0deg); opacity: 0; } 20% { transform: scale(1.2) rotate(10deg); opacity: 1; } 80% { transform: scale(1) rotate(0deg); opacity: 1; } 100% { transform: scale(1.5) translateY(-50px); opacity: 0; } }
+        .balloon { position: absolute; font-size: 60px; animation: floatUp 3s ease-in forwards; }
+        @keyframes floatUp { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(-20vh) rotate(15deg); opacity: 0; } }
+        .firework-particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: explode 1.5s ease-out forwards; }
+        @keyframes explode { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- App Bar -->
+    <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0">
+        <div class="flex items-center bg-black/40 rounded-lg px-2 py-1 border border-white/20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-amber-400 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span id="timerDisplay" class="text-xs font-bold text-white">01:00:00</span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <svg id="micStatusIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+            <span id="sessionTitle" class="text-sm font-medium">جلسة مع المعلم</span>
+        </div>
+
+        <div class="flex items-center gap-2 relative">
+            <button onclick="toggleChat()" class="p-2 hover:bg-white/10 rounded-lg relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                <span id="chatBadge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
+            </button>
+            <button id="undoBtn" onclick="undoStroke()" class="p-2 hover:bg-white/10 rounded-lg hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+            </button>
+            <button id="clearBtn" onclick="clearBoard()" class="p-2 hover:bg-white/10 rounded-lg hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Whiteboard Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Toolbar (Teacher Only) -->
+            <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 overflow-x-auto hidden">
+                <span class="text-sm text-white/70 ml-2">الألوان:</span>
+                <button onclick="selectColor('black', 4)" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
+                <button onclick="selectColor('red', 4)" class="w-7 h-7 rounded-full bg-red-500 border-2 border-white/30 shrink-0"></button>
+                <button onclick="selectColor('blue', 4)" class="w-7 h-7 rounded-full bg-blue-500 border-2 border-white/30 shrink-0"></button>
+                <button onclick="selectColor('green', 4)" class="w-7 h-7 rounded-full bg-green-500 border-2 border-white/30 shrink-0"></button>
+                <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> ممحاة
+                </button>
+                <div class="h-6 w-px bg-white/20 mx-2"></div>
+                
+                <!-- 🎉 أزرار التفاعل والتحفيز -->
+                <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
+                <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
+                <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
+                <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❓</button>
+                <button onclick="triggerAnimation('fireworks')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎆</button>
+            </div>
+
+            <!-- Canvas -->
+            <div class="flex-1 relative bg-white">
+                <canvas id="whiteboard"></canvas>
+                <!-- Floating Animations Container -->
+<div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
+            </div>
+        </div>
+
+        <!-- Screen Share View -->
+        <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black hidden flex-col shrink-0">
+            <div class="bg-amber-400 text-black text-center font-bold py-1 text-sm">شاشة المعلم</div>
+            <div id="screenSharePlayer" class="flex-1 w-full h-full"></div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div id="chatPanel" class="w-72 bg-[#252525] flex-col shrink-0 hidden">
+            <div class="bg-[#2C2C2C] p-3 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    <h3 class="font-bold text-sm">الدردشة الحية</h3>
+                </div>
+                <button onclick="toggleChat()" class="text-white/70 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-2 space-y-2">
+                <div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
+            </div>
+            <div class="p-2 bg-[#1E1E1E] flex gap-2">
+                <!-- ✨ إضافة onkeydown لإرسال الرسالة عند الضغط على Enter -->
+                <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
+                <button onclick="sendMessage()" class="text-amber-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Controls -->
+    <footer class="bg-[#2C2C2C] h-16 flex items-center justify-center gap-6 shrink-0">
+        <button id="muteBtn" onclick="toggleMute()" class="p-3 rounded-full bg-green-600 hover:bg-green-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+        </button>
+        
+        <button id="screenShareBtn" onclick="toggleScreenShare()" class="hidden p-3 rounded-full bg-white/10 hover:bg-white/20 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+        </button>
+
+        <button id="endSessionBtn" onclick="confirmEndSession()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1m0 0V6m0-1h1m3 0h2m-3 0h1m6 0h2m-6 0H6m12 0h1m-1 0h1m-1 0h1" /></svg>
+            <span id="endSessionText">إنهاء الجلسة</span>
+        </button>
+    </footer>
+
+    <!-- Modals -->
+    <div id="extendModal" class="modal fixed inset-0 bg-black/70 z-50 items-center justify-center">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center text-gray-800">
+            <h3 class="font-bold text-lg mb-4">تمديد الحصة</h3>
+            <p class="text-sm mb-6">تبقى دقيقتان على نهاية الحصة. هل ترغب في تمديد الحصة لساعة إضافية؟ (سيتم خصم حصة من رصيدك)</p>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeModal('extendModal')" class="text-gray-500 font-bold text-sm">لا، أكمل الحصة</button>
+                <button onclick="extendSession()" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm">نعم، امتد الحصة</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="endSessionModal" class="modal fixed inset-0 bg-black/80 z-50 items-center justify-center">
+        <div class="bg-[#2C2C2C] rounded-2xl p-6 max-w-md w-full">
+            <h3 id="endModalTitle" class="font-bold text-lg mb-4 text-white">إنهاء الجلسة</h3>
+            <div id="endModalContent">
+                <p class="text-white/70 text-sm mb-4">هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟</p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeModal('endSessionModal')" class="text-white/50 text-sm">إلغاء</button>
+                    <button onclick="startExportProcess()" class="bg-red-600 text-white font-bold px-4 py-2 rounded-lg text-sm">إنهاء وحفظ</button>
+                </div>
+            </div>
+            <div id="endModalProgress" class="hidden">
+                <p id="progressStatus" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
+                <div class="w-full bg-white/10 rounded-full h-2.5 mb-2">
+                    <div id="progressBar" class="bg-amber-400 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="progressPercent" class="text-white/50 text-xs text-right">0%</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Audio Elements -->
+    <audio id="sound_trophy" src="/static/sounds/trophy.mp3"></audio>
+    <audio id="sound_balloons" src="/static/sounds/balloons.mp3"></audio>
+    <audio id="sound_heart" src="/static/sounds/heart.mp3"></audio>
+    <audio id="sound_question" src="/static/sounds/question.mp3"></audio>
+    <audio id="sound_fireworks" src="/static/sounds/fireworks.mp3"></audio>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+            authDomain: "labeeb-app-2026.firebaseapp.com",
+            projectId: "labeeb-app-2026",
+            storageBucket: "labeeb-app-2026.firebasestorage.app",
+            messagingSenderId: "201953565667",
+            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('sessionId') || 'unknown_session';
+        const role = urlParams.get('role') || 'student';
+        const studentName = urlParams.get('studentName') || 'طالب';
+        const isTeacher = role === 'teacher';
+
+        let currentUser = null;
+        let selectedColor = 'black';
+        let strokeWidth = 4.0;
+        let isEraser = false;
+        let isDrawing = false;
+        let currentStroke = [];
+        let strokeDocIds = [];
+        let isChatOpen = false;
+        let unreadMessages = 0; // ✨ عداد الرسائل غير المقروءة
+        let isMuted = false;
+        let isScreenSharing = false;
+        let screenShareUid = 0;
+        let remainingSeconds = 3600;
+        let hasShown10MinWarning = false;
+        let hasShown2MinWarning = false;
+        let extensionCount = 0;
+        let sessionTimer = null;
+        let agoraEngine = null;
+        let localAudioTrack = null;
+        let screenShareClient = null;
+        const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                initUI();
+                initCanvas();
+                initAgora();
+                startSessionTimer();
+                listenToWhiteboard();
+                listenToChat();
+                listenToSessionState();
+                listenToAnimations(); // ✨ الاستماع للأنيميشن
+                
+                                // Handle window close or back button
+                                // Handle window close or back button
+                window.addEventListener('beforeunload', async (event) => {
+                    if (agoraEngine) await agoraEngine.leave();
+                    if (screenShareClient) await screenShareClient.leave();
+                    
+                    try {
+                        const doc = await db.collection('sessions').doc(sessionId).get();
+                        // ✨ لا تقم بتعديل الحالة إلى 'interrupted' إذا كانت الجلسة قد اكتملت بالفعل!
+                        if (doc.exists && doc.data().status !== 'completed') {
+                            await db.collection('sessions').doc(sessionId).update({
+                                'status': 'interrupted',
+                                'interruptedBy': isTeacher ? 'teacher' : 'student'
+                            });
+                        }
+                    } catch (e) {}
+                });
+            } else {
+                window.location.href = '/';
+            }
+        });
+
+               function initUI() {
+            document.getElementById('sessionTitle').innerText = isTeacher ? `جلسة مع الطالب: ${studentName}` : 'جلسة مع المعلم';
+            
+            // إظهار أدوات التحكم للمعلم فقط
+            if (isTeacher) {
+                document.getElementById('teacherToolbar').classList.remove('hidden');
+                document.getElementById('undoBtn').classList.remove('hidden');
+                document.getElementById('clearBtn').classList.remove('hidden');
+            } else {
+                document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
+                document.getElementById('endSessionBtn').classList.remove('bg-red-600');
+                document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
+            }
+            
+            // ✨ إظهار زر مشاركة الشاشة لكلا الطرفين
+            document.getElementById('screenShareBtn').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 🎨 Whiteboard
+        // ==========================================
+        const canvas = document.getElementById('whiteboard');
+        const ctx = canvas.getContext('2d');
+
+        function initCanvas() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', endDraw);
+            canvas.addEventListener('mouseleave', endDraw);
+            canvas.addEventListener('touchstart', handleTouch);
+            canvas.addEventListener('touchmove', handleTouch);
+            canvas.addEventListener('touchend', endDraw);
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            redrawCanvas();
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+        }
+
+        function startDraw(e) {
+            if (!isTeacher) return;
+            isDrawing = true;
+            const pos = getMousePos(e);
+            currentStroke = [{ dx: pos.x, dy: pos.y, color: isEraser ? 'white' : selectedColor, strokeWidth: strokeWidth }];
+            drawStroke(currentStroke);
+        }
+
+        function draw(e) {
+            if (!isTeacher || !isDrawing) return;
+            const pos = getMousePos(e);
+            const point = { dx: pos.x, dy: pos.y, color: isEraser ? 'white' : selectedColor, strokeWidth: strokeWidth };
+            currentStroke.push(point);
+            ctx.beginPath();
+            ctx.lineWidth = currentStroke[currentStroke.length - 2].strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = currentStroke[currentStroke.length - 2].color;
+            ctx.moveTo(currentStroke[currentStroke.length - 2].dx * canvas.width, currentStroke[currentStroke.length - 2].dy * canvas.height);
+            ctx.lineTo(point.dx * canvas.width, point.dy * canvas.height);
+            ctx.stroke();
+        }
+
+        function endDraw() {
+            if (!isTeacher || !isDrawing) return;
+            isDrawing = false;
+            if (currentStroke.length > 0) {
+                db.collection('sessions').doc(sessionId).collection('strokes').add({
+                    points: currentStroke,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(e => console.error("Error saving stroke:", e));
+                currentStroke = [];
+            }
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            if (e.type === 'touchstart') startDraw({ clientX: touch.clientX, clientY: touch.clientY });
+            else if (e.type === 'touchmove') draw({ clientX: touch.clientX, clientY: touch.clientY });
+        }
+
+        function drawStroke(stroke) {
+            if (stroke.length < 1) return;
+            ctx.beginPath();
+            ctx.lineWidth = stroke[0].strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = stroke[0].color;
+            ctx.moveTo(stroke[0].dx * canvas.width, stroke[0].dy * canvas.height);
+            for (let i = 1; i < stroke.length; i++) {
+                ctx.lineTo(stroke[i].dx * canvas.width, stroke[i].dy * canvas.height);
+            }
+            ctx.stroke();
+        }
+
+        function redrawCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        function listenToWhiteboard() {
+            db.collection('sessions').doc(sessionId).collection('strokes')
+                .orderBy('createdAt')
+                .onSnapshot((snapshot) => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    strokeDocIds = [];
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const points = data.points || [];
+                        drawStroke(points);
+                        strokeDocIds.push(doc.id);
+                    });
+                });
+        }
+
+        function selectColor(color, width) { selectedColor = color; strokeWidth = width; isEraser = false; }
+        function enableEraser() { selectedColor = 'white'; strokeWidth = 25.0; isEraser = true; }
+        function undoStroke() {
+            if (!isTeacher || strokeDocIds.length === 0) return;
+            const lastId = strokeDocIds.pop();
+            db.collection('sessions').doc(sessionId).collection('strokes').doc(lastId).delete();
+        }
+        function clearBoard() {
+            if (!isTeacher) return;
+            db.collection('sessions').doc(sessionId).collection('strokes').get().then((snapshot) => {
+                snapshot.forEach((doc) => doc.ref.delete());
+            });
+        }
+
+        // ==========================================
+        // ⏱️ Timer & Extend
+        // ==========================================
+        function startSessionTimer() {
+            sessionTimer = setInterval(() => {
+                remainingSeconds--;
+                updateTimerUI();
+                if (remainingSeconds === 600 && !hasShown10MinWarning) {
+                    hasShown10MinWarning = true;
+                    showSnackBar('⏳ تنبيه: تبقى 10 دقائق على نهاية الحصة.', 'orange');
+                }
+                if (remainingSeconds === 120 && !hasShown2MinWarning) {
+                    hasShown2MinWarning = true;
+                    if (!isTeacher) openModal('extendModal');
+                }
+                if (remainingSeconds <= 0) {
+                    clearInterval(sessionTimer);
+                    db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() });
+                    showSnackBar('⌛ انتهت مدة الحصة. سيتم إغلاق الجلسة الآن.', 'red');
+                    setTimeout(() => window.location.href = '/', 3000);
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const h = Math.floor(remainingSeconds / 3600);
+            const m = Math.floor((remainingSeconds % 3600) / 60);
+            const s = remainingSeconds % 60;
+            const format = (n) => n.toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = h > 0 ? `${format(h)}:${format(m)}:${format(s)}` : `${format(m)}:${format(s)}`;
+        }
+
+        async function extendSession() {
+            closeModal('extendModal');
+            try {
+                const token = await currentUser.getIdToken();
+                const res = await fetch(`/api/session/extend/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: new URLSearchParams({ 'studentId': currentUser.uid })
+                });
+                if (res.ok) {
+                    remainingSeconds = 3600;
+                    hasShown10MinWarning = false;
+                    hasShown2MinWarning = false;
+                    extensionCount++;
+                    showSnackBar('🎉 تم تمديد الحصة بنجاح! استمتع بوقتك الإضافي.', 'green');
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.detail);
+                }
+            } catch (e) {
+                showSnackBar(`❌ ${e.message}`, 'red');
+            }
+        }
+
+        // ==========================================
+        // 🎙️ Agora Audio & Screen Share
+        // ==========================================
+        async function fetchDynamicToken(channelName, uid) {
+            try {
+                const response = await fetch(`https://agora-server-59qz.onrender.com/rtc-token?channelName=${channelName}&uid=${uid}`);
+                if (response.ok) return (await response.json()).token || '';
+                return '';
+            } catch (e) { return ''; }
+        }
+
+        async function initAgora() {
+            try {
+                showSnackBar('جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...', '#D97706');
+                
+                const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
+                const token = await fetchDynamicToken(sessionId, numericUid);
+                
+                if (!token) {
+                    throw new Error('تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.');
+                }
+
+                agoraEngine = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+                await agoraEngine.setClientRole("host");
+                
+                agoraEngine.on("user-published", async (user, mediaType) => {
+                    await agoraEngine.subscribe(user, mediaType);
+                    if (mediaType === "audio") user.audioTrack.play();
+                    if (mediaType === "video") {
+                        screenShareUid = user.uid;
+                        document.getElementById('screenShareContainer').classList.remove('hidden');
+                        document.getElementById('screenShareContainer').classList.add('flex');
+                        const player = document.getElementById('screenSharePlayer');
+                        player.innerHTML = ''; 
+                        user.videoTrack.play('screenSharePlayer');
+                    }
+                });
+
+                agoraEngine.on("user-unpublished", (user, mediaType) => {
+                    if (mediaType === "video") {
+                        document.getElementById('screenShareContainer').classList.add('hidden');
+                        document.getElementById('screenSharePlayer').innerHTML = ''; 
+                    }
+                });
+
+                await agoraEngine.join(AGORA_APP_ID, sessionId, token, numericUid);
+                
+                // ✨ حل جذري ل مشكلة Stereo Mix: البحث عن المايك الفعلي وتجاهل صوت النظام
+                let micId = undefined;
+                try {
+                    // نطلب الإذن أولاً ليتمكن المتصفح من قراءة أسماء الأجهزة
+                    await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                    
+                    // كلمات نبحث عنها لاستبعاد أجهزة صوت النظام
+                    const invalidKeywords = ['stereo', 'mix', 'what u hear', 'wave out', 'loopback', 'system'];
+                    
+                    // البحث عن أول مايكروفون حقيقي لا يحتوي على الكلمات المستبعدة
+                    const validMic = audioInputs.find(d => {
+                        const label = d.label.toLowerCase();
+                        return !invalidKeywords.some(kw => label.includes(kw));
+                    });
+
+                    if (validMic) {
+                        micId = validMic.deviceId;
+                        console.log("Selected valid microphone:", validMic.label);
+                    }
+                } catch (e) {
+                    console.warn("Could not enumerate devices, using default:", e);
+                }
+
+                let attempts = 0;
+                while (attempts < 3) {
+                    try {
+                        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack({
+                            microphoneId: micId, // ✨ إجبار Agora على استخدام المايك الفعلي المختار
+                            AEC: true,           // إلغاء الصدى
+                            ANS: true,           // تقليل ضجيج الخلفية
+                            AGC: true            // ضبط مستوى الصوت تلقائياً
+                        });
+                        break; 
+                    } catch (micError) {
+                        attempts++;
+                        console.warn(`Mic attempt ${attempts} failed, retrying...`, micError);
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                }
+
+                if (localAudioTrack) {
+                    await agoraEngine.publish([localAudioTrack]);
+                    isMuted = false;
+                    updateMicUI();
+                    showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
+                    startAudioRecording(localAudioTrack);
+                } else {
+                    throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.');
+                }
+
+            } catch (e) {
+                console.error("Agora init error:", e);
+                showSnackBar('تعذر الاتصال بالصوت: ' + e.message, 'red');
+            }
+        }
+
+        async function toggleMute() {
+            if (!localAudioTrack) return;
+            isMuted = !isMuted;
+            localAudioTrack.setMuted(isMuted);
+            updateMicUI();
+        }
+
+        function updateMicUI() {
+            const btn = document.getElementById('muteBtn');
+            const icon = document.getElementById('micStatusIcon');
+            if (isMuted) {
+                btn.classList.replace('bg-green-600', 'bg-red-600');
+                icon.classList.replace('text-green-400', 'text-red-400');
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />';
+            } else {
+                btn.classList.replace('bg-red-600', 'bg-green-600');
+                icon.classList.replace('text-red-400', 'text-green-400');
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />';
+            }
+        }
+
+                async function toggleScreenShare() {
+            try {
+                if (!isScreenSharing) {
+                    const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
+                    
+                    // ✨ الإصلاح هنا: إضافة 1,000,000 لضمان عدم التطابق مع UID الصوت لأي مستخدم
+                    const screenShareUidLocal = numericUid + 1000000; 
+                    
+                    const token = await fetchDynamicToken(sessionId, screenShareUidLocal);
+
+                    screenShareClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+                    await screenShareClient.join(AGORA_APP_ID, sessionId, token || null, screenShareUidLocal);
+                    
+                    const screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1", optimizationMode: "detail" }, "disable");
+                    await screenShareClient.publish(screenTrack);
+                    
+                    isScreenSharing = true;
+                    await db.collection('sessions').doc(sessionId).update({ 
+                        isScreenSharing: true, 
+                        screenShareUid: currentUser.uid // نستخدم UID الخاص بـ Firebase هنا للتحكم بالاستحواذ
+                    });
+                    showSnackBar('تم بدء مشاركة الشاشة بنجاح', 'green');
+                } else {
+                    await stopMyScreenShare();
+                    await db.collection('sessions').doc(sessionId).update({ 
+                        isScreenSharing: false, 
+                        screenShareUid: null 
+                    });
+                    showSnackBar('تم إيقاف مشاركة الشاشة', 'orange');
+                }
+            } catch (e) {
+                console.error("Screen share error:", e);
+                if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
+                isScreenSharing = false;
+                if (e.code === "NOT_READABLE" || e.code === "NotAllowedError" || e.name === "NotAllowedError") {
+                    showSnackBar('تم رفض إذن مشاركة الشاشة أو يستخدمها تطبيق آخر.', 'red');
+                } else {
+                    showSnackBar(' فشل مشاركة الشاشة: ' + e.message, 'red');
+                }
+            }
+        }
+
+        // ✨ دالة مساعدة لإيقاف مشاركتي محلياً
+        async function stopMyScreenShare() {
+            if (screenShareClient) {
+                await screenShareClient.leave();
+                screenShareClient = null;
+            }
+            isScreenSharing = false;
+        }
+
+        function listenToSessionState() {
+            db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const status = data.status;
+                    
+                    // 1. إذا انتهت الجلسة طبيعياً
+                    if (status === 'completed') {
+                        showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
+                        if (agoraEngine) agoraEngine.leave();
+                        if (screenShareClient) screenShareClient.leave();
+                        clearInterval(sessionTimer);
+                        setTimeout(() => window.location.href = isTeacher ? '/teacher-dashboard' : '/student-dashboard', 2000);
+                        return;
+                    }
+
+                    // 2. ✨ إذا انقطع اتصال أحد الطرفين فجأة (إغلاق الصفحة)
+                    if (status === 'interrupted') {
+                        const interruptedBy = data.interruptedBy;
+                        
+                        // إذا أنا طالب، وانقطع المعلم -> أخرجني فوراً
+                        if (!isTeacher && interruptedBy === 'teacher') {
+                            showSnackBar('❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.', 'red');
+                            clearInterval(sessionTimer);
+                            setTimeout(() => window.location.href = '/student-dashboard', 3000);
+                        } 
+                        // إذا أنا معلم، وانقطع الطالب -> نبقني في الغرفة، لكن أبلغني
+                        else if (isTeacher && interruptedBy === 'student') {
+                            showSnackBar('⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.', 'orange');
+                        }
+                    }
+
+                    // 3. متابعة حالة مشاركة الشاشة
+                    const remoteSharing = data.isScreenSharing || false;
+                    const activeSharerUid = data.screenShareUid;
+                    
+                    if (data.isScreenSharing && activeSharerUid !== currentUser.uid && isScreenSharing) {
+                        stopMyScreenShare();
+                        showSnackBar('قام الطرف الآخر بمشاركة شاشته، تم إيقاف مشاركتك تلقائياً.', 'orange');
+                    }
+                    
+                    if (!data.isScreenSharing) {
+                        document.getElementById('screenShareContainer').classList.add('hidden');
+                    } else if (activeSharerUid !== currentUser.uid) {
+                        document.getElementById('screenShareContainer').classList.remove('hidden');
+                        document.getElementById('screenShareContainer').classList.add('flex');
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // 💬 Live Chat & Notifications
+        // ==========================================
+        function toggleChat() {
+            isChatOpen = !isChatOpen;
+            const panel = document.getElementById('chatPanel');
+            const badge = document.getElementById('chatBadge');
+            if (isChatOpen) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                unreadMessages = 0; // ✨ تصفير العداد
+                badge.classList.add('hidden');
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            }
+        }
+
+                // متغير لمعرفة إذا كانت هذه أول مرة تحمل فيها الدردشة
+        let isInitialChatLoad = true;
+
+        function listenToChat() {
+            db.collection('sessions').doc(sessionId).collection('messages')
+                .orderBy('createdAt', 'asc')
+                .onSnapshot((snapshot) => {
+                    const container = document.getElementById('chatMessages');
+                    container.innerHTML = '';
+                    
+                    // 1. عرض كل الرسائل (القديمة والجديدة) للحفاظ على سجل المحادثة
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const isTeacherMsg = data.sender === 'teacher';
+                        const isMine = (isTeacher && isTeacherMsg) || (!isTeacher && !isTeacherMsg);
+                        
+                        const bubble = document.createElement('div');
+                        bubble.className = `p-2 rounded-lg text-sm ${isMine ? 'bg-amber-800 ml-auto' : 'bg-gray-700 mr-auto'} max-w-[80%]`;
+                        bubble.innerText = data.text || '';
+                        container.appendChild(bubble);
+                    });
+
+                    // 2. عداد الرسائل الجديدة فقط (بعد التحميل الأول)
+                    if (!isInitialChatLoad) {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const data = change.doc.data();
+                                const isTeacherMsg = data.sender === 'teacher';
+                                const isMine = (isTeacher && isTeacherMsg) || (!isTeacher && !isTeacherMsg);
+                                
+                                // ✨ زيادة العداد مرة واحدة فقط للرسالة الجديدة إذا كانت من الطرف الآخر والنافذة مغلقة
+                                if (!isMine && !isChatOpen) {
+                                    unreadMessages++;
+                                    const badge = document.getElementById('chatBadge');
+                                    badge.innerText = unreadMessages;
+                                    badge.classList.remove('hidden');
+                                }
+                            }
+                        });
+                    }
+                    
+                    isInitialChatLoad = false; // انتهى التحميل الأول
+                    container.scrollTop = container.scrollHeight;
+                });
+        }
+
+        // ✨ دالة إرسال الرسالة عند ضغط Enter
+        function handleChatEnter(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (text) {
+                input.value = '';
+                await db.collection('sessions').doc(sessionId).collection('messages').add({
+                    sender: isTeacher ? 'teacher' : 'student',
+                    text: text,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+
+        // ==========================================
+        // 🎉 Animations & Sounds (Triggers)
+        // ==========================================
+        function triggerAnimation(type) {
+            if (!isTeacher) return;
+            db.collection('sessions').doc(sessionId).collection('animations').add({
+                type: type,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        function listenToAnimations() {
+            db.collection('sessions').doc(sessionId).collection('animations')
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .onSnapshot((snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === "added") {
+                            const data = change.doc.data();
+                            playAnimation(data.type);
+                        }
+                    });
+                });
+        }
+
+        function playAnimation(type) {
+            const overlay = document.getElementById('animationOverlay');
+            const sound = document.getElementById(`sound_${type}`);
+            if (sound) sound.play();
+
+            if (type === 'fireworks') {
+                for (let i = 0; i < 50; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'firework-particle';
+                    p.style.left = Math.random() * 100 + '%';
+                    p.style.top = Math.random() * 100 + '%';
+                    p.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    p.style.transform = `translate(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px)`;
+                    overlay.appendChild(p);
+                    setTimeout(() => p.remove(), 1500);
+                }
+            } else if (type === 'balloons') {
+                for (let i = 0; i < 15; i++) {
+                    const b = document.createElement('div');
+                    b.className = 'balloon';
+                    b.style.left = Math.random() * 100 + '%';
+                    b.style.animationDelay = Math.random() * 1 + 's';
+                    b.innerText = ['🎈', '🎈', '🎈', '🎉'][Math.floor(Math.random() * 4)];
+                    overlay.appendChild(b);
+                    setTimeout(() => b.remove(), 4000);
+                }
+            } else {
+                const el = document.createElement('div');
+                el.className = 'anim-object';
+                if (type === 'trophy') el.innerText = '🏆';
+                else if (type === 'heart') el.innerText = '❤️';
+                else if (type === 'question') el.innerText = '❓';
+                overlay.appendChild(el);
+                setTimeout(() => el.remove(), 2500);
+            }
+        }
+
+        // ==========================================
+        // 📄 PDF Generation & End Session
+        // ==========================================
+        let mediaRecorder;
+        let audioChunks = [];
+
+                function startAudioRecording(track) {
+            try {
+                const mediaStreamTrack = track.getMediaStreamTrack();
+                const mediaStream = new MediaStream([mediaStreamTrack]);
+                
+                // ✨ ضغط الصوت: تقليل معدل البت (Bitrate) إلى 16kbps وهو ممتاز للصوت البشري ويقلل الحجم 10 أضعاف
+                mediaRecorder = new MediaRecorder(mediaStream, { audioBitsPerSecond: 16000 });
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+                mediaRecorder.start();
+                console.log("Audio recording started with compression.");
+            } catch (e) {
+                console.error("Failed to start audio recording:", e);
+            }
+        }
+
+        async function stopAudioRecording() {
+            return new Promise((resolve) => {
+                if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                    resolve(null);
+                    return;
+                }
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const audioFile = new File([audioBlob], `session_${sessionId}_audio.mp3`, { type: 'audio/mp3' });
+                    resolve(audioFile);
+                };
+                mediaRecorder.stop();
+            });
+        }
+
+        function confirmEndSession() {
+            if (isTeacher) {
+                openModal('endSessionModal');
+            } else {
+                db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() });
+                window.location.href = '/student-dashboard';
+            }
+        }
+
+        async function startExportProcess() {
+            document.getElementById('endModalContent').classList.add('hidden');
+            document.getElementById('endModalProgress').classList.remove('hidden');
+            
+            updateProgress(0.15, 'جاري التقاط صورة السبورة...');
+
+            try {
+                // 1. توليد ملف الـ PDF فوراً
+                const canvasImg = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                pdf.addImage(canvasImg, 'PNG', 0, 0, 210, 297);
+                const pdfBlob = pdf.output('blob');
+
+                updateProgress(0.35, 'جاري إيقاف التسجيل الصوتي...');
+                
+                // 2. إيقاف التسجيل وأخذ ملف الصوت فوراً
+                const audioFile = await stopAudioRecording();
+
+                updateProgress(0.55, 'جاري رفع الملفات للسيرفر...');
+
+                // 3. إرسال الملفات للباك-ند
+                const token = await currentUser.getIdToken();
+                const formData = new FormData();
+                formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
+                if (audioFile) {
+                    formData.append('audio', audioFile, audioFile.name);
+                }
+
+                const res = await fetch(`/api/session/complete/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || 'فشل حفظ الجلسة في السيرفر');
+                }
+
+                updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
+                
+                // 4. إغلاق قنوات Agora فوراً
+                if (agoraEngine) await agoraEngine.leave();
+                if (screenShareClient) await screenShareClient.leave();
+
+                updateProgress(1.0, 'تم الانتهاء بنجاح! جاري تحويلك...');
+                
+                // تقليل وقت الانتظار قبل التحويل إلى نصف ثانية
+                setTimeout(() => window.location.href = '/teacher-dashboard', 500);
+
+            } catch (e) {
+                console.error("Export Error:", e);
+                showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red');
+                closeModal('endSessionModal');
+            }
+        }
+
+        function updateProgress(val, text) {
+            document.getElementById('progressBar').style.width = `${val * 100}%`;
+            document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`;
+            document.getElementById('progressStatus').innerText = text;
+        }
+
+        // ==========================================
+        // 🛠️ Utilities
+        // ==========================================
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function showSnackBar(text, color) {
+            const colors = { green: '#10b981', red: '#ef4444', orange: '#f59e0b' };
+            const snackbar = document.createElement('div');
+            snackbar.className = 'snackbar';
+            snackbar.style.backgroundColor = colors[color] || '#333';
+            snackbar.innerText = text;
+            document.body.appendChild(snackbar);
+            setTimeout(() => snackbar.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

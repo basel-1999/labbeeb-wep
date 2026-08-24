@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة لبيب التعليمية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        oliveGreen: '#4E6B45',
+                        oliveLight: '#708E67',
+                        beigeBg: '#F4EFE6',
+                        beigeCard: '#FAF7F2',
+                        textDark: '#1E241B',
+                        textMuted: '#6B7280',
+                        accentGold: '#C79A3B',
+                        accentOrange: '#D97706',
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; color: #1E241B; }
+        /* محاكاة شكل الـ BlobClipper من Flutter */
+        .blob-shape {
+            border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+            animation: morph 8s ease-in-out infinite;
+        }
+        @keyframes morph {
+            0% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+            50% { border-radius: 58% 42% 30% 70% / 55% 55% 45% 45%; }
+            100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0.5; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="text-textDark">
+
+    <!-- 1. الجزء الرئيسي العلوي (الترحيب + معرض الصور المتغيرة) -->
+    <div class="min-h-screen flex items-center justify-center p-6 lg:p-10">
+        <div class="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-16 max-w-[1250px] w-full">
+            
+            <!-- قسم الترحيب والأزرار -->
+            <div class="flex-1 lg:flex-[5] w-full">
+                <div class="flex items-center mb-12">
+                    <div class="bg-oliveGreen/15 p-3.5 rounded-2xl ml-5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-5xl font-black text-accentOrange tracking-wider">لَــبِــيــبْ</h1>
+                        <p class="text-lg font-bold mt-2">التفاعل الذكي الذي يختصر المسافات الأكاديمية</p>
+                    </div>
+                </div>
+
+                <h2 class="text-3xl font-bold mb-4">أهلاً بك في بيئتك التعليمية الفورية المبتكرة</h2>
+                <p class="text-lg leading-relaxed mb-10 text-gray-800">
+                    منصة "لبيب" صُممت خصيصاً لتوفر لك فصولاً دراسية حية ومباشرة تعتمد على الاتصال الفوري عالي الجودة والآمن تماماً. تفضل باختيار هويتك للدخول فوراً:
+                </p>
+
+                <!-- بطاقة الطالب -->
+                <div class="bg-beigeCard p-7 rounded-3xl border-[1.5px] border-oliveGreen/20 shadow-sm mb-5 flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>
+                    </div>
+                    <div class="mr-5 flex-1">
+                        <span class="inline-block bg-accentOrange/10 text-accentOrange font-bold text-2xl px-3.5 py-1.5 rounded-lg mb-3">أنا طالب طموح</span>
+                        <p class="text-base mb-5 leading-relaxed">تواصل فوراً مع معلمين معتمدين ومستعدين لمساعدتك خطوة بخطوة وبأمان مالي كامل وحصص مسجلة بالكامل لمراجعتها لاحقاً.</p>
+                        <button onclick="window.location.href='/auth?role=student'" class="bg-oliveGreen text-white font-bold text-base px-8 py-4 rounded-xl hover:bg-oliveLight transition">ابدأ فصولك فوراً كـ طالب</button>
+                    </div>
+                </div>
+
+                <!-- بطاقة المعلم -->
+                <div class="bg-beigeCard p-7 rounded-3xl border-[1.5px] border-oliveGreen/20 shadow-sm flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    </div>
+                    <div class="mr-5 flex-1">
+                        <span class="inline-block bg-accentOrange/10 text-accentOrange font-bold text-2xl px-3.5 py-1.5 rounded-lg mb-3">أنا معلم لبيب</span>
+                        <p class="text-base mb-5 leading-relaxed">انضم لكتيبة الطواقم الأكاديمية المتخصصة في لبيب، وثّق أوراقك واعتماداتك، وابدأ بتقديم شروحاتك وتحقيق دخل مالي ممتاز وسلس.</p>
+                        <button onclick="window.location.href='/auth?role=teacher'" class="bg-oliveGreen text-white font-bold text-base px-8 py-4 rounded-xl hover:bg-oliveLight transition">الدخول لبوابة المعلمين والتسجيل</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم معرض الصور المتحرك -->
+            <div class="flex-1 lg:flex-[5] w-full flex justify-center items-center mt-12 lg:mt-0">
+                <div class="relative w-full max-w-[500px] h-[400px] lg:h-[550px]">
+                    <div class="absolute inset-0 bg-oliveGreen/15 blob-shape"></div>
+                    <div class="absolute inset-2 bg-beigeCard blob-shape flex items-center justify-center p-4">
+                        <img id="showcaseImage" src="/static/images/student_bag1.png" class="w-full h-full object-contain fade-in" alt="Showcase Image">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-black/5 h-px w-full"></div>
+
+    <!-- 2. قسم التعريف والمزايا -->
+    <div class="bg-white py-20 px-6">
+        <div class="max-w-[1000px] mx-auto text-right">
+            <div class="text-center mb-10">
+                <div class="flex justify-center mb-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                </div>
+                <h2 class="text-3xl font-bold mb-2">🎓 مستقبل أبنائك الدراسي يبدأ بخطوة..</h2>
+                <h3 class="text-3xl font-black text-accentOrange">مع أفضل المدرسين الخصوصيين في السعودية!</h3>
+            </div>
+
+            <p class="text-center text-xl font-medium leading-relaxed mb-12">
+                هل تبحث عن تعليم تفاعلي مخصص يناسب قدرات طفلك ويوفر وقتك ومجهودك؟ نحن هنا لنقدم لك الحل التعليمي المتكامل والآمن من منزلك.
+            </p>
+
+            <div class="text-center mb-12">
+                <span class="bg-accentOrange text-white text-2xl font-bold px-6 py-3 rounded-xl">✨ لماذا تختارنا لتعليم أبنائك？</span>
+            </div>
+
+            <div class="space-y-7 text-right">
+
+                <!-- ميزة 1 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">نخبة من أفضل المدرسين:</span>
+                        معلمون متميزون ومتخصصون ومؤهلون بالكامل لشرح 
+                        <span class="font-bold text-accentOrange">المناهج السعودية</span>
+                        لضمان أعلى درجات التفوق الأكاديمي والاستيعاب الفوري لطفلك.
+                    </p>
+                </div>
+
+                <!-- ميزة 2 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">التعليم بأسلوب التلعيب والمرح:</span>
+                        نحول المواد الجامدة إلى 
+                        <span class="font-bold text-accentOrange">أنشطة تفاعلية مشوقة وألعاب تعليمية ذكية</span>
+                        تنمي مهارات التفكير لدى طفلك وتجعل الدراسة رحلة مليئة بالشغف والمرح اليومي.
+                    </p>
+                </div>
+
+                <!-- ميزة 3 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">خطة تعليمية مخصصة:</span>
+                        نؤمن بوجود فروق فردية، لذا نقوم بتصميم 
+                        <span class="font-bold text-accentOrange">مسار دراسي خاص ومستقل</span>
+                        يتناسب تماماً مع سرعة فهم الطالب لتعزيز نقاط قوته ومعالجة الصعوبات الأكاديمية لديه.
+                    </p>
+                </div>
+
+                <!-- ميزة 4 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">حصص فردية عن بعد (1-1):</span>
+                        انتباه كامل وتركيز مباشر بنسبة 
+                        <span class="font-bold text-accentOrange text-xl">100% </span>
+                        بين المعلم والطالب دون أي مشتتات لضمان بيئة دراسية تفاعلية مريحة وآمنة للغاية من المنزل.
+                    </p>
+                </div>
+
+                <!-- ميزة 5 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">لجميع المراحل الدراسية:</span>
+                        نواكب مسيرة ابنك الأكاديمية بدءاً من مراحل التأسيس المبكر و
+                        <span class="font-bold text-accentOrange">روضة الأطفال</span>،
+                        مروراً بالمراحل الابتدائية والمتوسطة، وحتى مرحلة الثانوية العامة والجامعة.
+                    </p>
+                </div>
+
+                <!-- ميزة 6 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">باقات شهرية مرنة:</span>
+                        نوفر باقات وخطط أسعار متنوعة ومنافسة تناسب احتياجاتك الاقتصادية مع 
+                        <span class="font-bold text-accentOrange">مرونة تحكم كاملة </span>
+                        في تعديل، إلغاء، أو تجديد الاشتراك بأي وقت وسهولة مطلقة.
+                    </p>
+                </div>
+
+                <!-- ميزة 7 -->
+                <div class="flex items-start">
+                    <div class="bg-oliveGreen/10 p-2 rounded-full ml-4 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <p class="text-lg leading-loose">
+                        <span class="bg-[#EBDDC3] text-oliveGreen font-bold px-2 py-0.5 rounded-md ml-1">منصة معتمدة ورسمية:</span>
+                        منصة مرخصة ومصرحة بالكامل من قِبل 
+                        <span class="font-bold text-accentOrange">المركز الوطني للتعليم الإلكتروني </span>
+                        مما يضمن لك نظاماً تعليمياً آمناً وموثوقاً وخاضعاً لأعلى معايير الجودة الدولية.
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- كرت العرض الخاص -->
+            <div class="bg-oliveGreen/10 border-[1.5px] border-oliveGreen/30 rounded-3xl p-8 mt-12 text-center">
+                <h4 class="text-2xl font-bold text-accentOrange">🎁 عرض خاص ولفترة محدودة!</h4>
+                <p class="text-lg font-bold mt-3 leading-relaxed">ابدأ اليوم واحصل على استشارة تعليمية مجانية لتحديد مستوى طالبك ووضع الخطة الأنسب له.</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 3. قسم البطاقات التقنية -->
+    <div class="py-20 px-6">
+        <div class="max-w-[1200px] mx-auto text-center">
+            <div class="inline-block bg-accentOrange text-white text-2xl font-bold px-6 py-3 rounded-xl mb-5">💡 لماذا تختار منصة لبيب للتعلم الذكي؟</div>
+            <p class="text-lg text-gray-500 mb-12">باقة متكاملة من التقنيات الهندسية لضمان تجربة أكاديمية ممتازة للطلاب والمعلمين</p>
+            
+            <div class="flex flex-wrap justify-center gap-6">
+                <!-- بطاقة 1 -->
+                <div class="w-[270px] bg-beigeCard p-7 rounded-3xl border-[1.5px] border-oliveGreen/10 text-right">
+                    <div class="bg-oliveGreen/10 p-4 rounded-full inline-block mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                    </div>
+                    <h4 class="text-lg font-bold mb-3">حصص صوتية فورية مسجلة</h4>
+                    <p class="text-sm leading-relaxed text-gray-700">اتصال فوري بصوت نقي ومباشر مع تسجيل الحصة تلقائياً على السيرفر ليعود الطالب لها في أي وقت.</p>
+                </div>
+
+                <!-- بطاقة 2 -->
+                <div class="w-[270px] bg-beigeCard p-7 rounded-3xl border-[1.5px] border-oliveGreen/10 text-right">
+                    <div class="bg-oliveGreen/10 p-4 rounded-full inline-block mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <h4 class="text-lg font-bold mb-3">محفظة مالية رقمية آمنة</h4>
+                    <p class="text-sm leading-relaxed text-gray-700">نظام دفع آمن للغاية؛ يُحفظ رصيد الطالب ولا يتم تحرير الأرباح للمعلم إلا بعد اكتمال الحصة بنجاح.</p>
+                </div>
+
+                <!-- بطاقة 3 -->
+                <div class="w-[270px] bg-beigeCard p-7 rounded-3xl border-[1.5px] border-oliveGreen/10 text-right">
+                    <div class="bg-oliveGreen/10 p-4 rounded-full inline-block mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <h4 class="text-lg font-bold mb-3">معلمون تحت الرقابة والمراجعة</h4>
+                    <p class="text-sm leading-relaxed text-gray-700">نظام تحقق صارم، حيث نقوم بفحص السيرة الذاتية والأوراق الثبوتية لكل معلم لضمان جودة الطرح التعليمي.</p>
+                </div>
+
+                <!-- بطاقة 4 -->
+                <div class="w-[270px] bg-beigeCard p-7 rounded-3xl border-[1.5px] border-oliveGreen/10 text-right">
+                    <div class="bg-oliveGreen/10 p-4 rounded-full inline-block mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <h4 class="text-lg font-bold mb-3">تحديات ونقاط ومكافآت</h4>
+                    <p class="text-sm leading-relaxed text-gray-700">نظام ذكي يدمج الألعاب بالتعليم؛ يحصل الطالب على أوسمة ونقاط عند إنجاز المهام، مما يجعل الدراسة رحلة مشوقة مليئة بالإنجاز المتواصل.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. الجزء السفلي (Footer) -->
+    <footer class="bg-accentOrange text-beigeBg py-16 px-6">
+        <div class="max-w-[1200px] mx-auto">
+            <div class="flex flex-col md:flex-row justify-between gap-10 mb-10">
+                <div class="flex-1 md:flex-[4]">
+                    <h5 class="text-3xl font-bold mb-3">لَــبِــيــبْ</h5>
+                    <p class="text-sm leading-relaxed">نظام تفاعلي متقدم يهدف لتنظيم ورفع جودة التعليم الخاص الرقمي عبر دمج تقنيات الاتصال الصوتي والتحقق والتوثيق التام.</p>
+                </div>
+                <div class="flex-1 md:flex-[3]">
+                    <h5 class="text-lg font-bold mb-4">هـدف المنصـة الأساسـي</h5>
+                    <p class="text-sm leading-relaxed">تمكين الطلاب من استيعاب وفهم المواد الصعبة في بيئة آمنة تضمن حقوق الطرفين وتوفر عناء الحصص التقليدية ومتاعب التنقل.</p>
+                </div>
+            </div>
+            <div class="border-t border-beigeBg/30 pt-8 text-center">
+                <p class="text-sm font-medium tracking-wide">© ٢٠٢٦ جميع الحقوق محفوظة لمنصة لبيب التعليمية. تم التطوير برعاية وإشراف باسل أبو هدة.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript لمعرض الصور المتحرك -->
+    <script>
+        const showcaseImages = [
+            '/static/images/student_bag1.png',
+            '/static/images/student_bag2.png',
+            '/static/images/teacher_explaining.png',
+            '/static/images/teacher_1.png'
+        ];
+        let currentImageIndex = 0;
+        const showcaseImageElement = document.getElementById('showcaseImage');
+
+        setInterval(() => {
+            currentImageIndex = (currentImageIndex + 1) % showcaseImages.length;
+            showcaseImageElement.src = showcaseImages[currentImageIndex];
+            
+            // إضافة تأثير التلاشي للحظة الانتقال
+            showcaseImageElement.classList.remove('fade-in');
+            void showcaseImageElement.offsetWidth; // Trigger reflow
+            showcaseImageElement.classList.add('fade-in');
+        }, 2000); // كل ثانيتين
+    </script>
+</body>
+</html>
