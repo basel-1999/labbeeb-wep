@@ -23,28 +23,42 @@ cloudinary.config(
 
 # تهيئة Firebase Admin
 if not firebase_admin._apps:
+    cred_dict = None
     cred_path = "serviceAccountKey.json"
+
+    # 1️⃣ محاولة القراءة محلياً من الملف (على جهازك)
     if os.path.exists(cred_path):
         try:
-            # 1. قراءة الملف كنص
             with open(cred_path, 'r', encoding='utf-8') as f:
                 cred_dict = json.load(f)
-            
-            # 2. ✨ التنظيف السحري: إصلاح أي تشويه في أسطر الـ Private Key
+            print("📂 Loaded Firebase keys from local serviceAccountKey.json")
+        except Exception as e:
+            print(f"❌ Error reading local JSON: {e}")
+
+    # 2️⃣ إذا لم يوجد الملف محلياً (على Render)، اقرأ من متغير البيئة
+    elif os.environ.get("FIREBASE_CREDENTIALS"):
+        try:
+            raw_env = os.environ.get("FIREBASE_CREDENTIALS")
+            cred_dict = json.loads(raw_env)
+            print("🌐 Loaded Firebase keys from Environment Variable")
+        except Exception as e:
+            print(f"❌ Error parsing FIREBASE_CREDENTIALS env var: {e}")
+
+    # 3️⃣ معالجة المفتاح وتنظيف الـ Private Key وتفعيل Firebase
+    if cred_dict:
+        try:
             if "private_key" in cred_dict:
                 pk = cred_dict["private_key"]
-                # إزالة الأسطر الزائدة وإصلاح رموز الأسطر
                 pk = pk.replace("\\\\n", "\n").replace("\\n", "\n").replace("\\r", "").strip()
                 cred_dict["private_key"] = pk
-            
-            # 3. تمرير القاموس المنظف إلى Firebase
+
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred)
-            print("✅ Firebase initialized with sanitized key.")
+            print("✅ Firebase initialized successfully.")
         except Exception as e:
-            print(f"❌ Error initializing Firebase: {e}")
+            print(f"❌ Error initializing Firebase SDK: {e}")
     else:
-        print("⚠️ Warning: Firebase service account key not found!")
+        print("⚠️ Warning: No Firebase credentials found locally or in environment!")
 
 db = firestore.client()
 
