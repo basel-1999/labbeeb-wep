@@ -9,41 +9,27 @@ from dotenv import load_dotenv
 from typing import Optional
 import json 
 
-
 load_dotenv()
 
 router = APIRouter()
 security = HTTPBearer()
 
-# إعداد Cloudinary بالمفاتيح الحقيقية
+# إعداد Cloudinary
 cloudinary.config(
     cloud_name="f4t8ayoq",
     api_key="325765956116463",
     api_secret="ZGiALPgBRexubi0I6VxKCyjM-Tg"
 )
 
-# تهيئة Firebase Admin
+# تهيئة Firebase Admin (قراءة الملف المباشر فقط)
 if not firebase_admin._apps:
-    # 1. محاولة قراءة الأسرار من متغيرات البيئة (Environment Variables) على Render
-    firebase_cred_json = os.getenv("FIREBASE_CREDENTIALS")
-    if firebase_cred_json:
-        try:
-            # تحويل النص إلى JSON وتمريره لـ Firebase
-            cred_dict = json.loads(firebase_cred_json)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
-            print("✅ Firebase initialized from Environment Variable.")
-        except Exception as e:
-            print(f"❌ Error parsing Firebase Env Var: {e}")
+    cred_path = "serviceAccountKey.json"
+    if os.path.exists(cred_path):
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase initialized from local file.")
     else:
-        # 2. إذا لم يجدها في المتغيرات، يبحث عن الملف الفيزيائي (على جهازك أثناء التطوير المحلي)
-        cred_path = os.getenv("FIREBASE_CRED_PATH", "serviceAccountKey.json")
-        if os.path.exists(cred_path):
-            cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-            print("✅ Firebase initialized from local file.")
-        else:
-            print("⚠️ Warning: Firebase credentials not found!")
+        print("⚠️ Warning: Firebase service account key not found!")
 
 db = firestore.client()
 
