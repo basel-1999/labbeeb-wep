@@ -21,15 +21,28 @@ cloudinary.config(
     api_secret="ZGiALPgBRexubi0I6VxKCyjM-Tg"
 )
 
-# تهيئة Firebase Admin (قراءة الملف المباشر فقط)
+# تهيئة Firebase Admin
 if not firebase_admin._apps:
-    cred_path = "serviceAccountKey.json"
-    if os.path.exists(cred_path):
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred)
-        print("✅ Firebase initialized from local file.")
+    # 1. محاولة قراءة الأسرار من متغيرات البيئة (Environment Variables) على Render
+    firebase_cred_json = os.getenv("FIREBASE_CREDENTIALS")
+    if firebase_cred_json:
+        try:
+            # تحويل النص إلى JSON وتمريره لـ Firebase
+            cred_dict = json.loads(firebase_cred_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            print("✅ Firebase initialized from Environment Variable.")
+        except Exception as e:
+            print(f"❌ Error parsing Firebase Env Var: {e}")
     else:
-        print("⚠️ Warning: Firebase service account key not found!")
+        # 2. إذا لم يجدها في المتغيرات، يبحث عن الملف الفيزيائي (على جهازك أثناء التطوير المحلي)
+        cred_path = os.getenv("FIREBASE_CRED_PATH", "serviceAccountKey.json")
+        if os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred)
+            print("✅ Firebase initialized from local file.")
+        else:
+            print("⚠️ Warning: Firebase credentials not found!")
 
 db = firestore.client()
 
