@@ -225,6 +225,15 @@
         </div>
     </div>
 
+    <!-- Student Files Modal -->
+    <div id="studentFilesModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> ملفات الحصة 📁</h3>
+            <div id="studentFilesList" class="space-y-3 text-sm text-gray-700 max-h-60 overflow-y-auto"></div>
+            <button onclick="closeModal('studentFilesModal')" class="mt-6 w-full text-oliveGreen font-bold py-2 border border-oliveGreen rounded-xl">إغلاق</button>
+        </div>
+    </div>
+
     <!-- 4. Support Chat Modal -->
     <div id="helpModal" class="modal fixed inset-0 bg-black/50 z-50 items-end justify-center p-0">
         <div class="bg-white rounded-t-3xl w-full max-w-md h-[80vh] flex flex-col">
@@ -721,6 +730,33 @@
                 container.innerHTML = '<p class="text-center text-red-500">تعذر تحميل الملفات.</p>';
             }
         }
+
+        async function openStudentFilesModal(sessionId) {
+            const container = document.getElementById('studentFilesList');
+            container.innerHTML = '<p class="text-center text-gray-400">جاري التحميل...</p>';
+            openModal('studentFilesModal');
+            
+            try {
+                const doc = await db.collection('sessions').doc(sessionId).get();
+                const files = doc.data()?.attachedFiles || [];
+                container.innerHTML = '';
+                if (files.length > 0) {
+                    files.forEach(f => {
+                        container.innerHTML += `
+                            <a href="${f.fileUrl}" target="_blank" class="block p-3 rounded-xl border border-gray-200 hover:bg-gray-50 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                <span class="text-blue-600 truncate">${f.fileName}</span>
+                            </a>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-center text-gray-400">لا توجد ملفات مرفوعة.</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p class="text-center text-red-500">تعذر تحميل الملفات.</p>';
+            }
+        }
+
                 async function openNotificationsModal() { 
             openModal('notificationsModal'); 
             // ✨ إخفاء الشارة فوراً في الواجهة
@@ -831,6 +867,8 @@
                 showSnackBar('فشل إرسال الرسالة: ' + e.message, '#ef4444');
             }
         }
+
+
 
         // Snackbar Utility
         function showSnackBar(text, color) {
