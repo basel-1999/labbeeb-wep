@@ -502,7 +502,7 @@
                         }
 
                         // 3. الجلسات المقبولة (تخص المعلم)
-                                           if ((status === 'accepted' || status === 'active') && isMySession) {
+                        if ((status === 'accepted' || status === 'active') && isMySession) {
                             let startTime;
                             const bookingType = data.bookingType || 'now';
                             const scheduledAt = data.scheduledAt;
@@ -519,14 +519,15 @@
 
                             const now = new Date();
                             const diff = (startTime - now) / 1000; // seconds
-                            // ✨ توحيد القاعدة: 5 دقائق قبل الموعد وحتى 60 دقيقة بعد الموعد
                             const isStartAllowed = diff <= (5 * 60) && diff >= -(60 * 60);
 
                             if (isStartAllowed) {
                                 lists.ready.push({ id: doc.id, data, startTime });
-                            } else {
+                            } else if (diff > (5 * 60)) {
+                                // ✨ مجدولة فقط إذا كان وقتها في المستقبل (أكثر من 5 دقائق)
                                 lists.upcoming.push({ id: doc.id, data, startTime });
                             }
+                            // إذا انتهى وقتها ولم يبدأها، لن تظهر لا في المجدولة ولا في الجاهزة (ستختفي حتى ينهيها المعلم أو الأدمن)
                         }
                     });
 
