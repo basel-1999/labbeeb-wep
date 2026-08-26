@@ -358,23 +358,30 @@
                             startTime.setMinutes(startTime.getMinutes() + 5);
                         }
 
-                        const now = new Date().getTime();
+                                               const now = new Date().getTime();
                         const diffMins = (startTime.getTime() - now) / 60000;
 
+                        // ✨ الحالة المنطقية الموحدة للانتهاء
+                        let isExpired = false;
+                        const timerStartedAt = data.timerStartedAt;
+                        if (timerStartedAt) {
+                            const startMs = timerStartedAt.toDate().getTime();
+                            const elapsedMins = (now - startMs) / 60000;
+                            if (elapsedMins > 65) isExpired = true; // بدأ العداد ومضى أكثر من 65 دقيقة
+                        } else {
+                            if (diffMins < -60) isExpired = true; // لم يبدأ العداد ومضى أكثر من 60 دقيقة
+                        }
+
                         // فرز الجلسات
-                                             if (status === 'completed') {
+                        if (status === 'completed') {
                             lists.completed.push({ id: sessionId, data });
                         } else if (status === 'cancelled') {
                             lists.cancelled.push({ id: sessionId, data });
-                        } else if (status === 'interrupted') {
-                            // ✨ إضافة الانقطاع للجلسات المنتهية
+                        } else if (status === 'interrupted' || isExpired) {
+                            // ✨ توحيد المنتهية والمنقطعة في قائمة المنتهية
                             lists.expired.push({ id: sessionId, data });
-                                               } else if (status !== 'pending' && status !== 'completed' && diffMins < -60 && !data.timerStartedAt) {
-                            // ✨ تعتبر منتهية فقط إذا لم يبدأ فيها العداد أبداً ومضى أكثر من 60 دقيقة
-                            lists.expired.push({ id: sessionId, data });
-                        } else if (status !== 'completed' && status !== 'cancelled') {
-                            // الجلسات النشطة أو التي بدأ العداد بها ولوحها المعلم
-                            // ✨ إضافة علم isPending للتحكم الصارم في العرض
+                        } else {
+                            // الجلسات النشطة أو المعلقة
                             const isPending = (status === 'pending');
                             lists.active.push({ id: sessionId, data, isPending, startTime: startTime.getTime() });
                             // تشغيل العداد فقط للجلسات غير المعلقة
