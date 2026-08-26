@@ -36,6 +36,34 @@
         .modal.active { display: flex; }
         .snackbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 14px 24px; border-radius: 12px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 20px; opacity: 1; } }
+            .teacher-tab {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #6B7280;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .teacher-tab:hover { color: #4E6B45; }
+        .teacher-tab.active {
+            color: #4E6B45;
+            border-bottom: 2px solid #4E6B45;
+        }
+        .teacher-tab-badge {
+            background-color: #D97706;
+            color: white;
+            font-size: 11px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="pb-20">
@@ -115,10 +143,26 @@
                 <p class="text-sm text-textDark">ملاحظة: لوحة التحكم خالية من النوافذ التلقائية. يمكنك بدء الجلسات المقبولة مباشرة في مواعيدها.</p>
             </div>
 
-            <h2 class="text-xl font-bold text-textDark mb-4">📋 جدول الجلسات المقبولة والقادمة</h2>
-            <div id="sessionsContainer" class="space-y-4">
-                <div class="bg-white p-10 rounded-2xl text-center text-gray-500">لا توجد جلسات مسندة إليك حالياً.</div>
+                        <h2 class="text-xl font-bold text-textDark mb-4">📋 إدارة الجلسات</h2>
+            <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
+                <button onclick="switchTeacherTab('pending')" id="tab_btn_pending" class="teacher-tab active">
+                    طلبات جديدة <span id="count_pending" class="teacher-tab-badge">0</span>
+                </button>
+                <button onclick="switchTeacherTab('ready')" id="tab_btn_ready" class="teacher-tab">
+                    جاهزة للبدء <span id="count_ready" class="teacher-tab-badge">0</span>
+                </button>
+                <button onclick="switchTeacherTab('upcoming')" id="tab_btn_upcoming" class="teacher-tab">
+                    مجدولة <span id="count_upcoming" class="teacher-tab-badge">0</span>
+                </button>
+                <button onclick="switchTeacherTab('completed')" id="tab_btn_completed" class="teacher-tab">
+                    منجزة <span id="count_completed" class="teacher-tab-badge">0</span>
+                </button>
             </div>
+            
+            <div id="tab_content_pending" class="space-y-4"></div>
+            <div id="tab_content_ready" class="space-y-4 hidden"></div>
+            <div id="tab_content_upcoming" class="space-y-4 hidden"></div>
+            <div id="tab_content_completed" class="space-y-4 hidden"></div>
         </div>
 
     </main>
@@ -402,32 +446,43 @@
            // ==========================================
         // 🔔 الاستماع للجلسات
         // ==========================================
+        // ==========================================
+        // 🔔 الاستماع للجلسات والفرز الذكي
+        // ==========================================
         function startListeningToSessions() {
-            const container = document.getElementById('sessionsContainer');
-            
             if (activeSessionsListener) activeSessionsListener();
 
             activeSessionsListener = db.collection('sessions')
                 .onSnapshot((snapshot) => {
-                    const loadedSessions = [];
+                    const lists = {
+                        pending: [],
+                        ready: [],
+                        upcoming: [],
+                        completed: []
+                    };
 
                     snapshot.forEach((doc) => {
                         const data = doc.data();
                         const status = data.status ?? 'pending';
                         const assignedTeacherId = data.teacherId;
-
-                        const isPending = status === 'pending';
                         const isMySession = assignedTeacherId === currentUser.uid;
 
-                        // ✨ الفلترة الذكية (تطبق فقط على الطلبات المعلقة الجديدة)
-                        if (isPending) {
-                            // إذا كان الطلب معلقاً، تحقق هل هو من تخصصي ومرحلتي؟ إذا لا، تخطاه
-                            if (!mySpecialties.includes(data.subject)) return; 
-                            if (data.grade && !myTargetAges.includes(data.grade)) return; 
+                        // 1. الجلسات المنجزة (تخص المعلم فقط)
+                        if (status === 'completed' && isMySession) {
+                            lists.completed.push({ id: doc.id, data });
+                            return;
+                        }
+                        
+                        // 2. الطلبات المعلقة (تطبق عليها الفلترة الذكية للتخصص والمرحلة)
+                        if (status === 'pending') {
+                            if (mySpecialties.includes(data.subject) && (!data.grade || myTargetAges.includes(data.grade))) {
+                                lists.pending.push({ id: doc.id, data });
+                            }
+                            return;
                         }
 
-                        // إظهار الطلب إذا كان (معلقاً ومطابقاً) أو (مسنداً إليّ ولم ينتهِ بعد)
-                        if ((isPending || isMySession) && status !== 'completed' && status !== 'cancelled') {
+                        // 3. الجلسات المقبولة (تخص المعلم)
+                        if ((status === 'accepted' || status === 'active') && isMySession) {
                             let startTime;
                             const bookingType = data.bookingType ?? 'now';
                             const scheduledAt = data.scheduledAt;
@@ -442,66 +497,92 @@
                                 startTime.setMinutes(startTime.getMinutes() + 10);
                             }
 
-                            loadedSessions.push({
-                                id: doc.id,
-                                student: data.studentName ?? 'طالب لبيب',
-                                grade: data.grade ?? 'المرحلة الدراسية',
-                                subject: data.subject ?? 'عام',
-                                topic: data.topic ?? data.subject ?? 'درس مباشر',
-                                timeText: data.scheduledTime ?? 'الموعد المحدد',
-                                startTime: startTime,
-                                rawStatus: status,
-                                statusText: status === 'completed' ? 'مكتملة' : (status === 'pending' ? 'طلب جديد بانتظار القبول' : 'جاهزة للبدء')
-                            });
+                            const now = new Date();
+                            const diff = (startTime - now) / 1000; 
+                            const isStartAllowed = diff <= (15 * 60) && diff >= -(60 * 60);
+
+                            if (isStartAllowed) {
+                                lists.ready.push({ id: doc.id, data, startTime });
+                            } else {
+                                lists.upcoming.push({ id: doc.id, data, startTime });
+                            }
                         }
                     });
 
-                    if (loadedSessions.length === 0) {
-                        container.innerHTML = `<div class="bg-white p-10 rounded-2xl text-center text-gray-500">لا توجد جلسات مسندة إليك حالياً.</div>`;
-                        return;
-                    }
+                    // تحديث العدادات
+                    document.getElementById('count_pending').innerText = lists.pending.length;
+                    document.getElementById('count_ready').innerText = lists.ready.length;
+                    document.getElementById('count_upcoming').innerText = lists.upcoming.length;
+                    document.getElementById('count_completed').innerText = lists.completed.length;
 
-                    container.innerHTML = '';
-                    loadedSessions.forEach((req) => {
-                        const now = new Date();
-                        const diff = (req.startTime - now) / 1000; // seconds
-                        const isStartAllowed = diff <= (15 * 60) && diff >= -(60 * 60);
-                        const isPending = req.rawStatus === 'pending';
-
-                        let actionHtml = '';
-                        if (isPending) {
-                            actionHtml = `<button onclick="acceptSession('${req.id}')" class="bg-oliveGreen text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> قبول الطلب الآن</button>`;
-                        } else {
-                            actionHtml = `
-                                <button onclick="showSnackBar('تم فتح نافذة رفع المواد والملخصات.', '#4E6B45')" class="border border-oliveGreen text-oliveGreen text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> إرفاق ملفات</button>
-                                <button onclick="openPreFlightModal('${req.id}', '${req.student}')" ${!isStartAllowed ? 'disabled' : ''} class="${isStartAllowed ? 'bg-accentOrange text-white' : 'bg-gray-300 text-gray-500'} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    ${isStartAllowed ? 'بدء الجلسة / الفحص 🎙️' : 'في انتظار الموعد'}
-                                </button>
-                            `;
-                        }
-
-                        const statusBadge = isPending ? '🟡 طلب جديد بانتظار القبول' : (isStartAllowed ? '🔴 القاعة جاهزة للبدء الآن' : `${req.timeText} (تبدأ خلال ${Math.round(diff / 60)} دقيقة)`);
-                        const statusColor = isPending ? 'text-gray-500' : (isStartAllowed ? 'text-green-600' : 'text-accentOrange');
-
-                        const card = `
-                            <div class="bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center gap-4">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <span class="bg-oliveGreen/10 text-oliveGreen text-xs font-bold px-2 py-1 rounded">طلب #${req.id.substring(0,6)}</span>
-                                        <span class="${statusColor} text-xs font-bold">${statusBadge}</span>
-                                    </div>
-                                    <h4 class="text-base font-bold text-textDark">الطالب: ${req.student}</h4>
-                                    <p class="text-xs text-gray-500">${req.subject} • ${req.grade} (موضوع الدرس: ${req.topic})</p>
-                                </div>
-                                <div class="flex gap-2">
-                                    ${actionHtml}
-                                </div>
-                            </div>
-                        `;
-                        container.innerHTML += card;
-                    });
+                    // رسم القوائم
+                    renderSessionList('pending', lists.pending, false);
+                    renderSessionList('ready', lists.ready, true);
+                    renderSessionList('upcoming', lists.upcoming, true);
+                    renderSessionList('completed', lists.completed, true);
                 });
+        }
+
+        function renderSessionList(tabName, sessions, isAccepted) {
+            const container = document.getElementById(`tab_content_${tabName}`);
+            if (sessions.length === 0) {
+                container.innerHTML = `<div class="bg-white p-10 rounded-2xl text-center text-gray-500">لا توجد جلسات في هذا القسم حالياً.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            sessions.forEach((req) => {
+                const data = req.data;
+                const startTime = req.startTime || new Date();
+                const now = new Date();
+                const diff = (startTime - now) / 1000;
+                const isStartAllowed = diff <= (15 * 60) && diff >= -(60 * 60);
+                const isPending = tabName === 'pending';
+
+                let actionHtml = '';
+                if (tabName === 'completed') {
+                    actionHtml = `<span class="bg-gray-200 text-gray-600 text-xs font-bold px-4 py-3 rounded-xl">مكتملة ✓</span>`;
+                } else if (isPending) {
+                    actionHtml = `<button onclick="acceptSession('${req.id}')" class="bg-oliveGreen text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> قبول الطلب</button>`;
+                } else {
+                    actionHtml = `
+                        <button onclick="showSnackBar('تم فتح نافذة رفع المواد والملخصات.', '#4E6B45')" class="border border-oliveGreen text-oliveGreen text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> ملفات</button>
+                        <button onclick="openPreFlightModal('${req.id}', '${data.studentName ?? 'طالب'}')" ${!isStartAllowed ? 'disabled' : ''} class="${isStartAllowed ? 'bg-accentOrange text-white' : 'bg-gray-300 text-gray-500'} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            ${isStartAllowed ? 'بدء الجلسة 🎙️' : 'في انتظار الموعد'}
+                        </button>
+                    `;
+                }
+
+                const statusBadge = isPending ? '🟡 طلب جديد' : (tabName === 'completed' ? '✅ مكتملة' : (isStartAllowed ? '🔴 جاهزة الآن' : `⏳ ${data.scheduledTime ?? 'مجدولة'}`));
+
+                const card = `
+                    <div class="bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-oliveGreen/10 text-oliveGreen text-xs font-bold px-2 py-1 rounded">طلب #${req.id.substring(0,6)}</span>
+                                <span class="text-gray-500 text-xs font-bold">${statusBadge}</span>
+                            </div>
+                            <h4 class="text-base font-bold text-textDark">الطالب: ${data.studentName ?? 'طالب'}</h4>
+                            <p class="text-xs text-gray-500">${data.subject ?? 'عام'} • ${data.grade ?? ''} (موضوع الدرس: ${data.topic ?? data.subject ?? 'درس مباشر'})</p>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            ${actionHtml}
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        // دالة التبديل بين التبويبات
+        function switchTeacherTab(tabName) {
+            ['pending', 'ready', 'upcoming', 'completed'].forEach(t => {
+                document.getElementById(`tab_content_${t}`).classList.add('hidden');
+                document.getElementById(`tab_btn_${t}`).classList.remove('active');
+            });
+            document.getElementById(`tab_content_${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab_btn_${tabName}`).classList.add('active');
         }
 
         async function acceptSession(sessionId) {
