@@ -532,20 +532,21 @@
                     }
                 }
 
+                              // ✨ تسجيل حضور هذا الطرف فور دخول الغرفة (بغض النظر عن حالة المايك)
+                const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
+                await db.collection('sessions').doc(sessionId).set({
+                    [joinedField]: true
+                }, { merge: true });
+
                 if (localAudioTrack) {
                     await agoraEngine.publish([localAudioTrack]);
                     isMuted = false;
                     updateMicUI();
                     showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
                     startAudioRecording(localAudioTrack);
-
-                    // ✨ تسجيل حضور هذا الطرف في قاعدة البيانات
-                    const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
-                    await db.collection('sessions').doc(sessionId).set({
-                        [joinedField]: true
-                    }, { merge: true });
                 } else {
-                    throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.');
+                    // إذا فشل المايك، لا نطرد المستخدم، بل نسمح له بالبقاء والاستماع ورؤية السبورة
+                    showSnackBar('تعذر الوصول إلى الميكروفون، يمكنك المشاركة بالاستماع والكتابة.', 'orange');
                 }
 
             } catch (e) {
