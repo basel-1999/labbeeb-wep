@@ -548,19 +548,12 @@
                     updateMicUI();
                     showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
                     startAudioRecording(localAudioTrack);
-                                    if (localAudioTrack) {
-                    await agoraEngine.publish([localAudioTrack]);
-                    isMuted = false;
-                    updateMicUI();
-                    showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
-                    startAudioRecording(localAudioTrack);
 
                     // ✨ تسجيل حضور هذا الطرف في قاعدة البيانات
                     const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
                     await db.collection('sessions').doc(sessionId).set({
                         [joinedField]: true
                     }, { merge: true });
-                }
                 } else {
                     throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.');
                 }
