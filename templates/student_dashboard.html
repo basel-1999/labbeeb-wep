@@ -346,12 +346,13 @@
 
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        const status = data.status || 'pending';
+                                           const status = data.status || 'pending';
                         const sessionId = doc.id;
                         const subject = data.subject || 'درس تعليمي';
-                        const teacherName = data.teacherName || data.teacher || 'معلم لبيب';
-                        const hasTeacher = teacherName && teacherName.trim() !== '' && teacherName !== 'null';
-                        const isAccepted = status === 'accepted' || status === 'active' || hasTeacher;
+                        let teacherName = data.teacherName || data.teacher || data.instructorName || '';
+                        const hasTeacher = teacherName !== '' && teacherName !== 'null';
+                        // ✨ الاعتماد فقط على حالة الجلسة الرسمية في الداتابيز
+                        const isAccepted = status === 'accepted' || status === 'active';
 
                         // حساب وقت البدء
                         let startTime = new Date();
@@ -412,9 +413,9 @@
             }
             container.innerHTML = '';
             sessions.forEach(({ id, data, isAccepted }) => {
-                const subject = data.subject || 'الرياضيات';
-                const teacherName = data.teacherName || data.teacher || data.instructorName || '';
-                const hasTeacher = teacherName && teacherName.trim() !== '' && teacherName !== 'null';
+                               const subject = data.subject || 'الرياضيات';
+                let teacherName = data.teacherName || data.teacher || data.instructorName || '';
+                const hasTeacher = teacherName !== '' && teacherName !== 'null';
                 
                 const filesCount = (data.attachedFiles && data.attachedFiles.length > 0) ? data.attachedFiles.length : 0;
                 let filesBtn = `
