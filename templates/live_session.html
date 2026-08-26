@@ -245,13 +245,15 @@
                 
                                 // Handle window close or back button
                                 // Handle window close or back button
-                window.addEventListener('beforeunload', async (event) => {
+                               window.addEventListener('beforeunload', async (event) => {
                     if (agoraEngine) await agoraEngine.leave();
                     if (screenShareClient) await screenShareClient.leave();
                     
+                    // ✨ الأدمن لا يغير حالة الجلسة عند إغلاق النافذة
+                    if (role === 'admin') return;
+
                     try {
                         const doc = await db.collection('sessions').doc(sessionId).get();
-                        // ✨ لا تقم بتعديل الحالة إلى 'interrupted' إذا كانت الجلسة قد اكتملت بالفعل!
                         if (doc.exists && doc.data().status !== 'completed') {
                             await db.collection('sessions').doc(sessionId).update({
                                 'status': 'interrupted',
@@ -464,7 +466,7 @@
             } catch (e) { return ''; }
         }
 
-        async function initAgora() {
+              async function initAgora() {
             try {
                 showSnackBar('جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...', '#D97706');
                 
@@ -476,8 +478,14 @@
                 }
 
                 agoraEngine = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-                await agoraEngine.setClientRole("host");
                 
+                // ✨ الأدمن يدخل كـ Audience (مستمع) ولا يبث صوته
+                if (role === 'admin') {
+                    await agoraEngine.setClientRole("audience");
+                } else {
+                    await agoraEngine.setClientRole("host");
+                }
+
                 agoraEngine.on("user-published", async (user, mediaType) => {
                     await agoraEngine.subscribe(user, mediaType);
                     if (mediaType === "audio") user.audioTrack.play();
@@ -500,32 +508,14 @@
 
                 await agoraEngine.join(AGORA_APP_ID, sessionId, token, numericUid);
                 
-                // ✨ حل جذري ل مشكلة Stereo Mix: البحث عن المايك الفعلي وتجاهل صوت النظام
-                let micId = undefined;
-                try {
-                    // نطلب الإذن أولاً ليتمكن المتصفح من قراءة أسماء الأجهزة
-                    await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const audioInputs = devices.filter(d => d.kind === 'audioinput');
-                    
-                    // كلمات نبحث عنها لاستبعاد أجهزة صوت النظام
-                    const invalidKeywords = ['stereo', 'mix', 'what u hear', 'wave out', 'loopback', 'system'];
-                    
-                    // البحث عن أول مايكروفون حقيقي لا يحتوي على الكلمات المستبعدة
-                    const validMic = audioInputs.find(d => {
-                        const label = d.label.toLowerCase();
-                        return !invalidKeywords.some(kw => label.includes(kw));
-                    });
-
-                    if (validMic) {
-                        micId = validMic.deviceId;
-                        console.log("Selected valid microphone:", validMic.label);
-                    }
-                } catch (e) {
-                    console.warn("Could not enumerate devices, using default:", e);
+                // ✨ إذا كان أدمن، لا نقوم بإنشاء مايكروفون ولا تسجيل حضور
+                if (role === 'admin') {
+                    showSnackBar('تم الدخول كمراقب (صامت) 🕵️‍♂️', '#10b981');
+                    return; // يخرج من الدالة هنا، لا يبث صوتاً ولا يسجل حضوراً
                 }
 
                 let attempts = 0;
+               
                 while (attempts < 3) {
                     try {
                         localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack({
