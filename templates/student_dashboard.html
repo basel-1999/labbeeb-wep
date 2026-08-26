@@ -333,7 +333,7 @@
         // ==========================================
         // 🔄 Student Sessions Logic (Tabs & Timers)
         // ==========================================
-        let activeSessionsInterval = null;
+                let activeSessionsInterval = null;
 
         function listenToStudentSessions() {
             db.collection('sessions')
@@ -362,10 +362,13 @@
                         const diffMins = (startTime.getTime() - now) / 60000;
 
                         // فرز الجلسات
-                        if (status === 'completed') {
+                                             if (status === 'completed') {
                             lists.completed.push({ id: sessionId, data });
                         } else if (status === 'cancelled') {
                             lists.cancelled.push({ id: sessionId, data });
+                        } else if (status === 'interrupted') {
+                            // ✨ إضافة الانقطاع للجلسات المنتهية
+                            lists.expired.push({ id: sessionId, data });
                         } else if (status !== 'pending' && diffMins < -60) {
                             lists.expired.push({ id: sessionId, data });
                         } else {
@@ -404,7 +407,7 @@
                 });
         }
 
-        function renderActiveSessions(sessions) {
+         function renderActiveSessions(sessions) {
             const container = document.getElementById('tab_content_active');
             if (sessions.length === 0) {
                 container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">لا توجد طلبات نشطة حالياً.</div>`;

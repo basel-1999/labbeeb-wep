@@ -502,9 +502,9 @@
                         }
 
                         // 3. الجلسات المقبولة (تخص المعلم)
-                        if ((status === 'accepted' || status === 'active') && isMySession) {
+                                           if ((status === 'accepted' || status === 'active') && isMySession) {
                             let startTime;
-                            const bookingType = data.bookingType ?? 'now';
+                            const bookingType = data.bookingType || 'now';
                             const scheduledAt = data.scheduledAt;
 
                             if (bookingType === 'schedule' && scheduledAt) {
@@ -518,8 +518,9 @@
                             }
 
                             const now = new Date();
-                            const diff = (startTime - now) / 1000; 
-                            const isStartAllowed = diff <= (15 * 60) && diff >= -(60 * 60);
+                            const diff = (startTime - now) / 1000; // seconds
+                            // ✨ توحيد القاعدة: 5 دقائق قبل الموعد وحتى 60 دقيقة بعد الموعد
+                            const isStartAllowed = diff <= (5 * 60) && diff >= -(60 * 60);
 
                             if (isStartAllowed) {
                                 lists.ready.push({ id: doc.id, data, startTime });

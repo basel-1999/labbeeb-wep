@@ -51,7 +51,7 @@
     <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0">
         <div class="flex items-center bg-black/40 rounded-lg px-2 py-1 border border-white/20">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-amber-400 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span id="timerDisplay" class="text-xs font-bold text-white">01:00:00</span>
+          <span id="timerDisplay" class="text-xs font-bold text-white">بانتظار الطرف الآخر...</span>
         </div>
         
         <div class="flex items-center gap-2">
@@ -415,11 +415,9 @@
                     hasShown2MinWarning = true;
                     if (!isTeacher) openModal('extendModal');
                 }
-                if (remainingSeconds <= 0) {
+                               if (remainingSeconds <= 0) {
                     clearInterval(sessionTimer);
-                    db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() });
-                    showSnackBar('⌛ انتهت مدة الحصة. سيتم إغلاق الجلسة الآن.', 'red');
-                    setTimeout(() => window.location.href = '/', 3000);
+                    handleSessionEnd();
                 }
             }, 1000);
         }
@@ -551,6 +549,19 @@
                     updateMicUI();
                     showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
                     startAudioRecording(localAudioTrack);
+                                    if (localAudioTrack) {
+                    await agoraEngine.publish([localAudioTrack]);
+                    isMuted = false;
+                    updateMicUI();
+                    showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
+                    startAudioRecording(localAudioTrack);
+
+                    // ✨ تسجيل حضور هذا الطرف في قاعدة البيانات
+                    const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
+                    await db.collection('sessions').doc(sessionId).set({
+                        [joinedField]: true
+                    }, { merge: true });
+                }
                 } else {
                     throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.');
                 }
@@ -633,7 +644,7 @@
             isScreenSharing = false;
         }
 
-        function listenToSessionState() {
+              function listenToSessionState() {
             db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
@@ -652,23 +663,42 @@
                     // 2. ✨ إذا انقطع اتصال أحد الطرفين فجأة (إغلاق الصفحة)
                     if (status === 'interrupted') {
                         const interruptedBy = data.interruptedBy;
-                        
-                        // إذا أنا طالب، وانقطع المعلم -> أخرجني فوراً
                         if (!isTeacher && interruptedBy === 'teacher') {
                             showSnackBar('❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.', 'red');
                             clearInterval(sessionTimer);
                             setTimeout(() => window.location.href = '/student-dashboard', 3000);
-                        } 
-                        // إذا أنا معلم، وانقطع الطالب -> نبقني في الغرفة، لكن أبلغني
-                        else if (isTeacher && interruptedBy === 'student') {
+                        } else if (isTeacher && interruptedBy === 'student') {
                             showSnackBar('⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.', 'orange');
                         }
                     }
 
-                    // 3. متابعة حالة مشاركة الشاشة
-                    const remoteSharing = data.isScreenSharing || false;
+                    // =========================================================
+                    // 3. ✨ نظام بدء العداد الموحد (ضع الكود هنا بالضبط)
+                    // =========================================================
+                    const timerStartedAt = data.timerStartedAt;
+                    if (timerStartedAt && !sessionTimer) {
+                        // العداد بدأ بالفعل، نقوم بتحميله ومزامنته
+                        const startTimeMs = timerStartedAt.toDate().getTime();
+                        const nowMs = new Date().getTime();
+                        const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000);
+                        remainingSeconds = Math.max(0, 3600 - elapsedSeconds); // ساعة كاملة (3600 ثانية) ناقص الماضي
+                        
+                        if (remainingSeconds > 0) {
+                            startSessionTimer();
+                        } else {
+                            // انتهى الوقت أثناء الانتظار
+                            handleSessionEnd();
+                        }
+                    } else if (!timerStartedAt && data.teacherJoined && data.studentJoined) {
+                        // ✨ الطرفان حاضران للمرة الأولى، قم بتسجيل وقت البدء!
+                        db.collection('sessions').doc(sessionId).update({
+                            timerStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                    // =========================================================
+
+                    // 4. متابعة حالة مشاركة الشاشة
                     const activeSharerUid = data.screenShareUid;
-                    
                     if (data.isScreenSharing && activeSharerUid !== currentUser.uid && isScreenSharing) {
                         stopMyScreenShare();
                         showSnackBar('قام الطرف الآخر بمشاركة شاشته، تم إيقاف مشاركتك تلقائياً.', 'orange');
@@ -870,11 +900,14 @@
             });
         }
 
-        function confirmEndSession() {
+               function confirmEndSession() {
             if (isTeacher) {
                 openModal('endSessionModal');
             } else {
-                db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() });
+                // ✨ الطالب يغادر الغرفة فقط بدون تغيير حالة الجلسة (حتى لا يكسر عملية حفظ السبورة التي يقوم بها المعلم)
+                if (agoraEngine) agoraEngine.leave();
+                if (screenShareClient) screenShareClient.leave();
+                clearInterval(sessionTimer);
                 window.location.href = '/student-dashboard';
             }
         }
@@ -937,6 +970,20 @@
             }
         }
 
+                async function handleSessionEnd() {
+            showSnackBar('⌛ انتهت مدة الحصة. سيتم إغلاق الجلسة الآن.', 'red');
+            if (isTeacher) {
+                // المعلم ينهي الجلسة تلقائياً ويحفظ السبورة
+                if (!document.getElementById('endSessionModal').classList.contains('active')) {
+                    await startExportProcess();
+                }
+            } else {
+                // الطالب يُطرد
+                if (agoraEngine) await agoraEngine.leave();
+                setTimeout(() => window.location.href = '/student-dashboard', 3000);
+            }
+        }
+        
         function updateProgress(val, text) {
             document.getElementById('progressBar').style.width = `${val * 100}%`;
             document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`;

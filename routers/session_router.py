@@ -114,8 +114,9 @@ async def create_session_request(
         'instructorName': None,
         'subject': subject,
         'topic': topic,
-        'grade': grade,  # ✨ حفظ المرحلة الدراسية
+        'grade': grade,
         'status': 'pending',
+        'bookingType': 'now',  
         'createdAt': firestore.SERVER_TIMESTAMP,
         'audioRecordingUrl': None,
         'boardPdfUrl': None,
@@ -197,7 +198,8 @@ async def accept_session(
 
     session_data = session_snap.to_dict()
     
-    if session_data and session_data.get('status') == 'pending':
+    current_status = session_data.get('status')
+    if current_status == 'pending':
         # 🛡️ فلترة ذكية (Smart Routing Security): التأكد من أن المعلم يدرس هذه المادة والمرحلة
         user_ref = db.collection('users').document(uid)
         user_snap = user_ref.get()
