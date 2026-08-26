@@ -306,7 +306,7 @@
             });
         }
 
-        let activeSessionsInterval = null;
+             let activeSessionsInterval = null;
 
         function listenToActiveRequests() {
             const container = document.getElementById('activeRequestsContainer');
@@ -332,23 +332,22 @@
                         const isAccepted = status === 'accepted' || status === 'active' || hasTeacher;
                         const sessionId = doc.id;
 
-                        let filesBtn = '';
-                        if (data.attachedFiles && data.attachedFiles.length > 0) {
-                            filesBtn = `<button onclick="openStudentFilesModal('${sessionId}')" class="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-2 rounded-xl border border-blue-200 flex items-center gap-1 mb-1">
+                        // ✨ إجبار زر الملفات على الظهور دائماً
+                        const filesCount = (data.attachedFiles && data.attachedFiles.length > 0) ? data.attachedFiles.length : 0;
+                        let filesBtn = `
+                            <button onclick="openStudentFilesModal('${sessionId}')" class="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-2 rounded-xl border border-blue-200 flex items-center gap-1 mb-1 w-full justify-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                الملفات (${data.attachedFiles.length})
-                            </button>`;
-                        }
+                                ملفات الحصة (${filesCount})
+                            </button>
+                        `;
 
                         let actionHtml = '';
                         if (isAccepted) {
-                            // تحديد وقت بدء الجلسة
                             let startTime = new Date();
                             const bookingType = data.bookingType || 'now';
                             if (bookingType === 'schedule' && data.scheduledAt) {
                                 startTime = data.scheduledAt.toDate();
                             } else if (data.createdAt) {
-                                // الحصة الفورية تبدأ بعد 5 دقائق من إنشائها
                                 startTime = data.createdAt.toDate();
                                 startTime.setMinutes(startTime.getMinutes() + 5);
                             }
@@ -356,9 +355,9 @@
                             sessionsData.push({ id: sessionId, startTime: startTime.getTime() });
 
                             actionHtml = `
-                                <div class="flex flex-col items-end gap-1 shrink-0" id="actions_${sessionId}">
+                                <div class="flex flex-col items-end gap-1 shrink-0 w-28 sm:w-32">
                                     ${filesBtn}
-                                    <div id="timer_${sessionId}" class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200">جاري الحساب...</div>
+                                    <div id="timer_${sessionId}" class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 w-full text-center">جاري الحساب...</div>
                                 </div>
                             `;
                         } else {
@@ -380,7 +379,6 @@
                         container.innerHTML += card;
                     });
 
-                    // تشغيل العداد اللحظي لتحديث الأوقات كل ثانية
                     if (activeSessionsInterval) clearInterval(activeSessionsInterval);
                     activeSessionsInterval = setInterval(() => {
                         sessionsData.forEach(s => {
@@ -390,6 +388,39 @@
                 }, (error) => {
                     container.innerHTML = `<div class="bg-red-50 p-5 rounded-2xl border border-red-300 text-center text-sm text-red-600 font-bold">تعذر تحميل الطلبات حالياً.</div>`;
                 });
+        }
+
+        function updateLiveTimer(sessionId, startTimeMs) {
+            const timerDiv = document.getElementById(`timer_${sessionId}`);
+            if (!timerDiv) return;
+
+            const now = new Date().getTime();
+            const diffMs = startTimeMs - now;
+            const diffMins = diffMs / 60000;
+
+            if (diffMins <= 5 && diffMins >= -60) {
+                timerDiv.outerHTML = `
+                    <button onclick="joinSession('${sessionId}')" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1 w-full justify-center animate-pulse">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        دخول الجلسة 🎙️
+                    </button>
+                `;
+            } else if (diffMins > 5) {
+                const hours = Math.floor(diffMins / 60);
+                const mins = Math.floor(diffMins % 60);
+                const secs = Math.floor((diffMs % 60000) / 1000);
+                
+                let timeStr = '';
+                if (hours > 0) timeStr += `${hours} ساعة `;
+                if (mins > 0 || hours > 0) timeStr += `${mins.toString().padStart(2, '0')} د `;
+                timeStr += `${secs.toString().padStart(2, '0')} ث`;
+                
+                timerDiv.innerText = `يبدأ بعد: ${timeStr}`;
+                timerDiv.className = "bg-orange-50 text-accentOrange text-xs font-bold px-3 py-2 rounded-xl border border-orange-200 w-full text-center";
+            } else {
+                timerDiv.innerText = "انتهت صلاحية الدخول";
+                timerDiv.className = "bg-gray-100 text-gray-500 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 w-full text-center";
+            }
         }
 
         function updateLiveTimer(sessionId, startTimeMs) {
