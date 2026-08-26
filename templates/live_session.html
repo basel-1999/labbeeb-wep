@@ -238,7 +238,6 @@
                 initUI();
                 initCanvas();
                 initAgora();
-                startSessionTimer();
                 listenToWhiteboard();
                 listenToChat();
                 listenToSessionState();
@@ -714,9 +713,12 @@
             });
         }
 
+ 
         // ==========================================
         // 💬 Live Chat & Notifications
         // ==========================================
+        let isInitialChatLoad = true;
+
         function toggleChat() {
             isChatOpen = !isChatOpen;
             const panel = document.getElementById('chatPanel');
@@ -724,25 +726,30 @@
             if (isChatOpen) {
                 panel.classList.remove('hidden');
                 panel.classList.add('flex');
-                unreadMessages = 0; // ✨ تصفير العداد
-                badge.classList.add('hidden');
+                unreadMessages = 0; 
+                if (badge) {
+                    badge.classList.add('hidden');
+                }
             } else {
                 panel.classList.add('hidden');
                 panel.classList.remove('flex');
             }
         }
 
-                // متغير لمعرفة إذا كانت هذه أول مرة تحمل فيها الدردشة
-        let isInitialChatLoad = true;
-
         function listenToChat() {
             db.collection('sessions').doc(sessionId).collection('messages')
                 .orderBy('createdAt', 'asc')
                 .onSnapshot((snapshot) => {
                     const container = document.getElementById('chatMessages');
-                    container.innerHTML = '';
+                    if (!container) return; // حماية من الأخطاء
                     
-                    // 1. عرض كل الرسائل (القديمة والجديدة) للحفاظ على سجل المحادثة
+                    container.innerHTML = '';
+                    if (snapshot.empty) {
+                        container.innerHTML = '<div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>';
+                        isInitialChatLoad = false;
+                        return;
+                    }
+                    
                     snapshot.forEach((doc) => {
                         const data = doc.data();
                         const isTeacherMsg = data.sender === 'teacher';
@@ -754,7 +761,7 @@
                         container.appendChild(bubble);
                     });
 
-                    // 2. عداد الرسائل الجديدة فقط (بعد التحميل الأول)
+                    // عداد الرسائل الجديدة فقط (بعد التحميل الأول)
                     if (!isInitialChatLoad) {
                         snapshot.docChanges().forEach((change) => {
                             if (change.type === "added") {
@@ -762,12 +769,13 @@
                                 const isTeacherMsg = data.sender === 'teacher';
                                 const isMine = (isTeacher && isTeacherMsg) || (!isTeacher && !isTeacherMsg);
                                 
-                                // ✨ زيادة العداد مرة واحدة فقط للرسالة الجديدة إذا كانت من الطرف الآخر والنافذة مغلقة
                                 if (!isMine && !isChatOpen) {
                                     unreadMessages++;
                                     const badge = document.getElementById('chatBadge');
-                                    badge.innerText = unreadMessages;
-                                    badge.classList.remove('hidden');
+                                    if (badge) {
+                                        badge.innerText = unreadMessages;
+                                        badge.classList.remove('hidden');
+                                    }
                                 }
                             }
                         });
@@ -775,10 +783,11 @@
                     
                     isInitialChatLoad = false; // انتهى التحميل الأول
                     container.scrollTop = container.scrollHeight;
+                }, (error) => {
+                    console.error("Chat Error:", error);
                 });
         }
 
-        // ✨ دالة إرسال الرسالة عند ضغط Enter
         function handleChatEnter(event) {
             if (event.key === "Enter") {
                 event.preventDefault();
@@ -791,11 +800,15 @@
             const text = input.value.trim();
             if (text) {
                 input.value = '';
-                await db.collection('sessions').doc(sessionId).collection('messages').add({
-                    sender: isTeacher ? 'teacher' : 'student',
-                    text: text,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                try {
+                    await db.collection('sessions').doc(sessionId).collection('messages').add({
+                        sender: isTeacher ? 'teacher' : 'student',
+                        text: text,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) {
+                    showSnackBar('فشل إرسال الرسالة: ' + e.message, 'red');
+                }
             }
         }
 
@@ -983,7 +996,7 @@
                 setTimeout(() => window.location.href = '/student-dashboard', 3000);
             }
         }
-        
+
         function updateProgress(val, text) {
             document.getElementById('progressBar').style.width = `${val * 100}%`;
             document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`;
