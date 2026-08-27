@@ -683,9 +683,16 @@
                     body: formData
                 });
 
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'فشل إنشاء الطلب');
+                             if (!response.ok) {
+                    let errorMsg = 'فشل إنشاء الطلب في السيرفر.';
+                    try {
+                        const err = await response.json();
+                        errorMsg = err.detail || errorMsg;
+                    } catch (e) {
+                        // إذا لم يكن الرد JSON (مثل خطأ 500 Internal Server Error)
+                        errorMsg = `خطأ في السيرفر (${response.status}). يرجى المحاولة لاحقاً.`;
+                    }
+                    throw new Error(errorMsg);
                 }
 
                 const result = await response.json();
