@@ -237,15 +237,23 @@
                 currentUser = user;
                 initUI();
                 initCanvas();
-                initAgora();
                 listenToWhiteboard();
                 listenToChat();
                 listenToSessionState();
-                listenToAnimations(); // ✨ الاستماع للأنيميشن
+                listenToAnimations(); 
                 
-                                // Handle window close or back button
-                                // Handle window close or back button
-                               window.addEventListener('beforeunload', async (event) => {
+                // ✨ تسجيل الحضور فور فتح الصفحة (مستقلة عن الاتصال الصوتي)
+                if (role !== 'admin') {
+                    const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
+                    await db.collection('sessions').doc(sessionId).set({
+                        [joinedField]: true
+                    }, { merge: true });
+                }
+
+                // تشغيل الصوت في الخلفية (يمكن أن يستغرق وقتاً للإيقاظ، لكنه لن يؤخر العداد)
+                initAgora();
+                
+                window.addEventListener('beforeunload', async (event) => {
                     if (agoraEngine) await agoraEngine.leave();
                     if (screenShareClient) await screenShareClient.leave();
                     
@@ -522,11 +530,6 @@
                     return; // يخرج من الدالة هنا، لا يبث صوتاً ولا يسجل حضوراً
                 }
 
-                // ✨ تسجيل حضور هذا الطرف فور دخول الغرفة (بغض النظر عن حالة المايك)
-                const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
-                await db.collection('sessions').doc(sessionId).set({
-                    [joinedField]: true
-                }, { merge: true });
 
                 // ✨ البحث عن المايك الفعلي وتجاهل صوت النظام (Stereo Mix)
                 let micId = undefined;
@@ -683,22 +686,21 @@
                     // =========================================================
                     // 3. ✨ نظام بدء العداد الموحد (ضع الكود هنا بالضبط)
                     // =========================================================
+                                    // ✨ نظام بدء العداد الموحد (الشرط بالـ AND)
                     const timerStartedAt = data.timerStartedAt;
                     if (timerStartedAt && !sessionTimer) {
-                        // العداد بدأ بالفعل، نقوم بتحميله ومزامنته
                         const startTimeMs = timerStartedAt.toDate().getTime();
                         const nowMs = new Date().getTime();
                         const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000);
-                        remainingSeconds = Math.max(0, 3600 - elapsedSeconds); // ساعة كاملة (3600 ثانية) ناقص الماضي
+                        remainingSeconds = Math.max(0, 3600 - elapsedSeconds);
                         
                         if (remainingSeconds > 0) {
                             startSessionTimer();
                         } else {
-                            // انتهى الوقت أثناء الانتظار
                             handleSessionEnd();
                         }
                     } else if (!timerStartedAt && data.teacherJoined && data.studentJoined) {
-                        // ✨ الطرفان حاضران للمرة الأولى، قم بتسجيل وقت البدء!
+                        // ✨ الطرفان حضرا (بـ AND)، قم بتسجيل وقت البدء فوراً!
                         db.collection('sessions').doc(sessionId).update({
                             timerStartedAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
