@@ -466,13 +466,21 @@
             } catch (e) { return ''; }
         }
 
-              async function initAgora() {
+        async function initAgora() {
             try {
                 showSnackBar('جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...', '#D97706');
                 
                 const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                const token = await fetchDynamicToken(sessionId, numericUid);
+                let token = '';
                 
+                // ✨ إيقاظ الخادم: محاولة جلب التوكن 3 مرات
+                for (let i = 0; i < 3; i++) {
+                    token = await fetchDynamicToken(sessionId, numericUid);
+                    if (token) break; // إذا نجح، اخرج من اللوب
+                    showSnackBar('خادم الصوت نائم، جاري إيقاظه...', '#D97706');
+                    await new Promise(r => setTimeout(r, 5000)); // انتظر 5 ثوانٍ وأعد المحاولة
+                }
+
                 if (!token) {
                     throw new Error('تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.');
                 }
@@ -514,8 +522,31 @@
                     return; // يخرج من الدالة هنا، لا يبث صوتاً ولا يسجل حضوراً
                 }
 
+                // ✨ تسجيل حضور هذا الطرف فور دخول الغرفة (بغض النظر عن حالة المايك)
+                const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
+                await db.collection('sessions').doc(sessionId).set({
+                    [joinedField]: true
+                }, { merge: true });
+
+                // ✨ البحث عن المايك الفعلي وتجاهل صوت النظام (Stereo Mix)
+                let micId = undefined;
+                try {
+                    await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                    const invalidKeywords = ['stereo', 'mix', 'what u hear', 'wave out', 'loopback', 'system'];
+                    const validMic = audioInputs.find(d => {
+                        const label = d.label.toLowerCase();
+                        return !invalidKeywords.some(kw => label.includes(kw));
+                    });
+                    if (validMic) {
+                        micId = validMic.deviceId;
+                    }
+                } catch (e) {
+                    console.warn("Could not enumerate devices, using default:", e);
+                }
+
                 let attempts = 0;
-               
                 while (attempts < 3) {
                     try {
                         localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack({
@@ -531,12 +562,6 @@
                         await new Promise(r => setTimeout(r, 1000));
                     }
                 }
-
-                              // ✨ تسجيل حضور هذا الطرف فور دخول الغرفة (بغض النظر عن حالة المايك)
-                const joinedField = isTeacher ? 'teacherJoined' : 'studentJoined';
-                await db.collection('sessions').doc(sessionId).set({
-                    [joinedField]: true
-                }, { merge: true });
 
                 if (localAudioTrack) {
                     await agoraEngine.publish([localAudioTrack]);
