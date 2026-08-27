@@ -573,10 +573,17 @@
         }
 
 
-        // ✨ دالة عداد الانتظار (10 دقائق للطلب الفوري)
+            // ✨ دالة عداد الانتظار (10 دقائق للطلب الفوري)
         function updateWaitingTimer(sessionId, createdAt) {
             const timerDiv = document.getElementById(`wait_timer_${sessionId}`);
-            if (!timerDiv || !createdAt) return;
+            if (!timerDiv) return;
+
+            // التأكد من أن createdAt هو كائن Timestamp صالح
+            if (!createdAt || typeof createdAt.toDate !== 'function') {
+                // إذا لم يكن متاحاً بعد (بسبب تأخر Firestore)، نعرض النص الافتراضي
+                timerDiv.innerText = "جاري البحث عن معلم... 10:00";
+                return;
+            }
 
             const createdMs = createdAt.toDate().getTime();
             const nowMs = new Date().getTime();
