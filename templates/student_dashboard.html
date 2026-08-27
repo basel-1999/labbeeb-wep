@@ -379,7 +379,6 @@
                         } else {
                             if (diffMins < -60) isExpired = true; // لم يبدأ العداد ومضى أكثر من 60 دقيقة
                         }
-
                         // فرز الجلسات
                         if (status === 'completed') {
                             lists.completed.push({ id: sessionId, data });
@@ -392,10 +391,9 @@
                             // الجلسات النشطة أو المعلقة
                             const isPending = (status === 'pending');
                             lists.active.push({ id: sessionId, data, isPending, startTime: startTime.getTime() });
-                            // تشغيل العداد فقط للجلسات غير المعلقة
-                            if (!isPending) {
-                                sessionsData.push({ id: sessionId, startTime: startTime.getTime() });
-                            }
+                            
+                            // ✨ الإصلاح: إضافة جميع الجلسات للعداد (لتشغيل عداد الانتظار أو عداد الجلسة)
+                            sessionsData.push({ id: sessionId, data, isPending, startTime: startTime.getTime() });
                         }
                     });
 
