@@ -88,41 +88,56 @@ async def create_session_request(
     grade: str = Form("غير محدد"),  # ✨ تمت إضافة المرحلة الدراسية
     uid: str = Depends(get_current_user)
 ):
-    user_ref = db.collection('users').document(uid)
-    user_snap = user_ref.get()
+    try:
+        user_ref = db.collection('users').document(uid)
+        user_snap = user_ref.get()
 
-    if not user_snap.exists:
-        raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
+        if not user_snap.exists:
+            raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
 
-    user_data = user_snap.to_dict()
-    raw_credits = user_data.get('sessionCredits', 0)
-    current_credits = raw_credits if isinstance(raw_credits, int) else 0
+        user_data = user_snap.to_dict()
+        raw_credits = user_data.get('sessionCredits', 0)
+        current_credits = raw_credits if isinstance(raw_credits, int) else 0
 
-    if current_credits <= 0:
-        raise HTTPException(status_code=400, detail="رصيدك الحالي لا يكفي لإنشاء حصة جديدة. يرجى شحن المحفظة.")
+        if current_credits <= 0:
+            raise HTTPException(status_code=400, detail="رصيدك الحالي لا يكفي لإنشاء حصة جديدة. يرجى شحن المحفظة.")
 
-    user_ref.update({'sessionCredits': current_credits - 1})
+        user_ref.update({'sessionCredits': current_credits - 1})
 
-    session_ref = db.collection('sessions').document()
-    session_ref.set({
-        'studentId': uid,
-        'studentName': studentName,
-        'teacherId': None,
-        'assignedTeacherId': None,
-        'teacherName': None,
-        'teacher': None,
-        'instructorName': None,
-        'subject': subject,
-        'topic': topic,
-        'grade': grade,
-        'status': 'pending',
-        'bookingType': 'now',  
-        'createdAt': firestore.SERVER_TIMESTAMP,
-        'audioRecordingUrl': None,
-        'boardPdfUrl': None,
-    })
+        session_ref = db.collection('sessions').document()
+        session_ref.set({
+            'studentId': uid,
+            'studentName': studentName,
+            'teacherId': None,
+            'assignedTeacherId': None,
+            'teacherName': None,
+            'teacher': None,
+            'instructorName': None,
+            'subject': subject,
+            'topic': topic,
+            'grade': grade,
+            'status': 'pending',
+            'bookingType': 'now',  
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'audioRecordingUrl': None,
+            'boardPdfUrl': None,
+        })
 
-    return {"sessionId": session_ref.id, "message": "تم إنشاء الطلب بنجاح"}
+        return {"sessionId": session_ref.id, "message": "تم إنشاء الطلب بنجاح"}
+
+    except HTTPException:
+        raise # إعادة رمي أخطاء HTTP المخصصة (مثل خطأ الرصيد 0) لتصل للمستخدم مباشرة
+
+    # ✨ هذا هو الكود الذي يلتقط الخطأ من Render ويعرضه بشكل مفهوم
+    except Exception as e:
+        error_str = str(e)
+        print(f"❌ ERROR in create_session: {error_str}")
+        if "429" in error_str or "Quota" in error_str:
+            raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة غداً أو ترقية الباقة.")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
+
+
+
 
 @router.post("/api/session/cancel/{sessionId}")
 async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_user)):
