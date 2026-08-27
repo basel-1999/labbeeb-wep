@@ -668,6 +668,36 @@
             document.getElementById(`tab_btn_${tabName}`).classList.add('active');
         }
 
+
+
+        // ✨ دالة إلغاء الطلب اليدوي (تستدعي مسار الإلغاء في الباك-ند)
+        async function cancelSession(sessionId) {
+            // 1. تأكيد من المستخدم قبل الإلغاء
+            if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟ سيتم إرجاع الحصة إلى رصيدك.')) return;
+            
+            try {
+                const token = await currentUser.getIdToken();
+                
+                // 2. استدعاء مسار الإلغاء في الباك-ند
+                const res = await fetch(`/api/session/cancel/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                // 3. التحقق من الاستجابة
+                if (res.ok) {
+                    showSnackBar('تم إلغاء الطلب وإرجاع الرصيد إلى محفظتك ✅', '#4E6B45');
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'فشل الإلغاء');
+                }
+            } catch (e) {
+                showSnackBar('خطأ في الإلغاء: ' + e.message, '#ef4444');
+            }
+        }
+
+
+
         // Actions
         async function joinSession(sessionId) {
             const studentName = encodeURIComponent(displayName);
