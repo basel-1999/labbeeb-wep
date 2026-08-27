@@ -153,6 +153,20 @@
     </footer>
 
     <!-- Modals -->
+
+    <!-- Time Up Modal -->
+    <div id="timeUpModal" class="modal fixed inset-0 bg-black/80 z-50 items-center justify-center p-4">
+        <div class="bg-[#2C2C2C] rounded-2xl p-6 max-w-sm w-full text-center">
+            <h3 class="font-bold text-lg mb-4 text-white">⌛ انتهت مدة الحصة!</h3>
+            <p class="text-white/70 text-sm mb-6">لقد انتهت ساعة التدريس. هل ترغب في تمديد الحصة لساعة إضافية (سيتم خصم حصة من رصيدك) أم إنهاء الجلسة الآن؟</p>
+            <div class="flex justify-center gap-4">
+                <button onclick="endSessionNow()" class="bg-red-600 text-white font-bold px-6 py-2 rounded-lg text-sm">إنهاء الجلسة</button>
+                <button onclick="extendSession(true)" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm">تمديد حصة جديدة</button>
+            </div>
+        </div>
+    </div>
+
+
     <div id="extendModal" class="modal fixed inset-0 bg-black/70 z-50 items-center justify-center">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center text-gray-800">
             <h3 class="font-bold text-lg mb-4">تمديد الحصة</h3>
@@ -439,8 +453,9 @@
             document.getElementById('timerDisplay').innerText = h > 0 ? `${format(h)}:${format(m)}:${format(s)}` : `${format(m)}:${format(s)}`;
         }
 
-        async function extendSession() {
+        async function extendSession(isFromTimeUp = false) {
             closeModal('extendModal');
+            closeModal('timeUpModal');
             try {
                 const token = await currentUser.getIdToken();
                 const res = await fetch(`/api/session/extend/${sessionId}`, {
@@ -449,17 +464,16 @@
                     body: new URLSearchParams({ 'studentId': currentUser.uid })
                 });
                 if (res.ok) {
-                    remainingSeconds = 3600;
-                    hasShown10MinWarning = false;
-                    hasShown2MinWarning = false;
-                    extensionCount++;
                     showSnackBar('🎉 تم تمديد الحصة بنجاح! استمتع بوقتك الإضافي.', 'green');
+                    // لا نقوم بتحديث remainingSeconds يدوياً، بل سنترك listenToSessionState تقوم بذلك تلقائياً
+                    // ليتزامن العداد بين المعلم والطالب
                 } else {
                     const err = await res.json();
                     throw new Error(err.detail);
                 }
             } catch (e) {
                 showSnackBar(`❌ ${e.message}`, 'red');
+                if (isFromTimeUp) endSessionNow(); // إذا حاول التمديد وفشل (لعدم وجود رصيد) يُطرد
             }
         }
 
@@ -685,22 +699,26 @@
 
                     // =========================================================
                     // 3. ✨ نظام بدء العداد الموحد (ضع الكود هنا بالضبط)
-                    // =========================================================
-                                    // ✨ نظام بدء العداد الموحد (الشرط بالـ AND)
+                    
+                                       // 3. ✨ نظام العداد الموحد والمتزامن
                     const timerStartedAt = data.timerStartedAt;
-                    if (timerStartedAt && !sessionTimer) {
+                    if (timerStartedAt) {
                         const startTimeMs = timerStartedAt.toDate().getTime();
                         const nowMs = new Date().getTime();
                         const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000);
-                        remainingSeconds = Math.max(0, 3600 - elapsedSeconds);
+                        const newRemainingSeconds = Math.max(0, 3600 - elapsedSeconds);
                         
-                        if (remainingSeconds > 0) {
+                        // ✨ إذا كان الوقت المتبعي الجديد أكبر من الحالي (يعني تم التمديد)، حدث العداد
+                        // أو إذا لم يكن العداد يعمل أصلاً، ابدأه
+                        if (newRemainingSeconds > remainingSeconds || (!sessionTimer && newRemainingSeconds > 0)) {
+                            remainingSeconds = newRemainingSeconds;
+                            hasShown10MinWarning = false;
+                            hasShown2MinWarning = false;
                             startSessionTimer();
-                        } else {
+                        } else if (newRemainingSeconds <= 0 && sessionTimer) {
                             handleSessionEnd();
                         }
                     } else if (!timerStartedAt && data.teacherJoined && data.studentJoined) {
-                        // ✨ الطرفان حضرا (بـ AND)، قم بتسجيل وقت البدء فوراً!
                         db.collection('sessions').doc(sessionId).update({
                             timerStartedAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
@@ -936,6 +954,15 @@
             }
         }
 
+                function endSessionNow() {
+            closeModal('timeUpModal');
+            if (agoraEngine) agoraEngine.leave();
+            if (screenShareClient) screenShareClient.leave();
+            // الطالب يغادر فقط، والمعلم سيقوم بحفظ السبورة في شاشته
+            window.location.href = '/student-dashboard';
+        }
+
+
         async function startExportProcess() {
             document.getElementById('endModalContent').classList.add('hidden');
             document.getElementById('endModalProgress').classList.remove('hidden');
@@ -994,17 +1021,21 @@
             }
         }
 
-                async function handleSessionEnd() {
-            showSnackBar('⌛ انتهت مدة الحصة. سيتم إغلاق الجلسة الآن.', 'red');
+                        async function handleSessionEnd() {
+            clearInterval(sessionTimer); // إيقاف العداد تماماً
+            
+            if (role === 'admin') return; // الأدمن لا يظهر له شيء
+            
             if (isTeacher) {
+                // المعلم تظهر له رسالة بأن الوقت انتهى ويجب حفظ السبورة
+                showSnackBar('⌛ انتهت مدة الحصة! يرجى حفظ السبورة وإنهاء الجلسة.', 'red');
                 // المعلم ينهي الجلسة تلقائياً ويحفظ السبورة
                 if (!document.getElementById('endSessionModal').classList.contains('active')) {
                     await startExportProcess();
                 }
             } else {
-                // الطالب يُطرد
-                if (agoraEngine) await agoraEngine.leave();
-                setTimeout(() => window.location.href = '/student-dashboard', 3000);
+                // الطالب تظهر له نافذة الاختيار (تمديد أو إنهاء)
+                openModal('timeUpModal');
             }
         }
 

@@ -175,7 +175,8 @@ async def extend_session_duration(sessionId: str, studentId: str = Form(...), ui
 
     db.collection('sessions').document(sessionId).update({
         'extensionsCount': firestore.Increment(1),
-        'lastExtendedAt': firestore.SERVER_TIMESTAMP
+        'lastExtendedAt': firestore.SERVER_TIMESTAMP ,
+        'timerStartedAt': firestore.SERVER_TIMESTAMP
     })
 
     return {"message": "تم تمديد الجلسة بنجاح"}
