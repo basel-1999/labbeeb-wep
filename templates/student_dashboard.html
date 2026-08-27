@@ -358,8 +358,16 @@
                             startTime.setMinutes(startTime.getMinutes() + 5);
                         }
 
-                                               const now = new Date().getTime();
+                     const now = new Date().getTime();
                         const diffMins = (startTime.getTime() - now) / 60000;
+
+                        // ✨ الحل التجاري: إلغاء الطلب الفوري تلقائياً بعد 10 دقائق (diffMins = -5) وإرجاع الرصيد
+                        if (status === 'pending' && bookingType === 'now' && diffMins < -5) {
+                            if (!data.autoCancelled) {
+                                autoCancelSession(sessionId); // استدعاء دالة الإلغاء
+                            }
+                            return; // لا تعرضه في القوائم لأنه تم إلغاؤه
+                        }
 
                         // ✨ الحالة المنطقية الموحدة للانتهاء
                         let isExpired = false;
@@ -403,11 +411,15 @@
                     renderSimpleSessions('expired', lists.expired, "انتهت صلاحية الدخول");
                     renderSimpleSessions('cancelled', lists.cancelled, "تم إلغاء الطلب");
 
-                    // تشغيل العداد اللحظي
+                                        // تشغيل العداد اللحظي + عداد الانتظار للطلبات الفورية
                     if (activeSessionsInterval) clearInterval(activeSessionsInterval);
                     activeSessionsInterval = setInterval(() => {
                         sessionsData.forEach(s => {
-                            updateLiveTimer(s.id, s.startTime);
+                            if (s.isPending && s.data.bookingType === 'now') {
+                                updateWaitingTimer(s.id, s.data.createdAt);
+                            } else if (!s.isPending) {
+                                updateLiveTimer(s.id, s.startTime);
+                            }
                         });
                     }, 1000);
                 }, (error) => {
@@ -435,9 +447,25 @@
                 let bgColor = 'bg-accentOrange/10';
                 let iconColor = 'text-accentOrange';
 
-                if (isPending) {
-                    // ✅ إذا كان الطلب معلقاً، نُجبر الواجهة على إظهار حالة الانتظار فقط
-                    actionHtml = `<span class="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200">بانتظار القبول ⏳</span>`;
+                              if (isPending) {
+                    // ✨ إذا كان الطلب معلقاً
+                    if (data.bookingType === 'now') {
+                        // طلب فوري: عرض عداد 10 دقائق وزر الإلغاء
+                        actionHtml = `
+                            <div class="flex flex-col items-end gap-1 shrink-0" id="waiting_box_${id}">
+                                <span id="wait_timer_${id}" class="bg-orange-50 text-accentOrange text-[11px] font-bold px-3 py-1 rounded-lg border border-orange-200 animate-pulse">جاري البحث عن معلم... 10:00</span>
+                                <button onclick="cancelSession('${id}')" class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-100 transition">إلغاء الطلب</button>
+                            </div>
+                        `;
+                    } else {
+                        // طلب مجدول: فقط بانتظار الموعد
+                        actionHtml = `
+                            <div class="flex flex-col items-end gap-1 shrink-0">
+                                <span class="bg-gray-100 text-gray-500 text-[11px] font-bold px-3 py-1 rounded-lg border border-gray-200">بانتظار الموعد ⏳</span>
+                                <button onclick="cancelSession('${id}')" class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-100 transition">إلغاء الطلب</button>
+                            </div>
+                        `;
+                    }
                 } else {
                     // ✅ إذا تم قبوله رسمياً (status = accepted)
                     statusText = hasTeacher ? `المعلم: ${teacherName} 🎉` : 'تم قبول طلبك 🎉';
@@ -544,6 +572,29 @@
                 `;
                 container.innerHTML += card;
             });
+        }
+
+
+        // ✨ دالة عداد الانتظار (10 دقائق للطلب الفوري)
+        function updateWaitingTimer(sessionId, createdAt) {
+            const timerDiv = document.getElementById(`wait_timer_${sessionId}`);
+            if (!timerDiv || !createdAt) return;
+
+            const createdMs = createdAt.toDate().getTime();
+            const nowMs = new Date().getTime();
+            const elapsedSecs = Math.floor((nowMs - createdMs) / 1000);
+            const remainingSecs = Math.max(0, 600 - elapsedSecs); // 600 ثانية = 10 دقائق
+
+            const mins = Math.floor(remainingSecs / 60);
+            const secs = remainingSecs % 60;
+            
+            if (remainingSecs > 0) {
+                timerDiv.innerText = `جاري البحث عن معلم... ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                // انتهت الـ 10 دقائق، قم بالإلغاء التلقائي
+                timerDiv.innerText = "انتهى الوقت";
+                autoCancelSession(sessionId);
+            }
         }
 
         function updateLiveTimer(sessionId, startTimeMs) {
@@ -960,6 +1011,27 @@
                 showSnackBar('فشل إرسال الرسالة: ' + e.message, '#ef4444');
             }
         }
+
+        // ✨ دالة الإلغاء التلقائي للطلب الفوري (تستدعي مسار الإلغاء في الباك-ند)
+        async function autoCancelSession(sessionId) {
+            try {
+                const token = await currentUser.getIdToken();
+                await fetch(`/api/session/cancel/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                showSnackBar('⏳ لم يتم قبول طلبك الفوري خلال 10 دقائق. تم إلغاء الطلب وإرجاع الحصة لمحفظتك.', 'orange');
+                
+                // وضع علامة في الداتابيز لمنع تكرار العملية
+                await db.collection('sessions').doc(sessionId).set({
+                    'autoCancelled': true
+                }, { merge: true });
+                
+            } catch (e) {
+                console.error("Auto cancel error:", e);
+            }
+        }
+
 
         // Snackbar Utility
         function showSnackBar(text, color) {
