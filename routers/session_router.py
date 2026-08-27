@@ -141,32 +141,55 @@ async def create_session_request(
 
 @router.post("/api/session/cancel/{sessionId}")
 async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_user)):
-    session_ref = db.collection('sessions').document(sessionId)
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        session_snap = session_ref.get()
 
-    @firestore.transactional
-    def cancel_transaction(transaction):
-        session_snap = transaction.get(session_ref)
         if not session_snap.exists:
-            return
-        
-        session_data = session_snap.to_dict()
-        if session_data.get('status') == 'pending' and session_data.get('studentId') == uid:
-            user_ref = db.collection('users').document(uid)
-            user_snap = transaction.get(user_ref)
-            
-            if user_snap.exists:
-                user_data = user_snap.to_dict()
-                current_credits = user_data.get('sessionCredits', 0)
-                transaction.update(user_ref, {'sessionCredits': current_credits + 1})
-            
-            transaction.update(session_ref, {
-                'status': 'cancelled',
-                'cancelledAt': firestore.SERVER_TIMESTAMP
-            })
+            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
 
-    transaction = db.transaction()
-    cancel_transaction(transaction)
-    return {"message": "تم إلغاء الطلب وإرجاع الرصيد"}
+        session_data = session_snap.to_dict()
+        
+        # التأكد أن الجلسة لا تزال معلقة
+        if session_data.get('status') != 'pending':
+            raise HTTPException(status_code=400, detail="لا يمكن إلغاء هذا الطلب لأنه لم يعد معلقاً.")
+
+        # التأكد أن من يطلب الإلغاء هو صاحب الطلب
+        if session_data.get('studentId') != uid:
+            raise HTTPException(status_code=403, detail="غير مصرح لك بإلغاء هذا الطلب.")
+
+        # 1. إرجاع الرصيد للطالب
+        user_ref = db.collection('users').document(uid)
+        user_snap = user_ref.get()
+        
+        if user_snap.exists:
+            user_data = user_snap.to_dict()
+            raw_credits = user_data.get('sessionCredits', 0)
+            if not isinstance(raw_credits, (int, float)):
+                raw_credits = 0
+            current_credits = int(raw_credits)
+            
+            # زيادة الرصيد بمقدار 1
+            user_ref.update({'sessionCredits': current_credits + 1})
+        else:
+            raise HTTPException(status_code=404, detail="حساب الطالب غير موجود لإرجاع الرصيد.")
+
+        # 2. تغيير حالة الجلسة إلى ملغاة
+        session_ref.update({
+            'status': 'cancelled',
+            'cancelledAt': firestore.SERVER_TIMESTAMP
+        })
+
+        return {"message": "تم إلغاء الطلب وإرجاع الرصيد بنجاح"}
+
+    except HTTPException:
+        raise # إعادة رمي أخطاء HTTP المخصصة
+    except Exception as e:
+        error_str = str(e)
+        print(f"❌ ERROR in cancel_session: {error_str}")
+        if "429" in error_str or "Quota" in error_str:
+            raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية.")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
 @router.post("/api/session/extend/{sessionId}")
 async def extend_session_duration(sessionId: str, studentId: str = Form(...), uid: str = Depends(get_current_user)):
