@@ -1048,36 +1048,31 @@
         }
 
               // ✨ دالة إلغاء الطلب اليدوي
+              // ✨ دالة إلغاء الطلب اليدوي (محصنة ضد الأخطاء النصية)
         async function cancelSession(sessionId) {
-            console.log("1. Button clicked for session:", sessionId); // رسالة تتبع
-            
-            if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟ سيتم إرجاع الحصة إلى رصيدك.')) {
-                console.log("2. User cancelled the prompt");
-                return;
-            }
+            if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟ سيتم إرجاع الحصة إلى رصيدك.')) return;
             
             try {
-                console.log("3. Getting token...");
                 const token = await currentUser.getIdToken();
-                
-                console.log("4. Sending cancel request to server...");
                 const res = await fetch(`/api/session/cancel/${sessionId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                console.log("5. Server responded with status:", res.status);
-                
                 if (res.ok) {
-                    console.log("6. Cancel successful!");
                     showSnackBar('تم إلغاء الطلب وإرجاع الرصيد إلى محفظتك ✅', '#4E6B45');
                 } else {
-                    const err = await res.json();
-                    console.error("7. Server error:", err);
-                    throw new Error(err.detail || 'فشل الإلغاء');
+                    let errorMsg = 'فشل الإلغاء في السيرفر.';
+                    try {
+                        const err = await res.json();
+                        errorMsg = err.detail || errorMsg;
+                    } catch (e) {
+                        // ✨ إذا لم يكن الرد JSON (مثل خطأ 500 Internal Server Error)
+                        errorMsg = `خطأ في السيرفر (${res.status}). قد يكون السيرفر نائماً أو تجاوز الحصة المجانية.`;
+                    }
+                    throw new Error(errorMsg);
                 }
             } catch (e) {
-                console.error("8. Exception caught:", e);
                 showSnackBar('خطأ في الإلغاء: ' + e.message, '#ef4444');
             }
         }
