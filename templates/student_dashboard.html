@@ -1047,8 +1047,7 @@
             }
         }
 
-              // ✨ دالة إلغاء الطلب اليدوي
-              // ✨ دالة إلغاء الطلب اليدوي (محصنة ضد الأخطاء النصية)
+                      // ✨ دالة إلغاء الطلب اليدوي (محصنة ضد الأخطاء)
         async function cancelSession(sessionId) {
             if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟ سيتم إرجاع الحصة إلى رصيدك.')) return;
             
@@ -1067,7 +1066,6 @@
                         const err = await res.json();
                         errorMsg = err.detail || errorMsg;
                     } catch (e) {
-                        // ✨ إذا لم يكن الرد JSON (مثل خطأ 500 Internal Server Error)
                         errorMsg = `خطأ في السيرفر (${res.status}). قد يكون السيرفر نائماً أو تجاوز الحصة المجانية.`;
                     }
                     throw new Error(errorMsg);
@@ -1077,6 +1075,19 @@
             }
         }
 
+        // ✨ دالة الإلغاء التلقائي (عند انتهاء عداد الـ 10 دقائق)
+        async function autoCancelSession(sessionId) {
+            try {
+                const token = await currentUser.getIdToken();
+                await fetch(`/api/session/cancel/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                showSnackBar('⏳ لم يتم قبول طلبك الفوري خلال 10 دقائق. تم إلغاء الطلب وإرجاع الحصة لمحفظتك.', 'orange');
+            } catch (e) {
+                console.error("Auto cancel error:", e);
+            }
+        }
 
         // Snackbar Utility
         function showSnackBar(text, color) {
