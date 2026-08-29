@@ -206,54 +206,86 @@
         </div>
     </div>
 
-    <!-- 2. Recharge Wallet Modal -->
+   
+       <!-- 2. Recharge Method Selection Modal -->
     <div id="rechargeModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> شحن رصيد الحصص</h3>
-            
-            <p class="text-xs text-gray-500 mb-4">اختر الباقة المطلوبة، ثم اختر طريقة الدفع المناسبة لك:</p>
-            
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative">
+            <button onclick="closeModal('rechargeModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 class="font-bold text-lg mb-6 text-center">اختر طريقة شحن المحفظة</h3>
+            <div class="grid grid-cols-1 gap-4">
+                <button onclick="openCardPaymentModal()" class="bg-oliveGreen text-white p-5 rounded-xl flex items-center justify-center gap-3 hover:bg-oliveLight transition shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    <span class="text-base font-bold">دفع بالبطاقة (آلي وفوري)</span>
+                </button>
+                <button onclick="openBankTransferModal()" class="bg-gray-100 text-textDark p-5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-200 transition border border-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m4-11v11m8-11v11m4-11v11" /></svg>
+                    <span class="text-base font-bold">تحويل بنكي (يدوي)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2.b Card Payment Modal -->
+    <div id="cardPaymentModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative">
+            <button onclick="closeModal('cardPaymentModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                الدفع بالبطاقة
+            </h3>
+            <p class="text-xs text-gray-500 mb-4 text-center">سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.</p>
             <div class="space-y-2 mb-6">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="package" value="1|حصة واحدة (35 ر.س)" checked> حصة واحدة (35 ر.س)
+                    <input type="radio" name="cardPackage" value="1|35" checked> حصة واحدة (35 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="package" value="5|باقة 5 حصص (150 ر.س)"> باقة 5 حصص (150 ر.س)
+                    <input type="radio" name="cardPackage" value="5|150"> باقة 5 حصص (150 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="package" value="12|باقة التفوق 12 حصة (320 ر.س)"> باقة التفوق 12 حصة (320 ر.س)
+                    <input type="radio" name="cardPackage" value="12|320"> باقة التفوق 12 حصة (320 ر.س)
                 </label>
             </div>
+            <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                ادفع الآن
+            </button>
+        </div>
+    </div>
 
-            <!-- اختيار طريقة الدفع -->
-            <div class="grid grid-cols-2 gap-3 mb-4">
-                <!-- زر الدفع الإلكتروني (Tap) -->
-                <button onclick="payWithTap()" class="bg-oliveGreen text-white p-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-oliveLight transition shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                    <span class="text-sm font-bold text-center">دفع بالبطاقة<br>(آلي وفوري)</span>
-                </button>
-                
-                <!-- زر التحويل البنكي -->
-                <button onclick="showBankTransferForm()" class="bg-gray-100 text-textDark p-4 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-gray-200 transition border border-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m4-11v11m8-11v11m4-11v11" /></svg>
-                    <span class="text-sm font-bold text-center">تحويل بنكي<br>(يدوي)</span>
-                </button>
+    <!-- 2.c Bank Transfer Modal -->
+    <div id="bankTransferModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative">
+            <button onclick="closeModal('bankTransferModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m4-11v11m8-11v11m4-11v11" /></svg>
+                التحويل البنكي
+            </h3>
+            <p class="text-xs text-gray-500 mb-4">اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:</p>
+            <div class="space-y-2 mb-4">
+                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="bankPackage" value="1|حصة واحدة (35 ر.س)" checked> حصة واحدة (35 ر.س)
+                </label>
+                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="bankPackage" value="5|باقة 5 حصص (150 ر.س)"> باقة 5 حصص (150 ر.س)
+                </label>
+                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="bankPackage" value="12|باقة التفوق 12 حصة (320 ر.س)"> باقة التفوق 12 حصة (320 ر.س)
+                </label>
             </div>
-
-            <!-- نموذج التحويل البنكي (يظهر فقط عند الضغط على التحويل البنكي) -->
-            <div id="bankTransferForm" class="hidden">
-                <div class="border-t border-gray-200 pt-4">
-                    <input type="text" id="referenceNumber" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
-                    <label class="text-xs font-bold block mb-2">صورة إشعار التحويل (إجباري):</label>
-                    <input type="file" id="receiptImage" accept="image/*" class="hidden">
-                    <div id="receiptUploadBox" onclick="document.getElementById('receiptImage').click()" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
-                        اضغط لرفع صورة الإشعار
-                    </div>
-                    <div class="flex justify-end gap-3 mt-6">
-                        <button onclick="closeModal('rechargeModal')" class="text-gray-500 text-sm">إلغاء</button>
-                        <button id="submitRechargeBtn" onclick="submitRecharge()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">إرسال للإدارة 📤</button>
-                    </div>
-                </div>
+            <input type="text" id="referenceNumber" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+            <label class="text-xs font-bold block mb-2">صورة إشعار التحويل (إجباري):</label>
+            <input type="file" id="receiptImage" accept="image/*" class="hidden">
+            <div id="receiptUploadBox" onclick="document.getElementById('receiptImage').click()" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
+                اضغط لرفع صورة الإشعار
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="submitRechargeBtn" onclick="submitRecharge()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">إرسال للإدارة 📤</button>
             </div>
         </div>
     </div>
@@ -836,34 +868,32 @@
             }
         }
 
+               // ==========================================
+        // 💳 Recharge & Payment Logic
+        // ==========================================
         function openRechargeModal() {
             openModal('rechargeModal');
-            // إخفاء نموذج التحويل البنكي افتراضياً عند فتح النافذة
-            document.getElementById('bankTransferForm').classList.add('hidden');
             document.getElementById('receiptImage').onchange = (e) => {
                 const fileName = e.target.files[0]?.name || 'اضغط لرفع صورة الإشعار';
                 document.getElementById('receiptUploadBox').innerText = fileName;
             };
         }
 
-        // ✨ إظهار نموذج التحويل البنكي اليدوي
-        function showBankTransferForm() {
-            document.getElementById('bankTransferForm').classList.remove('hidden');
+        function openCardPaymentModal() {
+            closeModal('rechargeModal');
+            openModal('cardPaymentModal');
         }
 
-         // ✨ الدفع الإلكتروني عبر بوابة Tap (محصن ضد الأخطاء النصية)
-        async function payWithTap() {
-            const packageVal = document.querySelector('input[name="package"]:checked').value;
-            const [sessionsCountStr, packageTitle] = packageVal.split('|');
-            const sessionsCount = parseInt(sessionsCountStr);
+        function openBankTransferModal() {
+            closeModal('rechargeModal');
+            openModal('bankTransferModal');
+        }
 
-            // استخراج المبلغ من نص الباقة (مثال: "حصة واحدة (35 ر.س)" -> 35)
-            const amountMatch = packageTitle.match(/(\d+)\s*ر\.س/);
-            if (!amountMatch) {
-                showSnackBar('تعذر تحديد مبلغ الدفع', '#ef4444');
-                return;
-            }
-            const amount = parseFloat(amountMatch[1]);
+        async function payWithTap() {
+            const packageVal = document.querySelector('input[name="cardPackage"]:checked').value;
+            const [sessionsCountStr, amountStr] = packageVal.split('|');
+            const sessionsCount = parseInt(sessionsCountStr);
+            const amount = parseFloat(amountStr);
 
             showSnackBar('جاري تجهيز صفحة الدفع الآمنة...', '#4E6B45');
 
@@ -885,7 +915,6 @@
                         const err = await res.json();
                         errorMsg = err.detail || errorMsg;
                     } catch (e) {
-                        // ✨ إذا لم يكن الرد JSON (مثل خطأ 500 Internal Server Error)
                         errorMsg = `خطأ في السيرفر (${res.status}). قد يكون السيرفر نائماً أو تجاوز الحصة المجانية.`;
                     }
                     throw new Error(errorMsg);
@@ -893,7 +922,6 @@
 
                 const data = await res.json();
                 if (data.checkoutUrl) {
-                    // توجيه الطالب لصفحة الدفع الرسمية التابعة لـ Tap
                     window.location.href = data.checkoutUrl;
                 } else {
                     throw new Error('تعذر الحصول على رابط الدفع من البوابة.');
@@ -916,7 +944,7 @@
 
             try {
                 const token = await currentUser.getIdToken();
-                const packageVal = document.querySelector('input[name="package"]:checked').value;
+                const packageVal = document.querySelector('input[name="bankPackage"]:checked').value;
                 const [sessionsCount, packageTitle] = packageVal.split('|');
 
                 const formData = new FormData();
@@ -942,7 +970,8 @@
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                closeModal('rechargeModal');
+                
+                closeModal('bankTransferModal');
                 showSnackBar('تم إرسال طلب الشحن بنجاح! بانتظار مراجعة الإدارة ⏳', '#4E6B45');
                 
                 document.getElementById('referenceNumber').value = '';
