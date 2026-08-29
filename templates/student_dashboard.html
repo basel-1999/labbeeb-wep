@@ -851,7 +851,7 @@
             document.getElementById('bankTransferForm').classList.remove('hidden');
         }
 
-        // ✨ الدفع الإلكتروني عبر بوابة Tap
+         // ✨ الدفع الإلكتروني عبر بوابة Tap (محصن ضد الأخطاء النصية)
         async function payWithTap() {
             const packageVal = document.querySelector('input[name="package"]:checked').value;
             const [sessionsCountStr, packageTitle] = packageVal.split('|');
@@ -879,12 +879,24 @@
                     body: formData
                 });
 
+                if (!res.ok) {
+                    let errorMsg = 'فشل إنشاء رابط الدفع في السيرفر.';
+                    try {
+                        const err = await res.json();
+                        errorMsg = err.detail || errorMsg;
+                    } catch (e) {
+                        // ✨ إذا لم يكن الرد JSON (مثل خطأ 500 Internal Server Error)
+                        errorMsg = `خطأ في السيرفر (${res.status}). قد يكون السيرفر نائماً أو تجاوز الحصة المجانية.`;
+                    }
+                    throw new Error(errorMsg);
+                }
+
                 const data = await res.json();
-                if (res.ok && data.checkoutUrl) {
+                if (data.checkoutUrl) {
                     // توجيه الطالب لصفحة الدفع الرسمية التابعة لـ Tap
                     window.location.href = data.checkoutUrl;
                 } else {
-                    throw new Error(data.detail || 'فشل إنشاء رابط الدفع');
+                    throw new Error('تعذر الحصول على رابط الدفع من البوابة.');
                 }
             } catch (e) {
                 showSnackBar('خطأ في الدفع: ' + e.message, '#ef4444');
