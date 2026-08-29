@@ -337,73 +337,70 @@ async def create_tap_checkout(
     uid: str = Depends(get_current_user)
 ):
     """إنشاء رابط دفع آمن عبر بوابة Tap Payments"""
-    
-    # جلب المفتاح السري من متغيرات البيئة
-    secret_key = os.getenv("TAP_SECRET_KEY")
-    base_url = os.getenv("TAP_API_BASE_URL", "https://api.tap.company/v2")
-    
-    if not secret_key:
-        raise HTTPException(status_code=500, detail="لم يتم إعداد مفاتيح بوابة الدفع بشكل صحيح.")
-
-    # جلب اسم الطالب لعرضه في صفحة الدفع
-    user_ref = db.collection('users').document(uid)
-    user_snap = user_ref.get()
-    student_name = "طالب لبيب"
-    if user_snap.exists:
-        student_name = user_snap.to_dict().get('name', student_name)
-
-    # تجهيز بيانات الدفع لإرسالها لـ Tap
-    payload = {
-        "amount": amount,
-        "currency": "QAR", # العملة الريال القطري
-        "threeDSecure": True,
-        "save_card_later": False,
-        "description": f"شحن محفظة منصة لبيب ({sessionsCount} حصص)",
-        "statement_descriptor": "Labeeb Platform",
-        "metadata": {
-            "studentId": uid,
-            "studentName": student_name,
-            "sessionsCount": sessionsCount
-        },
-        "reference": {
-            "transaction": str(uuid.uuid4()),
-            "order": str(uuid.uuid4())
-        },
-        "receipt": {
-            "email": False,
-            "sms": True
-        },
-        "customer": {
-            "first_name": student_name,
-            "middle_name": "",
-            "last_name": "",
-            "email": "",
-            "phone": {
-                "country_code": "+974",
-                "number": "00000000"
-            }
-        },
-        "source": {
-            "id": "src_all" # قبول جميع طرق الدفع (مدى، فيزا، ماستركارد، آبل باي)
-        },
-        "redirect": {
-            # الرابط الذي سيعود إليه الطالب بعد إتمام الدفع (سننشئ هذه الصفحة لاحقاً)
-            "url": f"https://labeeb-wep.onrender.com/payment-success" 
-        }
-    }
-
-    headers = {
-        "Authorization": f"Bearer {secret_key}",
-        "Content-Type": "application/json"
-    }
-
     try:
+        # جلب المفتاح السري من متغيرات البيئة
+        secret_key = os.getenv("TAP_SECRET_KEY")
+        base_url = os.getenv("TAP_API_BASE_URL", "https://api.tap.company/v2")
+        
+        if not secret_key:
+            raise HTTPException(status_code=500, detail="لم يتم إعداد مفاتيح بوابة الدفع بشكل صحيح.")
+
+        # جلب اسم الطالب لعرضه في صفحة الدفع
+        user_ref = db.collection('users').document(uid)
+        user_snap = user_ref.get()
+        student_name = "طالب لبيب"
+        if user_snap.exists:
+            student_name = user_snap.to_dict().get('name', student_name)
+
+        # تجهيز بيانات الدفع لإرسالها لـ Tap
+        payload = {
+            "amount": amount,
+            "currency": "QAR",
+            "threeDSecure": True,
+            "save_card_later": False,
+            "description": f"شحن محفظة منصة لبيب ({sessionsCount} حصص)",
+            "statement_descriptor": "Labeeb Platform",
+            "metadata": {
+                "studentId": uid,
+                "studentName": student_name,
+                "sessionsCount": sessionsCount
+            },
+            "reference": {
+                "transaction": str(uuid.uuid4()),
+                "order": str(uuid.uuid4())
+            },
+            "receipt": {
+                "email": False,
+                "sms": True
+            },
+            "customer": {
+                "first_name": student_name,
+                "middle_name": "",
+                "last_name": "",
+                "email": "",
+                "phone": {
+                    "country_code": "+974",
+                    "number": "00000000"
+                }
+            },
+            "source": {
+                "id": "src_all"
+            },
+            "redirect": {
+                "url": f"https://labeeb-wep.onrender.com/payment-success" 
+            }
+        }
+
+        headers = {
+            "Authorization": f"Bearer {secret_key}",
+            "Content-Type": "application/json"
+        }
+
         # إرسال الطلب إلى سيرفر Tap
         response = requests.post(f"{base_url}/charges", json=payload, headers=headers)
         
         if response.status_code in [200, 201]:
             data = response.json()
-            # Tap يرجع لنا رابط صفحة الدفع الآمنة (transaction.url)
             checkout_url = data.get("transaction", {}).get("url")
             if checkout_url:
                 return {"checkoutUrl": checkout_url}
@@ -413,9 +410,14 @@ async def create_tap_checkout(
             print("Tap Error Response:", response.text)
             raise HTTPException(status_code=400, detail="فشل إنشاء طلب الدفع. تأكد من البيانات.")
             
+    except HTTPException:
+        raise # إعادة رمي أخطاء HTTP المخصصة
     except Exception as e:
-        print(f"Tap Checkout Error: {e}")
-        raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء الاتصال ببوابة الدفع: {str(e)}")
+        error_str = str(e)
+        print(f"❌ ERROR in create_tap_checkout: {error_str}")
+        if "429" in error_str or "Quota" in error_str:
+            raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة غداً.")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
 
 @router.post("/api/payment/webhook")
