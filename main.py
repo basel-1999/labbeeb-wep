@@ -97,6 +97,94 @@ async def live_session(request: Request, sessionId: str = "unknown_session", rol
         "is_teacher": is_teacher
     })
 
+
+@app.get("/payment-success", response_class=HTMLResponse)
+async def payment_success(request: Request):
+    """صفحة نجاح الدفع - تظهر بعد إعادة التوجيه من بوابة Tap"""
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>تم الدفع بنجاح - منصة لبيب</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            oliveGreen: '#4E6B45',
+                            beigeBg: '#F4EFE6',
+                            beigeCard: '#FAF7F2',
+                            textDark: '#1E241B',
+                            accentOrange: '#D97706',
+                        },
+                        fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                    }
+                }
+            }
+        </script>
+        <style>
+            body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; }
+            .checkmark {
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                display: block;
+                stroke-width: 3;
+                stroke: #4E6B45;
+                stroke-miterlimit: 10;
+                margin: 0 auto;
+                box-shadow: inset 0px 0px 0px #4E6B45;
+                animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+            }
+            .checkmark__circle {
+                stroke-dasharray: 166;
+                stroke-dashoffset: 166;
+                stroke-width: 3;
+                stroke-miterlimit: 10;
+                stroke: #4E6B45;
+                fill: none;
+                animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+            }
+            .checkmark__check {
+                transform-origin: 50% 50%;
+                stroke-dasharray: 48;
+                stroke-dashoffset: 48;
+                animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+            }
+            @keyframes stroke {100% {stroke-dashoffset: 0;}}
+            @keyframes scale {0%, 100% {transform: none;} 50% {transform: scale3d(1.1, 1.1, 1);}}
+            @keyframes fill {100% {box-shadow: inset 0px 0px 0px 40px #4E6B45;}}
+        </style>
+    </head>
+    <body class="flex items-center justify-center min-h-screen">
+        <div class="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+            <h1 class="text-2xl font-bold text-oliveGreen mt-6 mb-3">تمت عملية الدفع بنجاح!</h1>
+            <p class="text-gray-500 text-sm mb-8">تم شحن رصيدك في محفظتك بنجاح. يمكنك الآن طلب حصصك الدراسية.</p>
+            <a href="/student-dashboard" class="bg-oliveGreen text-white font-bold py-3 px-8 rounded-xl hover:bg-oliveLight transition inline-block">
+                العودة للوحة التحكم
+            </a>
+        </div>
+        <script>
+            // تحويل الطالب تلقائياً للوحة التحكم بعد 5 ثوانٍ
+            setTimeout(() => {
+                window.location.href = '/student-dashboard';
+            }, 5000);
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+
+
 # ==========================================
 # ▶️ تشغيل السيرفر
 # ==========================================
