@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, status
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import cloudinary
 import cloudinary.uploader
 import os
+import requests
+import uuid
 from dotenv import load_dotenv
 from typing import Optional
 import json 
@@ -135,8 +137,6 @@ async def create_session_request(
         if "429" in error_str or "Quota" in error_str:
             raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة غداً أو ترقية الباقة.")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
-
-
 
 
 @router.post("/api/session/cancel/{sessionId}")
@@ -324,6 +324,158 @@ async def register_teacher(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء الحفظ: {str(e)}")
+
+
+# ==========================================
+# 💳 بوابة الدفع (Tap Payments)
+# ==========================================
+
+@router.post("/api/payment/create-checkout")
+async def create_tap_checkout(
+    amount: float = Form(...),
+    sessionsCount: int = Form(...),
+    uid: str = Depends(get_current_user)
+):
+    """إنشاء رابط دفع آمن عبر بوابة Tap Payments"""
+    
+    # جلب المفتاح السري من متغيرات البيئة
+    secret_key = os.getenv("TAP_SECRET_KEY")
+    base_url = os.getenv("TAP_API_BASE_URL", "https://api.tap.company/v2")
+    
+    if not secret_key:
+        raise HTTPException(status_code=500, detail="لم يتم إعداد مفاتيح بوابة الدفع بشكل صحيح.")
+
+    # جلب اسم الطالب لعرضه في صفحة الدفع
+    user_ref = db.collection('users').document(uid)
+    user_snap = user_ref.get()
+    student_name = "طالب لبيب"
+    if user_snap.exists:
+        student_name = user_snap.to_dict().get('name', student_name)
+
+    # تجهيز بيانات الدفع لإرسالها لـ Tap
+    payload = {
+        "amount": amount,
+        "currency": "QAR", # العملة الريال القطري
+        "threeDSecure": True,
+        "save_card_later": False,
+        "description": f"شحن محفظة منصة لبيب ({sessionsCount} حصص)",
+        "statement_descriptor": "Labeeb Platform",
+        "metadata": {
+            "studentId": uid,
+            "studentName": student_name,
+            "sessionsCount": sessionsCount
+        },
+        "reference": {
+            "transaction": str(uuid.uuid4()),
+            "order": str(uuid.uuid4())
+        },
+        "receipt": {
+            "email": False,
+            "sms": True
+        },
+        "customer": {
+            "first_name": student_name,
+            "middle_name": "",
+            "last_name": "",
+            "email": "",
+            "phone": {
+                "country_code": "+974",
+                "number": "00000000"
+            }
+        },
+        "source": {
+            "id": "src_all" # قبول جميع طرق الدفع (مدى، فيزا، ماستركارد، آبل باي)
+        },
+        "redirect": {
+            # الرابط الذي سيعود إليه الطالب بعد إتمام الدفع (سننشئ هذه الصفحة لاحقاً)
+            "url": f"https://labeeb-wep.onrender.com/payment-success" 
+        }
+    }
+
+    headers = {
+        "Authorization": f"Bearer {secret_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # إرسال الطلب إلى سيرفر Tap
+        response = requests.post(f"{base_url}/charges", json=payload, headers=headers)
+        
+        if response.status_code in [200, 201]:
+            data = response.json()
+            # Tap يرجع لنا رابط صفحة الدفع الآمنة (transaction.url)
+            checkout_url = data.get("transaction", {}).get("url")
+            if checkout_url:
+                return {"checkoutUrl": checkout_url}
+            else:
+                raise HTTPException(status_code=500, detail="تعذر الحصول على رابط الدفع من البوابة.")
+        else:
+            print("Tap Error Response:", response.text)
+            raise HTTPException(status_code=400, detail="فشل إنشاء طلب الدفع. تأكد من البيانات.")
+            
+    except Exception as e:
+        print(f"Tap Checkout Error: {e}")
+        raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء الاتصال ببوابة الدفع: {str(e)}")
+
+
+@router.post("/api/payment/webhook")
+async def tap_webhook(request: Request):
+    """استقبال إشعار الدفع من Tap وتحديث رصيد الطالب تلقائياً"""
+    try:
+        # استقبال البيانات القادمة من سيرفر Tap
+        payload = await request.json()
+        print("📥 Tap Webhook Received:", payload)
+
+        # التحقق من حالة الدفع (CAPTURED تعني أن المبلغ تم خصمه بنجاح)
+        status = payload.get("status")
+        if status == "CAPTURED":
+            # استخراج بيانات الطالب من الحقول المخصصة (metadata)
+            metadata = payload.get("metadata", {})
+            student_id = metadata.get("studentId")
+            sessions_count = int(metadata.get("sessionsCount", 0))
+
+            if student_id and sessions_count > 0:
+                # شحن رصيد الطالب في Firestore
+                user_ref = db.collection('users').document(student_id)
+                user_snap = user_ref.get()
+
+                if user_snap.exists:
+                    user_data = user_snap.to_dict()
+                    current_credits = user_data.get('sessionCredits', 0)
+                    
+                    # زيادة الرصيد
+                    user_ref.update({
+                        'sessionCredits': current_credits + sessions_count
+                    })
+                    print(f"✅ Wallet topped up for {student_id}: +{sessions_count} sessions")
+
+                    # حفظ سجل الدفع في قاعدة البيانات للأرشيف
+                    db.collection('recharge_requests').add({
+                        'studentId': student_id,
+                        'studentName': metadata.get("studentName", "طالب"),
+                        'packageTitle': f"دفع إلكتروني ({sessions_count} حصص)",
+                        'sessionsCount': sessions_count,
+                        'referenceNumber': payload.get("id", "TAP_TXN"),
+                        'receiptImageUrl': '',
+                        'status': 'approved',
+                        'createdAt': firestore.SERVER_TIMESTAMP,
+                        'approvedAt': firestore.SERVER_TIMESTAMP,
+                        'paymentMethod': 'Tap Gateway'
+                    })
+                else:
+                    print("❌ Webhook Error: Student not found.")
+            else:
+                print("❌ Webhook Error: Missing metadata.")
+        else:
+            print(f"ℹ️ Payment status is not CAPTURED: {status}")
+
+        # يجب دائماً الرد بـ 200 OK لسيرفر Tap لكي لا يعيد إرسال الطلب
+        return {"status": "success"}
+
+    except Exception as e:
+        print(f"❌ Webhook Exception: {str(e)}")
+        return {"status": "error"}
+
 
 # ==========================================
 # ☁️ رفع الملفات إلى Cloudinary وإنهاء الجلسة
