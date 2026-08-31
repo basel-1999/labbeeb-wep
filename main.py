@@ -8,6 +8,8 @@ from fastapi.templating import Jinja2Templates
 from routers.api_router import router as api_router
 from routers.session_router import router as session_router
 
+from routers.payment_router import router as payment_router
+
 # ==========================================
 # 🚀 تهيئة تطبيق FastAPI
 # ==========================================
@@ -27,6 +29,7 @@ templates = Jinja2Templates(directory="templates")
 # تضمين راوترات الـ API (الخاصة بعمليات الباك-ند)
 app.include_router(api_router)
 app.include_router(session_router)
+app.include_router(payment_router)
 
 # ==========================================
 # 🔒 نظام الحماية والتوجيه (Redirect Logic)
@@ -188,6 +191,12 @@ async def payment_success(request: Request):
 # ==========================================
 # ▶️ تشغيل السيرفر
 # ==========================================
+
+@app.get("/payment-success", response_class=HTMLResponse, dependencies=[Depends(auth_guard)])
+async def payment_success(request: Request):
+    """صفحة العودة بعد إتمام الدفع"""
+    return templates.TemplateResponse(request=request, name="payment_success.html")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

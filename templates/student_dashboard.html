@@ -1178,6 +1178,48 @@
             document.body.appendChild(snackbar);
             setTimeout(() => snackbar.remove(), 3500);
         }
+
+
+        async function payWithTap() {
+    // 1. قراءة الباقة المختارة من الراديو
+    const selectedPackage = document.querySelector('input[name="cardPackage"]:checked');
+    if (!selectedPackage) {
+        showSnackbar("يرجى اختيار باقة الشحن أولاً", "error");
+        return;
+    }
+
+    // استخراج عدد الحصص والسعر (مثال: 1|35)
+    const [credits, price] = selectedPackage.value.split('|');
+
+    try {
+        // 2. إرسال طلب إنشاء عملية الدفع لـ API الخاص بالباك إند
+        const response = await fetch('/api/payment/create-tap-charge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: parseFloat(price),
+                credits: parseInt(credits),
+                userId: currentUser.uid,
+                customerName: displayName,
+                customerEmail: currentUser.email || "student@labeeb.com"
+            })
+        });
+
+        const data = await response.json();
+
+        // 3. التوجيه إلى رابط بوابة الدفع الخاص بـ Tap
+        if (data && data.transactionUrl) {
+            window.location.href = data.transactionUrl;
+        } else {
+            showSnackbar(data.detail || "خطأ في الدفع: فشل إنشاء طلب الدفع. تأكد من البيانات.", "error");
+        }
+    } catch (error) {
+        console.error("Payment Error:", error);
+        showSnackbar("حدث خطأ أثناء الاتصال ببوابة الدفع. حاول لاحقاً.", "error");
+    }
+}
     </script>
 </body>
 </html>
