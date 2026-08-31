@@ -895,7 +895,7 @@
             }
         }
 
-                    async function startExportProcess() {
+                         async function startExportProcess() {
             document.getElementById('endModalContent').classList.add('hidden');
             document.getElementById('endModalProgress').classList.remove('hidden');
             
@@ -904,13 +904,13 @@
                 if (agoraEngine) await agoraEngine.leave();
                 if (screenShareClient) await screenShareClient.leave();
 
-                // 2. ✨ تحديث قاعدة البيانات مباشرة من الواجهة (نقول للطالب خلصنا فوراً)
+                // 2. ✨ تحديث قاعدة البيانات فوراً (الطالب هيتخرج من الغرفة في نفس اللحظة)
                 await db.collection('sessions').doc(sessionId).update({
                     'status': 'completed',
                     'completedAt': firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                updateProgress(0.50, 'تم إنهاء الجلسة. جاري محاولة رفع الملفات...');
+                updateProgress(0.50, 'تم إنهاء الجلسة. جاري حفظ الملفات في الخلفية...');
 
                 // 3. تجهيز الملفات
                 const canvasImg = canvas.toDataURL('image/png');
@@ -925,27 +925,23 @@
                 formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
                 if (audioFile) formData.append('audio', audioFile, audioFile.name);
 
-                // 4. ✨ وضع حد زمني للرفع (15 ثانية وبعدها نطلع المعلم غصباً عنه)
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
-
+                // 4. ✨ السحر هنا: إرسال الملفات مع keepalive 
+                // ده بيخلي المتصفح يكمل الرفع في الخلفية حتى لو المعلم خرج من الصفحة فوراً
                 fetch(`/api/session/complete/${sessionId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData,
-                    signal: controller.signal
-                }).catch(e => {
-                    console.log("Upload took too long or aborted, but session is completed.");
-                });
+                    keepalive: true // <--- ده اللي بيخلي الرفع يكمل في الخلفية
+                }).catch(e => console.error("Background upload failed:", e));
 
                 updateProgress(1.0, 'تم إنهاء الجلسة بنجاح! جاري تحويلك...');
                 
-                // 5. توجيه المعلم فوراً للوحة التحكم
+                // 5. توجيه المعلم فوراً للوحة التحكم (بدون أي انتظار)
                 setTimeout(() => window.location.href = '/teacher-dashboard', 1000);
 
             } catch (e) {
                 console.error("Export Error:", e);
-                showSnackBar('حدث خطأ أثناء الإغلاق، سيتم تحويلك الآن.', 'red');
+                showSnackBar('حدث خطأ، سيتم تحويلك الآن.', 'red');
                 setTimeout(() => window.location.href = '/teacher-dashboard', 2000);
             }
         }
