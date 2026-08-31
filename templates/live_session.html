@@ -895,57 +895,58 @@
             }
         }
 
-              async function startExportProcess() {
+                    async function startExportProcess() {
             document.getElementById('endModalContent').classList.add('hidden');
             document.getElementById('endModalProgress').classList.remove('hidden');
             
-            updateProgress(0.10, 'جاري التقاط صورة السبورة...');
-
             try {
-                // 1. توليد ملف الـ PDF فورا
+                // 1. فصل الاتصال الصوتي (Agora) فوراً
+                if (agoraEngine) await agoraEngine.leave();
+                if (screenShareClient) await screenShareClient.leave();
+
+                // 2. ✨ تحديث قاعدة البيانات مباشرة من الواجهة (نقول للطالب خلصنا فوراً)
+                await db.collection('sessions').doc(sessionId).update({
+                    'status': 'completed',
+                    'completedAt': firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                updateProgress(0.50, 'تم إنهاء الجلسة. جاري محاولة رفع الملفات...');
+
+                // 3. تجهيز الملفات
                 const canvasImg = canvas.toDataURL('image/png');
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 pdf.addImage(canvasImg, 'PNG', 0, 0, 210, 297);
                 const pdfBlob = pdf.output('blob');
-
-                updateProgress(0.30, 'جاري إيقاف التسجيل الصوتي...');
-                
-                // 2. إيقاف التسجيل وأخذ ملف الصوت فورا
                 const audioFile = await stopAudioRecording();
 
-                // 3. ✨ فصل الاتصال الصوتي (Agora) فوراً قبل الرفع
-                // بكده المايكروفون بيقفل والمعلم يحس إن الجلسة خلصت على طول
-                if (agoraEngine) await agoraEngine.leave();
-                if (screenShareClient) await screenShareClient.leave();
-
-                updateProgress(0.50, 'تم إنهاء الاتصال. جاري رفع الملفات للسيرفر...');
-
-                // 4. إرسال الملفات للباك-ند
                 const token = await currentUser.getIdToken();
                 const formData = new FormData();
                 formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
-                if (audioFile) {
-                    formData.append('audio', audioFile, audioFile.name);
-                }
+                if (audioFile) formData.append('audio', audioFile, audioFile.name);
 
-                // إرسال الملفات في الخلفية
+                // 4. ✨ وضع حد زمني للرفع (15 ثانية وبعدها نطلع المعلم غصباً عنه)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
                 fetch(`/api/session/complete/${sessionId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                }).catch(e => console.error("Background upload error:", e)); //✨ ما ننتظر النتيجة عشان ما نعلقش الصفحة
+                    body: formData,
+                    signal: controller.signal
+                }).catch(e => {
+                    console.log("Upload took too long or aborted, but session is completed.");
+                });
 
-                updateProgress(0.90, 'تم إنهاء الجلسة بنجاح، جاري تحويلك...');
+                updateProgress(1.0, 'تم إنهاء الجلسة بنجاح! جاري تحويلك...');
                 
                 // 5. توجيه المعلم فوراً للوحة التحكم
-                setTimeout(() => window.location.href = '/teacher-dashboard', 500);
+                setTimeout(() => window.location.href = '/teacher-dashboard', 1000);
 
             } catch (e) {
                 console.error("Export Error:", e);
-                showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red');
-                // حتى لو فيه خطأ، نطلع المعلم عشان ما يعلقش
-                setTimeout(() => window.location.href = '/teacher-dashboard', 1000);
+                showSnackBar('حدث خطأ أثناء الإغلاق، سيتم تحويلك الآن.', 'red');
+                setTimeout(() => window.location.href = '/teacher-dashboard', 2000);
             }
         }
 
