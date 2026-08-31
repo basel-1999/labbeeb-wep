@@ -42,9 +42,9 @@ async def create_tap_charge(req: PaymentRequest):
             "email": req.customerEmail
         },
         "source": {"id": "src_all"},
-        "post": {"url": "http://localhost:8000/api/payment/webhook"}, 
+              "post": {"url": "https://labbeeb-wep.onrender.com/api/payment/webhook"}, 
         # رابط العودة بعد نجاح الدفع:
-        "redirect": {"url": "http://localhost:8000/payment-success"} 
+        "redirect": {"url": "https://labbeeb-wep.onrender.com/payment-success"} 
     }
 
     try:
