@@ -1180,11 +1180,11 @@
         }
 
 
-        async function payWithTap() {
+       async function payWithTap() {
     // 1. قراءة الباقة المختارة من الراديو
     const selectedPackage = document.querySelector('input[name="cardPackage"]:checked');
     if (!selectedPackage) {
-        showSnackbar("يرجى اختيار باقة الشحن أولاً", "error");
+        alert("يرجى اختيار باقة الشحن أولاً");
         return;
     }
 
@@ -1213,11 +1213,12 @@
         if (data && data.transactionUrl) {
             window.location.href = data.transactionUrl;
         } else {
-            showSnackbar(data.detail || "خطأ في الدفع: فشل إنشاء طلب الدفع. تأكد من البيانات.", "error");
+            // عرض رسالة الخطأ القادمة من السيرفر
+            alert(data.detail || "خطأ في الدفع: فشل إنشاء طلب الدفع. تأكد من البيانات.");
         }
     } catch (error) {
         console.error("Payment Error:", error);
-        showSnackbar("حدث خطأ أثناء الاتصال ببوابة الدفع. حاول لاحقاً.", "error");
+        alert("حدث خطأ أثناء الاتصال ببوابة الدفع. حاول لاحقاً.");
     }
 }
     </script>
