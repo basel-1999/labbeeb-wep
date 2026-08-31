@@ -895,22 +895,22 @@
             }
         }
 
-                         async function startExportProcess() {
+        async function startExportProcess() {
             document.getElementById('endModalContent').classList.add('hidden');
             document.getElementById('endModalProgress').classList.remove('hidden');
             
             try {
-                // 1. فصل الاتصال الصوتي (Agora) فوراً
+                // 1. فصل الاتصال الصوتي (Agora) فوراً (المايك يقفل على طول)
                 if (agoraEngine) await agoraEngine.leave();
                 if (screenShareClient) await screenShareClient.leave();
 
-                // 2. ✨ تحديث قاعدة البيانات فوراً (الطالب هيتخرج من الغرفة في نفس اللحظة)
+                // 2. تحديث قاعدة البيانات فوراً (الطالب هيتخرج من الغرفة في نفس اللحظة)
                 await db.collection('sessions').doc(sessionId).update({
                     'status': 'completed',
                     'completedAt': firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                updateProgress(0.50, 'تم إنهاء الجلسة. جاري حفظ الملفات في الخلفية...');
+                updateProgress(0.30, 'تم إنهاء الاتصال. جاري تجهيز الملفات...');
 
                 // 3. تجهيز الملفات
                 const canvasImg = canvas.toDataURL('image/png');
@@ -925,24 +925,28 @@
                 formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
                 if (audioFile) formData.append('audio', audioFile, audioFile.name);
 
-                // 4. ✨ السحر هنا: إرسال الملفات مع keepalive 
-                // ده بيخلي المتصفح يكمل الرفع في الخلفية حتى لو المعلم خرج من الصفحة فوراً
-                fetch(`/api/session/complete/${sessionId}`, {
+                updateProgress(0.50, 'جاري رفع الملفات للسيرفر... لا تغلق الصفحة');
+
+                // 4. ✨ ننتظر السيرفر لحد ما يخلص رفع الملفات (مش هنستخدم keepalive عشان حجم الصوت كبير)
+                const response = await fetch(`/api/session/complete/${sessionId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData,
-                    keepalive: true // <--- ده اللي بيخلي الرفع يكمل في الخلفية
-                }).catch(e => console.error("Background upload failed:", e));
+                    body: formData
+                });
 
-                updateProgress(1.0, 'تم إنهاء الجلسة بنجاح! جاري تحويلك...');
+                if (response.ok) {
+                    updateProgress(1.0, 'تم حفظ الجلسة بنجاح! جاري تحويلك...');
+                } else {
+                    updateProgress(0.90, 'حدث خطأ في رفع الصوت، ولكن الجلسة تم إنهاؤها...');
+                }
                 
-                // 5. توجيه المعلم فوراً للوحة التحكم (بدون أي انتظار)
-                setTimeout(() => window.location.href = '/teacher-dashboard', 1000);
+                // 5. توجيه المعلم للوحة التحكم
+                setTimeout(() => window.location.href = '/teacher-dashboard', 1500);
 
             } catch (e) {
                 console.error("Export Error:", e);
-                showSnackBar('حدث خطأ، سيتم تحويلك الآن.', 'red');
-                setTimeout(() => window.location.href = '/teacher-dashboard', 2000);
+                showSnackBar('حدث خطأ أثناء الحفظ، سيتم تحويلك الآن.', 'red');
+                setTimeout(() => window.location.href = '/teacher-dashboard', 3000);
             }
         }
 
