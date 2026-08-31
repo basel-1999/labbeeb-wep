@@ -565,16 +565,15 @@ async def complete_session(
             audio_url = audio_upload.get("secure_url")
             print("Audio uploaded successfully:", audio_url)
 
-    # رفع ملف PDF
+       # رفع ملف PDF
     if pdf:
         pdf_bytes = await pdf.read()
         if pdf_bytes:
             print("Uploading PDF...")
             pdf_upload = cloudinary.uploader.upload(
                 pdf_bytes,
-                resource_type="raw", 
-                folder="session_pdfs",
-                filename=pdf.filename
+                resource_type="auto", 
+                folder="session_pdfs"
             )
             pdf_url = pdf_upload.get("secure_url")
             print("PDF uploaded successfully:", pdf_url)

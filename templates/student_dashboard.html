@@ -345,7 +345,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let currentUser = null;
+        let currentUser = null; 
         let displayName = "طالب لبيب";
         let activeSessionsInterval = null;
         let cancellingSessions = new Set();
@@ -764,7 +764,7 @@
             showSnackBar(`جاري تشغيل تسجيل: ${subject}`, '#4E6B45');
         }
 
-        function downloadPdf(url) {
+               function downloadPdf(url) {
             if (!url || url.trim() === '' || url === 'null' || url === 'undefined') {
                 showSnackBar('عذراً، لم يتم رفع ملف السبورة لهذه الجلسة بعد 📄', '#D97706');
                 return;
@@ -775,17 +775,16 @@
                 formattedUrl = 'https://' + formattedUrl;
             }
 
-            try {
-                const newWin = window.open(formattedUrl, '_blank', 'noopener,noreferrer');
-                if (!newWin) {
-                    showSnackBar('يرجى السماح بالنوافذ المنبثقة لفتح الملف', '#D97706');
-                } else {
-                    showSnackBar('جاري فتح ملف السبورة... 📄', '#4E6B45');
-                }
-            } catch (e) {
-                console.error("Error opening board PDF URL:", e);
-                showSnackBar('رابط الملف غير صالح أو منتهي الصلاحية', '#ef4444');
-            }
+            // ✨ طريقة جديدة لفتح الرابط تحل مشكلة 401
+            const a = document.createElement('a');
+            a.href = formattedUrl;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            showSnackBar('جاري فتح ملف السبورة... 📄', '#4E6B45');
         }
 
         // Modal Logic
