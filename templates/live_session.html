@@ -895,28 +895,33 @@
             }
         }
 
-        async function startExportProcess() {
+              async function startExportProcess() {
             document.getElementById('endModalContent').classList.add('hidden');
             document.getElementById('endModalProgress').classList.remove('hidden');
             
-            updateProgress(0.15, 'جاري التقاط صورة السبورة...');
+            updateProgress(0.10, 'جاري التقاط صورة السبورة...');
 
             try {
-                // 1. توليد ملف الـ PDF فوراً
+                // 1. توليد ملف الـ PDF فورا
                 const canvasImg = canvas.toDataURL('image/png');
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 pdf.addImage(canvasImg, 'PNG', 0, 0, 210, 297);
                 const pdfBlob = pdf.output('blob');
 
-                updateProgress(0.35, 'جاري إيقاف التسجيل الصوتي...');
+                updateProgress(0.30, 'جاري إيقاف التسجيل الصوتي...');
                 
-                // 2. إيقاف التسجيل وأخذ ملف الصوت فوراً
+                // 2. إيقاف التسجيل وأخذ ملف الصوت فورا
                 const audioFile = await stopAudioRecording();
 
-                updateProgress(0.55, 'جاري رفع الملفات للسيرفر...');
+                // 3. ✨ فصل الاتصال الصوتي (Agora) فوراً قبل الرفع
+                // بكده المايكروفون بيقفل والمعلم يحس إن الجلسة خلصت على طول
+                if (agoraEngine) await agoraEngine.leave();
+                if (screenShareClient) await screenShareClient.leave();
 
-                // 3. إرسال الملفات للباك-ند
+                updateProgress(0.50, 'تم إنهاء الاتصال. جاري رفع الملفات للسيرفر...');
+
+                // 4. إرسال الملفات للباك-ند
                 const token = await currentUser.getIdToken();
                 const formData = new FormData();
                 formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
@@ -924,32 +929,23 @@
                     formData.append('audio', audioFile, audioFile.name);
                 }
 
-                const res = await fetch(`/api/session/complete/${sessionId}`, {
+                // إرسال الملفات في الخلفية
+                fetch(`/api/session/complete/${sessionId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
-                });
+                }).catch(e => console.error("Background upload error:", e)); //✨ ما ننتظر النتيجة عشان ما نعلقش الصفحة
 
-                if (!res.ok) {
-                    const errData = await res.json();
-                    throw new Error(errData.detail || 'فشل حفظ الجلسة في السيرفر');
-                }
-
-                updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
+                updateProgress(0.90, 'تم إنهاء الجلسة بنجاح، جاري تحويلك...');
                 
-                // 4. إغلاق قنوات Agora فوراً
-                if (agoraEngine) await agoraEngine.leave();
-                if (screenShareClient) await screenShareClient.leave();
-
-                updateProgress(1.0, 'تم الانتهاء بنجاح! جاري تحويلك...');
-                
-                // تقليل وقت الانتظار قبل التحويل إلى نصف ثانية
+                // 5. توجيه المعلم فوراً للوحة التحكم
                 setTimeout(() => window.location.href = '/teacher-dashboard', 500);
 
             } catch (e) {
                 console.error("Export Error:", e);
                 showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red');
-                closeModal('endSessionModal');
+                // حتى لو فيه خطأ، نطلع المعلم عشان ما يعلقش
+                setTimeout(() => window.location.href = '/teacher-dashboard', 1000);
             }
         }
 
