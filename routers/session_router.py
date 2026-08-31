@@ -551,7 +551,7 @@ async def complete_session(
     audio_url = None
     pdf_url = None
 
-    # رفع التسجيل الصوتي
+       # رفع التسجيل الصوتي
     if audio:
         audio_bytes = await audio.read()
         if audio_bytes:
@@ -559,8 +559,8 @@ async def complete_session(
             audio_upload = cloudinary.uploader.upload(
                 audio_bytes,
                 resource_type="video", 
-                folder="session_audio",
-                filename=audio.filename
+                folder="session_audio"
+                # ✨ تم إزالة filename لأنها تسبب خطأ وانهيار للسيرفر
             )
             audio_url = audio_upload.get("secure_url")
             print("Audio uploaded successfully:", audio_url)
