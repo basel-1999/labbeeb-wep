@@ -469,81 +469,110 @@
         // ==========================================
         // 🔔 الاستماع للجلسات والفرز الذكي
         // ==========================================
-        function startListeningToSessions() {
-            if (activeSessionsListener) activeSessionsListener();
+     // ==========================================
+// 🔔 الاستماع للجلسات والفرز الذكي (مُحسن للأداء)
+// ==========================================
+let pendingListener = null;
+let mySessionsListener = null;
+let allSessions = {}; // تخزين مؤقت للجلسات لدمجها
 
-            activeSessionsListener = db.collection('sessions')
-                .onSnapshot((snapshot) => {
-                    const lists = {
-                        pending: [],
-                        ready: [],
-                        upcoming: [],
-                        completed: []
-                    };
+function startListeningToSessions() {
+    if (pendingListener) pendingListener();
+    if (mySessionsListener) mySessionsListener();
+    allSessions = {}; // تفريغ التخزين المؤقت
 
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        const status = data.status ?? 'pending';
-                        const assignedTeacherId = data.teacherId;
-                        const isMySession = assignedTeacherId === currentUser.uid;
+    // 1. الاستماع للطلبات المعلقة فقط (Pending) - لا نجلب كل الجلسات!
+    pendingListener = db.collection('sessions')
+        .where('status', '==', 'pending')
+        .onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "removed") {
+                    delete allSessions[change.doc.id];
+                } else {
+                    allSessions[change.doc.id] = { id: change.doc.id, data: change.doc.data() };
+                }
+            });
+            processSessions();
+        });
 
-                        // 1. الجلسات المنجزة (تخص المعلم فقط)
-                        if (status === 'completed' && isMySession) {
-                            lists.completed.push({ id: doc.id, data });
-                            return;
-                        }
-                        
-                        // 2. الطلبات المعلقة (تطبق عليها الفلترة الذكية للتخصص والمرحلة)
-                        if (status === 'pending') {
-                            if (mySpecialties.includes(data.subject) && (!data.grade || myTargetAges.includes(data.grade))) {
-                                lists.pending.push({ id: doc.id, data });
-                            }
-                            return;
-                        }
+    // 2. الاستماع لجلسات المعلم الحالي فقط (المقبولة، المنجزة، إلخ)
+    mySessionsListener = db.collection('sessions')
+        .where('teacherId', '==', currentUser.uid)
+        .onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "removed") {
+                    delete allSessions[change.doc.id];
+                } else {
+                    allSessions[change.doc.id] = { id: change.doc.id, data: change.doc.data() };
+                }
+            });
+            processSessions();
+        });
+}
 
-                        // 3. الجلسات المقبولة (تخص المعلم)
-                        if ((status === 'accepted' || status === 'active') && isMySession) {
-                            let startTime;
-                            const bookingType = data.bookingType || 'now';
-                            const scheduledAt = data.scheduledAt;
+// دالة مساعدة لمعالجة وفرز الجلسات وعرضها
+function processSessions() {
+    const lists = { pending: [], ready: [], upcoming: [], completed: [] };
 
-                            if (bookingType === 'schedule' && scheduledAt) {
-                                startTime = scheduledAt.toDate();
-                            } else if (data.createdAt) {
-                                startTime = data.createdAt.toDate();
-                                startTime.setMinutes(startTime.getMinutes() + 5);
-                            } else {
-                                startTime = new Date();
-                                startTime.setMinutes(startTime.getMinutes() + 10);
-                            }
+    Object.values(allSessions).forEach((req) => {
+        const data = req.data;
+        const status = data.status ?? 'pending';
+        const isMySession = data.teacherId === currentUser.uid;
 
-                            const now = new Date();
-                            const diff = (startTime - now) / 1000; // seconds
-                            const isStartAllowed = diff <= (5 * 60) && diff >= -(60 * 60);
-
-                            if (isStartAllowed) {
-                                lists.ready.push({ id: doc.id, data, startTime });
-                            } else if (diff > (5 * 60)) {
-                                // ✨ مجدولة فقط إذا كان وقتها في المستقبل (أكثر من 5 دقائق)
-                                lists.upcoming.push({ id: doc.id, data, startTime });
-                            }
-                            // إذا انتهى وقتها ولم يبدأها، لن تظهر لا في المجدولة ولا في الجاهزة (ستختفي حتى ينهيها المعلم أو الأدمن)
-                        }
-                    });
-
-                    // تحديث العدادات
-                    document.getElementById('count_pending').innerText = lists.pending.length;
-                    document.getElementById('count_ready').innerText = lists.ready.length;
-                    document.getElementById('count_upcoming').innerText = lists.upcoming.length;
-                    document.getElementById('count_completed').innerText = lists.completed.length;
-
-                    // رسم القوائم
-                    renderSessionList('pending', lists.pending, false);
-                    renderSessionList('ready', lists.ready, true);
-                    renderSessionList('upcoming', lists.upcoming, true);
-                    renderSessionList('completed', lists.completed, true);
-                });
+        // 1. الجلسات المنجزة (تخص المعلم فقط)
+        if (status === 'completed' && isMySession) {
+            lists.completed.push(req);
+            return;
         }
+        
+        // 2. الطلبات المعلقة (تطبق عليها الفلترة الذكية للتخصص والمرحلة)
+        if (status === 'pending') {
+            if (mySpecialties.includes(data.subject) && (!data.grade || myTargetAges.includes(data.grade))) {
+                lists.pending.push(req);
+            }
+            return;
+        }
+
+        // 3. الجلسات المقبولة (تخص المعلم)
+        if ((status === 'accepted' || status === 'active') && isMySession) {
+            let startTime;
+            const bookingType = data.bookingType || 'now';
+            const scheduledAt = data.scheduledAt;
+
+            if (bookingType === 'schedule' && scheduledAt) {
+                startTime = scheduledAt.toDate();
+            } else if (data.createdAt) {
+                startTime = data.createdAt.toDate();
+                startTime.setMinutes(startTime.getMinutes() + 5);
+            } else {
+                startTime = new Date();
+                startTime.setMinutes(startTime.getMinutes() + 10);
+            }
+
+            const now = new Date();
+            const diff = (startTime - now) / 1000; // seconds
+            const isStartAllowed = diff <= (5 * 60) && diff >= -(60 * 60);
+
+            if (isStartAllowed) {
+                lists.ready.push(req);
+            } else if (diff > (5 * 60)) {
+                lists.upcoming.push(req);
+            }
+        }
+    });
+
+    // تحديث العدادات
+    document.getElementById('count_pending').innerText = lists.pending.length;
+    document.getElementById('count_ready').innerText = lists.ready.length;
+    document.getElementById('count_upcoming').innerText = lists.upcoming.length;
+    document.getElementById('count_completed').innerText = lists.completed.length;
+
+    // رسم القوائم
+    renderSessionList('pending', lists.pending, false);
+    renderSessionList('ready', lists.ready, true);
+    renderSessionList('upcoming', lists.upcoming, true);
+    renderSessionList('completed', lists.completed, true);
+}
 
                function renderSessionList(tabName, sessions, isAccepted) {
             const container = document.getElementById(`tab_content_${tabName}`);

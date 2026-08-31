@@ -10,17 +10,18 @@ import uuid
 from dotenv import load_dotenv
 from typing import Optional
 import json 
+import httpx
 
 load_dotenv()
 
 router = APIRouter()
 security = HTTPBearer()
 
-# إعداد Cloudinary
+# إعداد Cloudinary باستخدام متغيرات البيئة (أكثر أماناً)
 cloudinary.config(
-    cloud_name="f4t8ayoq",
-    api_key="325765956116463",
-    api_secret="ZGiALPgBRexubi0I6VxKCyjM-Tg"
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
 # تهيئة Firebase Admin
@@ -355,7 +356,7 @@ async def create_tap_checkout(
         # تجهيز بيانات الدفع لإرسالها لـ Tap
         payload = {
             "amount": amount,
-            "currency": "QAR",
+                   "currency": "SAR",
             "threeDSecure": True,
             "save_card_later": False,
             "description": f"شحن محفظة منصة لبيب ({sessionsCount} حصص)",
@@ -396,19 +397,20 @@ async def create_tap_checkout(
             "Content-Type": "application/json"
         }
 
-        # إرسال الطلب إلى سيرفر Tap
-        response = requests.post(f"{base_url}/charges", json=payload, headers=headers)
-        
-        if response.status_code in [200, 201]:
-            data = response.json()
-            checkout_url = data.get("transaction", {}).get("url")
-            if checkout_url:
-                return {"checkoutUrl": checkout_url}
+               # إرسال الطلب إلى سيرفر Tap (بشكل غير متزامن Async)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{base_url}/charges", json=payload, headers=headers)
+            
+            if response.status_code in [200, 201]:
+                data = response.json()
+                checkout_url = data.get("transaction", {}).get("url")
+                if checkout_url:
+                    return {"checkoutUrl": checkout_url}
+                else:
+                    raise HTTPException(status_code=500, detail="تعذر الحصول على رابط الدفع من البوابة.")
             else:
-                raise HTTPException(status_code=500, detail="تعذر الحصول على رابط الدفع من البوابة.")
-        else:
-            print("Tap Error Response:", response.text)
-            raise HTTPException(status_code=400, detail="فشل إنشاء طلب الدفع. تأكد من البيانات.")
+                print("Tap Error Response:", response.text)
+                raise HTTPException(status_code=400, detail="فشل إنشاء طلب الدفع. تأكد من البيانات.")
             
     except HTTPException:
         raise # إعادة رمي أخطاء HTTP المخصصة
@@ -422,61 +424,83 @@ async def create_tap_checkout(
 
 @router.post("/api/payment/webhook")
 async def tap_webhook(request: Request):
-    """استقبال إشعار الدفع من Tap وتحديث رصيد الطالب تلقائياً"""
+    """استقبال إشعار الدفع من Tap وتحديث رصيد الطالب تلقائياً مع التحقق الأمني"""
     try:
         # استقبال البيانات القادمة من سيرفر Tap
         payload = await request.json()
         print("📥 Tap Webhook Received:", payload)
 
-        # التحقق من حالة الدفع (CAPTURED تعني أن المبلغ تم خصمه بنجاح)
-        status = payload.get("status")
-        if status == "CAPTURED":
-            # استخراج بيانات الطالب من الحقول المخصصة (metadata)
-            metadata = payload.get("metadata", {})
+        # 1. استخراج رقم العملية (Charge ID)
+        charge_id = payload.get("id")
+        if not charge_id:
+            print("❌ Webhook Error: Missing charge ID.")
+            return {"status": "error", "message": "Missing charge ID"}
+
+              # 2. التحقق الأمني (Verification): سؤال Tap إذا كانت العملية دي حقيقية ومكتملة
+        secret_key = os.getenv("TAP_SECRET_KEY")
+        base_url = os.getenv("TAP_API_BASE_URL", "https://api.tap.company/v2")
+        headers = {"Authorization": f"Bearer {secret_key}"}
+        
+        verify_url = f"{base_url}/charges/{charge_id}"
+        
+        # استخدام httpx Async للتحقق
+        async with httpx.AsyncClient() as client:
+            verify_response = await client.get(verify_url, headers=headers)
+            verified_data = verify_response.json()
+
+        # 3. التأكد أن Tap أكدت العملية بنجاح (CAPTURED)
+        if verify_response.status_code == 200 and verified_data.get("status") == "CAPTURED":
+            metadata = verified_data.get("metadata", {})
             student_id = metadata.get("studentId")
-            sessions_count = int(metadata.get("sessionsCount", 0))
+            sessions_count_str = metadata.get("sessionsCount", "0")
 
-            if student_id and sessions_count > 0:
-                # شحن رصيد الطالب في Firestore
-                user_ref = db.collection('users').document(student_id)
-                user_snap = user_ref.get()
+            # التأكد من صحة البيانات قبل شحن المحفظة
+            if student_id and sessions_count_str.isdigit():
+                sessions_count = int(sessions_count_str)
+                if sessions_count > 0:
+                    # شحن رصيد الطالب في Firestore
+                    user_ref = db.collection('users').document(student_id)
+                    user_snap = user_ref.get()
 
-                if user_snap.exists:
-                    user_data = user_snap.to_dict()
-                    current_credits = user_data.get('sessionCredits', 0)
-                    
-                    # زيادة الرصيد
-                    user_ref.update({
-                        'sessionCredits': current_credits + sessions_count
-                    })
-                    print(f"✅ Wallet topped up for {student_id}: +{sessions_count} sessions")
+                    if user_snap.exists:
+                        user_data = user_snap.to_dict()
+                        current_credits = user_data.get('sessionCredits', 0)
+                        
+                        # زيادة الرصيد
+                        user_ref.update({
+                            'sessionCredits': current_credits + sessions_count
+                        })
+                        print(f"✅ Wallet topped up for {student_id}: +{sessions_count} sessions")
 
-                    # حفظ سجل الدفع في قاعدة البيانات للأرشيف
-                    db.collection('recharge_requests').add({
-                        'studentId': student_id,
-                        'studentName': metadata.get("studentName", "طالب"),
-                        'packageTitle': f"دفع إلكتروني ({sessions_count} حصص)",
-                        'sessionsCount': sessions_count,
-                        'referenceNumber': payload.get("id", "TAP_TXN"),
-                        'receiptImageUrl': '',
-                        'status': 'approved',
-                        'createdAt': firestore.SERVER_TIMESTAMP,
-                        'approvedAt': firestore.SERVER_TIMESTAMP,
-                        'paymentMethod': 'Tap Gateway'
-                    })
+                        # حفظ سجل الدفع في قاعدة البيانات للأرشيف
+                        db.collection('recharge_requests').add({
+                            'studentId': student_id,
+                            'studentName': metadata.get("studentName", "طالب"),
+                            'packageTitle': f"دفع إلكتروني ({sessions_count} حصص)",
+                            'sessionsCount': sessions_count,
+                            'referenceNumber': charge_id, # استخدام الـ ID الحقيقي
+                            'receiptImageUrl': '',
+                            'status': 'approved',
+                            'createdAt': firestore.SERVER_TIMESTAMP,
+                            'approvedAt': firestore.SERVER_TIMESTAMP,
+                            'paymentMethod': 'Tap Gateway'
+                        })
+                    else:
+                        print("❌ Webhook Error: Student not found.")
                 else:
-                    print("❌ Webhook Error: Student not found.")
+                    print("❌ Webhook Error: Invalid sessions count.")
             else:
-                print("❌ Webhook Error: Missing metadata.")
+                print("❌ Webhook Error: Missing or invalid metadata.")
         else:
-            print(f"ℹ️ Payment status is not CAPTURED: {status}")
+            print(f"ℹ️ Payment not captured or verification failed: {verified_data.get('status')}")
 
         # يجب دائماً الرد بـ 200 OK لسيرفر Tap لكي لا يعيد إرسال الطلب
         return {"status": "success"}
 
     except Exception as e:
         print(f"❌ Webhook Exception: {str(e)}")
-        return {"status": "error"}
+        # نرجع 200 حتى لو في خطأ عشان Tap ما يعملش Spam على السيرفر بتاعنا، بس نسجل الخطأ
+        return {"status": "error", "message": str(e)}
 
 
 # ==========================================

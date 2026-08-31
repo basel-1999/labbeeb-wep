@@ -348,6 +348,7 @@
         let currentUser = null;
         let displayName = "طالب لبيب";
         let activeSessionsInterval = null;
+        let cancellingSessions = new Set();
 
         // ==========================================
         // 🔥 التهيئة (Initialization)
@@ -416,14 +417,14 @@
                         const now = new Date().getTime();
                         const diffMins = (startTime.getTime() - now) / 60000;
 
-                        // إلغاء الطلب الفوري تلقائياً بعد 10 دقائق وإرجاع الرصيد
+                                               // إلغاء الطلب الفوري تلقائياً بعد 10 دقائق وإرجاع الرصيد (مع حماية من التكرار)
                         if (status === 'pending' && bookingType === 'now' && diffMins < -5) {
-                            if (!data.autoCancelled) {
+                            if (!data.autoCancelled && !cancellingSessions.has(sessionId)) {
+                                cancellingSessions.add(sessionId); // تسجيل أن الجلسة في مرحلة الإلغاء
                                 autoCancelSession(sessionId);
                             }
                             return;
                         }
-
                         // الحالة المنطقية الموحدة للانتهاء
                         let isExpired = false;
                         const timerStartedAt = data.timerStartedAt;
@@ -1180,47 +1181,6 @@
         }
 
 
-       async function payWithTap() {
-    // 1. قراءة الباقة المختارة من الراديو
-    const selectedPackage = document.querySelector('input[name="cardPackage"]:checked');
-    if (!selectedPackage) {
-        alert("يرجى اختيار باقة الشحن أولاً");
-        return;
-    }
-
-    // استخراج عدد الحصص والسعر (مثال: 1|35)
-    const [credits, price] = selectedPackage.value.split('|');
-
-    try {
-        // 2. إرسال طلب إنشاء عملية الدفع لـ API الخاص بالباك إند
-        const response = await fetch('/api/payment/create-tap-charge', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                amount: parseFloat(price),
-                credits: parseInt(credits),
-                userId: currentUser.uid,
-                customerName: displayName,
-                customerEmail: currentUser.email || "student@labeeb.com"
-            })
-        });
-
-        const data = await response.json();
-
-        // 3. التوجيه إلى رابط بوابة الدفع الخاص بـ Tap
-        if (data && data.transactionUrl) {
-            window.location.href = data.transactionUrl;
-        } else {
-            // عرض رسالة الخطأ القادمة من السيرفر
-            alert(data.detail || "خطأ في الدفع: فشل إنشاء طلب الدفع. تأكد من البيانات.");
-        }
-    } catch (error) {
-        console.error("Payment Error:", error);
-        alert("حدث خطأ أثناء الاتصال ببوابة الدفع. حاول لاحقاً.");
-    }
-}
     </script>
 </body>
 </html>
