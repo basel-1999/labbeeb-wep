@@ -46,7 +46,13 @@
         @keyframes explode { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
         
         #timerDisplay { font-size: 1.125rem; }
-        .max-btn:hover { background-color: rgba(0,0,0,0.2); border-radius: 4px; }
+
+        /* ضبط أبعاد الفيديو */
+        #screenSharePlayer video {
+            object-fit: contain !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -120,19 +126,17 @@
         </div>
 
         <!-- Screen Share View -->
-        <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex-col shrink-0 transition-all duration-300 ease-in-out" style="display: none;">
-            <div class="bg-amber-400 text-black text-center font-bold py-1 text-sm flex justify-between items-center px-2">
+        <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex-col shrink-0 relative transition-all duration-300" style="display: none;">
+            <div class="bg-amber-400 text-black font-bold py-1 px-3 text-sm flex justify-between items-center z-10">
                 <span id="screenShareTitle">شاشة الطرف الآخر</span>
-                <div class="flex gap-1">
-                    <button onclick="maximizeScreenShare()" id="maxBtn" class="p-1 max-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
-                    </button>
-                    <button onclick="minimizeScreenShare()" id="minBtn" class="p-1 max-btn" style="display: none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M15 15h4.5M15 15v4.5M15 15l5.5 5.5" /></svg>
-                    </button>
-                </div>
+                <button onclick="toggleFullScreenScreenShare()" class="text-black hover:bg-black/10 rounded p-1 text-xs font-bold flex items-center gap-1">
+                    <svg id="fullscreenIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                    <span id="fullscreenText">تكبير</span>
+                </button>
             </div>
-            <div id="screenSharePlayer" class="flex-1 w-full h-full"></div>
+            <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
         </div>
 
         <!-- Chat Panel -->
@@ -255,6 +259,11 @@
         let screenShareClient = null;
         const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
 
+        // ✨ متغيرات السحب والإفلات للنص
+        let draggingTextId = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
@@ -300,7 +309,7 @@
         }
 
         // ==========================================
-        // 🎨 Whiteboard, Magic Eraser & Text Tool
+        // 🎨 Whiteboard, Magic Eraser, Text Tool & Auto Drag
         // ==========================================
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
@@ -314,7 +323,7 @@
             canvas.addEventListener('mouseleave', endDraw);
             canvas.addEventListener('touchstart', handleTouch);
             canvas.addEventListener('touchmove', handleTouch);
-            canvas.addEventListener('touchend', endDraw);
+            canvas.addEventListener('touchend', handleTouchEnd);
         }
 
         function resizeCanvas() {
@@ -328,27 +337,93 @@
             return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
         }
 
+        // ✨ فحص ذكي: هل المعلم ضغط على نص موجود؟
+        function getTextAtPosition(px, py) {
+            for (let i = currentStrokes.length - 1; i >= 0; i--) {
+                const s = currentStrokes[i];
+                if (s.type === 'text') {
+                    ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
+                    const textWidth = ctx.measureText(s.text).width;
+                    const tx = s.dx * canvas.width;
+                    const ty = s.dy * canvas.height;
+                    // ✨ تم إضافة 5 بكسل سماحية (Padding) حوالي النص لسهولة الإمساك به
+                    if (px >= tx - 5 && px <= tx + textWidth + 5 && py >= ty - 5 && py <= ty + (s.fontSize || 18) + 5) {
+                        return s;
+                    }
+                }
+            }
+            return null;
+        }
+
         function startDraw(e) {
             if (!isTeacher) return;
             const pos = getMousePos(e);
+            const px = pos.x * canvas.width;
+            const py = pos.y * canvas.height;
             
+            // ✨ 1. الممحاة تشتغل بشكل مستقل
+            if (isEraser) {
+                isDrawing = true;
+                eraseStrokeAt(pos.x, pos.y);
+                return;
+            }
+
+            // ✨ 2. فحص إذا كان المعلم ضغط على نص لتحريكه (في أي وضع غير الممحاة)
+            const hitText = getTextAtPosition(px, py);
+            if (hitText) {
+                draggingTextId = hitText.id;
+                dragOffsetX = px - (hitText.dx * canvas.width);
+                dragOffsetY = py - (hitText.dy * canvas.height);
+                isDrawing = true;
+                canvas.style.cursor = "grabbing"; // مؤشر القبض على النص
+                return;
+            }
+
+            // ✨ 3. لو ضغط في مكان فاضي والوضع نص
             if (isTextMode) {
                 createTextInput(pos.x, pos.y);
                 return;
             }
-            
+
+            // ✨ 4. لو ضغط في مكان فاضي والوضع رسم
             isDrawing = true;
-            if (isEraser) {
-                eraseStrokeAt(pos.x, pos.y);
-            } else {
-                currentStroke = [{ dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth }];
-                drawStroke(currentStroke);
-            }
+            currentStroke = [{ dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth }];
+            drawStroke(currentStroke);
         }
 
         function draw(e) {
             if (!isTeacher || !isDrawing) return;
             const pos = getMousePos(e);
+            
+            // ✨ تحريك النص حية
+            if (draggingTextId) {
+                const tempPx = pos.x * canvas.width - dragOffsetX;
+                const tempPy = pos.y * canvas.height - dragOffsetY;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                currentStrokes.forEach(s => {
+                    if (s.type === 'text') {
+                        let drawX = s.dx * canvas.width;
+                        let drawY = s.dy * canvas.height;
+                        if (s.id === draggingTextId) {
+                            drawX = tempPx;
+                            drawY = tempPy;
+                        }
+                        ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
+                        ctx.fillStyle = s.color;
+                        ctx.textBaseline = 'top';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(s.text, drawX, drawY);
+                    } else {
+                        drawStroke(s.points);
+                    }
+                });
+                return;
+            }
+            
             if (isEraser) {
                 eraseStrokeAt(pos.x, pos.y);
             } else {
@@ -364,14 +439,33 @@
             }
         }
 
-        function endDraw() {
+        function endDraw(e) {
             if (!isTeacher || !isDrawing) return;
             isDrawing = false;
+            
+            // ✨ إفلات النص وحفظ موقعه الجديد
+            if (draggingTextId) {
+                const pos = getMousePos(e || window.event);
+                const newDx = (pos.x * canvas.width - dragOffsetX) / canvas.width;
+                const newDy = (pos.y * canvas.height - dragOffsetY) / canvas.height;
+                
+                db.collection('sessions').doc(sessionId).collection('strokes').doc(draggingTextId).update({
+                    dx: newDx,
+                    dy: newDy
+                });
+                
+                draggingTextId = null;
+                // إرجاع المؤشر لشكله الطبيعي
+                if (isTextMode) canvas.style.cursor = "text";
+                else canvas.style.cursor = "crosshair"; // أو default حسب الرغبة
+                return;
+            }
+
             if (!isEraser && !isTextMode && currentStroke.length > 0) {
                 db.collection('sessions').doc(sessionId).collection('strokes').add({
                     points: currentStroke,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(e => console.error("Error saving stroke:", e));
+                }).catch(err => console.error("Error saving stroke:", err));
                 currentStroke = [];
             }
         }
@@ -379,8 +473,18 @@
         function handleTouch(e) {
             e.preventDefault();
             const touch = e.touches[0];
-            if (e.type === 'touchstart') startDraw({ clientX: touch.clientX, clientY: touch.clientY });
-            else if (e.type === 'touchmove') draw({ clientX: touch.clientX, clientY: touch.clientY });
+            if (!touch) return;
+            const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
+            if (e.type === 'touchstart') startDraw(mockEvent);
+            else if (e.type === 'touchmove') draw(mockEvent);
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            if (!touch) return;
+            const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
+            endDraw(mockEvent);
         }
 
         function drawStroke(stroke) {
@@ -410,13 +514,13 @@
                     snapshot.forEach((doc) => {
                         const data = doc.data();
                         if (data.type === 'text') {
-                            ctx.font = `${data.fontSize || 16}px Cairo, sans-serif`;
+                            ctx.font = `${data.fontSize || 18}px Cairo, sans-serif`;
                             ctx.fillStyle = data.color;
                             ctx.textBaseline = 'top';
                             ctx.textAlign = 'left';
                             ctx.fillText(data.text, data.dx * canvas.width, data.dy * canvas.height);
                             strokeDocIds.push(doc.id);
-                            currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 16 });
+                            currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18 });
                         } else {
                             const points = data.points || [];
                             drawStroke(points);
@@ -428,28 +532,32 @@
         }
 
         function createTextInput(x, y) {
-            const boardContainer = document.querySelector('.flex-1.relative.bg-white');
+            const boardContainer = canvas.parentElement;
             if (!boardContainer) return;
-            
+
+            const oldInput = document.getElementById('tempTextInput');
+            if (oldInput) oldInput.remove();
+
             const input = document.createElement('input');
+            input.id = 'tempTextInput';
             input.type = 'text';
             input.placeholder = 'اكتب ثم اضغط Enter';
             input.style.position = 'absolute';
             input.style.left = (x * canvas.offsetWidth) + 'px';
             input.style.top = (y * canvas.offsetHeight) + 'px';
-            input.style.zIndex = 100;
-            input.style.fontSize = '16px';
+            input.style.zIndex = '1000';
+            input.style.fontSize = '18px';
             input.style.color = selectedColor;
             input.style.background = 'rgba(255,255,255,0.9)';
-            input.style.border = `1px solid ${selectedColor}`;
-            input.style.padding = '2px 4px';
+            input.style.border = `2px solid ${selectedColor}`;
+            input.style.padding = '4px';
             input.style.fontFamily = 'Cairo, sans-serif';
             input.style.outline = 'none';
             input.style.borderRadius = '4px';
-            input.style.minWidth = '100px';
-            
+            input.style.minWidth = '150px';
+
             boardContainer.appendChild(input);
-            input.focus();
+            setTimeout(() => input.focus(), 10);
 
             input.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
@@ -461,23 +569,22 @@
                             dy: y,
                             text: text,
                             color: selectedColor,
-                            fontSize: 16,
+                            fontSize: 18,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
                     }
                     input.remove();
-                    isTextMode = false;
-                    canvas.style.cursor = "default";
+                    canvas.style.cursor = "text";
                 } else if (event.key === 'Escape') {
                     input.remove();
-                    isTextMode = false;
-                    canvas.style.cursor = "default";
+                    canvas.style.cursor = "text";
                 }
             });
-            
+
             input.addEventListener('blur', () => {
-                if (input.parentNode) input.remove();
-                isTextMode = false;
+                setTimeout(() => {
+                    if (input.parentNode) input.remove();
+                }, 150);
             });
         }
 
@@ -491,9 +598,9 @@
                 if (stroke.type === 'text') {
                     const tx = stroke.dx * canvas.width;
                     const ty = stroke.dy * canvas.height;
-                    ctx.font = `${stroke.fontSize || 16}px Cairo, sans-serif`;
+                    ctx.font = `${stroke.fontSize || 18}px Cairo, sans-serif`;
                     const textWidth = ctx.measureText(stroke.text).width;
-                    if (px >= tx && px <= tx + textWidth && py >= ty && py <= ty + (stroke.fontSize || 16)) {
+                    if (px >= tx && px <= tx + textWidth && py >= ty && py <= ty + (stroke.fontSize || 18)) {
                         hit = true;
                     }
                 } else {
@@ -634,11 +741,16 @@
                     await agoraEngine.subscribe(user, mediaType);
                     if (mediaType === "audio") user.audioTrack.play();
                     if (mediaType === "video") {
-                        screenShareUid = user.uid;
-                        document.getElementById('screenShareContainer').style.display = 'flex';
-                        const player = document.getElementById('screenSharePlayer');
-                        player.innerHTML = ''; 
-                        user.videoTrack.play('screenSharePlayer');
+                        const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
+                        const myScreenShareUid = numericUid + 1000000;
+                        
+                        if (user.uid !== myScreenShareUid) {
+                            screenShareUid = user.uid;
+                            document.getElementById('screenShareContainer').style.display = 'flex';
+                            const player = document.getElementById('screenSharePlayer');
+                            player.innerHTML = ''; 
+                            user.videoTrack.play('screenSharePlayer');
+                        }
                     }
                 });
                 
@@ -682,20 +794,33 @@
             isMuted = !isMuted;
             localAudioTrack.setMuted(isMuted);
             updateMicUI();
+            document.getElementById('muteBtn').blur();
         }
 
         function updateMicUI() {
             const btn = document.getElementById('muteBtn');
             const icon = document.getElementById('micStatusIcon');
             if (isMuted) {
-                btn.classList.replace('bg-green-600', 'bg-red-600');
+                btn.style.backgroundColor = '#dc2626'; 
                 icon.classList.replace('text-green-400', 'text-red-400');
                 icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />';
             } else {
-                btn.classList.replace('bg-red-600', 'bg-green-600');
+                btn.style.backgroundColor = '#16a34a'; 
                 icon.classList.replace('text-red-400', 'text-green-400');
                 icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />';
             }
+        }
+
+        function updateScreenShareUI() {
+            const btn = document.getElementById('screenShareBtn');
+            if (isScreenSharing) {
+                btn.classList.remove('bg-white/10', 'hover:bg-white/20');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                btn.classList.add('bg-white/10', 'hover:bg-white/20');
+            }
+            btn.blur();
         }
 
         async function toggleScreenShare() {
@@ -709,8 +834,9 @@
                     const screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1", optimizationMode: "detail" }, "disable");
                     await screenShareClient.publish(screenTrack);
                     isScreenSharing = true;
+                    updateScreenShareUI();
                     await db.collection('sessions').doc(sessionId).update({ isScreenSharing: true, screenShareUid: currentUser.uid });
-                    document.getElementById('screenShareContainer').style.display = 'none'; // إخفاء المربع عند المرسل
+                    document.getElementById('screenShareContainer').style.display = 'none';
                     showSnackBar('تم بدء مشاركة الشاشة بنجاح', 'green');
                 } else {
                     await stopMyScreenShare();
@@ -720,6 +846,7 @@
             } catch (e) {
                 if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
                 isScreenSharing = false;
+                updateScreenShareUI();
                 showSnackBar('فشل مشاركة الشاشة: ' + e.message, 'red');
             }
         }
@@ -727,22 +854,51 @@
         async function stopMyScreenShare() {
             if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
             isScreenSharing = false;
+            updateScreenShareUI();
         }
 
-        function maximizeScreenShare() {
+        let isScreenFullScreen = false;
+        function toggleFullScreenScreenShare() {
             const container = document.getElementById('screenShareContainer');
-            container.className = "w-4/5 h-4/5 absolute z-50 m-0 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex flex-col transition-all duration-300 ease-in-out";
-            container.style.display = 'flex';
-            document.getElementById('maxBtn').style.display = 'none';
-            document.getElementById('minBtn').style.display = 'flex';
-        }
-
-        function minimizeScreenShare() {
-            const container = document.getElementById('screenShareContainer');
-            container.className = "w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex flex-col shrink-0 transition-all duration-300 ease-in-out";
-            container.style.display = 'flex';
-            document.getElementById('maxBtn').style.display = 'flex';
-            document.getElementById('minBtn').style.display = 'none';
+            const icon = document.getElementById('fullscreenIcon');
+            const text = document.getElementById('fullscreenText');
+            
+            isScreenFullScreen = !isScreenFullScreen;
+            
+            if (isScreenFullScreen) {
+                container.style.position = 'fixed';
+                container.style.top = '0';
+                container.style.left = '0';
+                container.style.right = '0';
+                container.style.bottom = '0';
+                container.style.width = '100vw';
+                container.style.height = '100vh';
+                container.style.zIndex = '99999';
+                container.style.margin = '0';
+                container.style.borderRadius = '0';
+                
+                text.innerText = "تصغير";
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />';
+            } else {
+                container.style.position = '';
+                container.style.top = '';
+                container.style.left = '';
+                container.style.right = '';
+                container.style.bottom = '';
+                container.style.width = '';
+                container.style.height = '';
+                container.style.zIndex = '';
+                container.style.margin = '';
+                container.style.borderRadius = '';
+                
+                text.innerText = "تكبير";
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />';
+            }
+            
+            const video = container.querySelector('video');
+            if (video) {
+                video.style.objectFit = 'contain';
+            }
         }
 
         function listenToSessionState() {
@@ -767,7 +923,6 @@
                         }
                     }
                     
-                    // التحكم بالمربع بناءً على من يشارك (يظهر للطرف المعاكس فقط)
                     if (data.isScreenSharing && data.screenShareUid !== currentUser.uid && isScreenSharing) {
                         stopMyScreenShare();
                     }
@@ -775,10 +930,8 @@
                     if (!data.isScreenSharing) {
                         document.getElementById('screenShareContainer').style.display = 'none';
                     } else if (data.screenShareUid !== currentUser.uid) {
-                        // أنا الطرف المستقبل، أظهر المربع
                         document.getElementById('screenShareContainer').style.display = 'flex';
                     } else {
-                        // أنا الطرف الذي يشارك، أخفي المربع عني
                         document.getElementById('screenShareContainer').style.display = 'none';
                     }
                 }
@@ -819,7 +972,6 @@
         // ==========================================
         // 🎉 Animations
         // ==========================================
-        // ✨ متغير لتجاهل أول قراءة للأنيميشن (عشان ما يشغلش صوت قديم تلقائياً)
         let isInitialAnimationLoad = true; 
 
         function triggerAnimation(type) {
@@ -829,7 +981,6 @@
 
         function listenToAnimations() {
             db.collection('sessions').doc(sessionId).collection('animations').orderBy('createdAt', 'desc').limit(1).onSnapshot((snapshot) => {
-                // ✨ لو هي أول مرة يحمل فيها الداتا بيز، ما نشغلش أي حاجة
                 if (isInitialAnimationLoad) {
                     isInitialAnimationLoad = false;
                     return;
