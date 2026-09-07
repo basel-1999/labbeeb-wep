@@ -53,6 +53,9 @@
             width: 100% !important;
             height: 100% !important;
         }
+
+        /* تنسيق قائمة الإيموجيز */
+        #emojiPicker { display: none; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -139,22 +142,63 @@
             <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
         </div>
 
-        <!-- Chat Panel -->
-        <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10">
+        <!-- Chat Panel (محسّن) -->
+        <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative">
             <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
                 <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                     <h3 class="font-bold text-sm">الدردشة الحية</h3>
                 </div>
             </div>
-            <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2">
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-3">
                 <div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
             </div>
-            <div class="p-3 bg-[#1E1E1E] flex gap-2 border-t border-white/10">
-                <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
-                <button onclick="sendMessage()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
-                    إرسال
-                </button>
+            
+            <!-- شريط أدوات الشات (الإيموجي والملفات) -->
+            <div class="p-3 bg-[#1E1E1E] border-t border-white/10 relative">
+                <!-- قائمة الإيموجي -->
+                <div id="emojiPicker" class="absolute bottom-16 left-3 right-3 bg-[#2C2C2C] p-2 rounded-lg shadow-lg grid grid-cols-8 gap-1 z-50 border border-white/10">
+                    <button onclick="addEmoji('😀')" class="text-xl hover:bg-white/10 p-1 rounded">😀</button>
+                    <button onclick="addEmoji('😁')" class="text-xl hover:bg-white/10 p-1 rounded">😁</button>
+                    <button onclick="addEmoji('😂')" class="text-xl hover:bg-white/10 p-1 rounded">😂</button>
+                    <button onclick="addEmoji('🤣')" class="text-xl hover:bg-white/10 p-1 rounded">🤣</button>
+                    <button onclick="addEmoji('😍')" class="text-xl hover:bg-white/10 p-1 rounded">😍</button>
+                    <button onclick="addEmoji('😘')" class="text-xl hover:bg-white/10 p-1 rounded">😘</button>
+                    <button onclick="addEmoji('🤔')" class="text-xl hover:bg-white/10 p-1 rounded">🤔</button>
+                    <button onclick="addEmoji('😴')" class="text-xl hover:bg-white/10 p-1 rounded">😴</button>
+                    <button onclick="addEmoji('👍')" class="text-xl hover:bg-white/10 p-1 rounded">👍</button>
+                    <button onclick="addEmoji('👎')" class="text-xl hover:bg-white/10 p-1 rounded">👎</button>
+                    <button onclick="addEmoji('👏')" class="text-xl hover:bg-white/10 p-1 rounded">👏</button>
+                    <button onclick="addEmoji('🙏')" class="text-xl hover:bg-white/10 p-1 rounded">🙏</button>
+                    <button onclick="addEmoji('💪')" class="text-xl hover:bg-white/10 p-1 rounded">💪</button>
+                    <button onclick="addEmoji('🎉')" class="text-xl hover:bg-white/10 p-1 rounded">🎉</button>
+                    <button onclick="addEmoji('🔥')" class="text-xl hover:bg-white/10 p-1 rounded">🔥</button>
+                    <button onclick="addEmoji('💯')" class="text-xl hover:bg-white/10 p-1 rounded">💯</button>
+                    <button onclick="addEmoji('❓')" class="text-xl hover:bg-white/10 p-1 rounded">❓</button>
+                    <button onclick="addEmoji('❗')" class="text-xl hover:bg-white/10 p-1 rounded">❗</button>
+                    <button onclick="addEmoji('📚')" class="text-xl hover:bg-white/10 p-1 rounded">📚</button>
+                    <button onclick="addEmoji('✏️')" class="text-xl hover:bg-white/10 p-1 rounded">✏️</button>
+                    <button onclick="addEmoji('🧮')" class="text-xl hover:bg-white/10 p-1 rounded">🧮</button>
+                    <button onclick="addEmoji('🎓')" class="text-xl hover:bg-white/10 p-1 rounded">🎓</button>
+                    <button onclick="addEmoji('🤝')" class="text-xl hover:bg-white/10 p-1 rounded">🤝</button>
+                    <button onclick="addEmoji('🥇')" class="text-xl hover:bg-white/10 p-1 rounded">🥇</button>
+                </div>
+
+                <div id="uploadStatus" class="hidden text-xs text-amber-400 mb-2 text-center">جاري رفع الملف... يرجى الانتظار.</div>
+
+                <div class="flex gap-2 items-center">
+                    <button onclick="toggleEmojiPicker()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                    <button onclick="document.getElementById('fileInput').click()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    </button>
+                    <input type="file" id="fileInput" class="hidden" onchange="uploadChatFile(event)" accept="image/*,.pdf,.doc,.docx,.txt">
+                    <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
+                    <button onclick="sendMessage()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
+                        إرسال
+                    </button>
+                </div>
             </div>
         </div>
     </main>
@@ -259,7 +303,6 @@
         let screenShareClient = null;
         const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
 
-        // ✨ متغيرات السحب والإفلات للنص
         let draggingTextId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
@@ -337,7 +380,6 @@
             return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
         }
 
-        // ✨ فحص ذكي: هل المعلم ضغط على نص موجود؟
         function getTextAtPosition(px, py) {
             for (let i = currentStrokes.length - 1; i >= 0; i--) {
                 const s = currentStrokes[i];
@@ -346,7 +388,6 @@
                     const textWidth = ctx.measureText(s.text).width;
                     const tx = s.dx * canvas.width;
                     const ty = s.dy * canvas.height;
-                    // ✨ تم إضافة 5 بكسل سماحية (Padding) حوالي النص لسهولة الإمساك به
                     if (px >= tx - 5 && px <= tx + textWidth + 5 && py >= ty - 5 && py <= ty + (s.fontSize || 18) + 5) {
                         return s;
                     }
@@ -361,31 +402,27 @@
             const px = pos.x * canvas.width;
             const py = pos.y * canvas.height;
             
-            // ✨ 1. الممحاة تشتغل بشكل مستقل
             if (isEraser) {
                 isDrawing = true;
                 eraseStrokeAt(pos.x, pos.y);
                 return;
             }
 
-            // ✨ 2. فحص إذا كان المعلم ضغط على نص لتحريكه (في أي وضع غير الممحاة)
             const hitText = getTextAtPosition(px, py);
             if (hitText) {
                 draggingTextId = hitText.id;
                 dragOffsetX = px - (hitText.dx * canvas.width);
                 dragOffsetY = py - (hitText.dy * canvas.height);
                 isDrawing = true;
-                canvas.style.cursor = "grabbing"; // مؤشر القبض على النص
+                canvas.style.cursor = "grabbing";
                 return;
             }
 
-            // ✨ 3. لو ضغط في مكان فاضي والوضع نص
             if (isTextMode) {
                 createTextInput(pos.x, pos.y);
                 return;
             }
 
-            // ✨ 4. لو ضغط في مكان فاضي والوضع رسم
             isDrawing = true;
             currentStroke = [{ dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth }];
             drawStroke(currentStroke);
@@ -395,7 +432,6 @@
             if (!isTeacher || !isDrawing) return;
             const pos = getMousePos(e);
             
-            // ✨ تحريك النص حية
             if (draggingTextId) {
                 const tempPx = pos.x * canvas.width - dragOffsetX;
                 const tempPy = pos.y * canvas.height - dragOffsetY;
@@ -443,7 +479,6 @@
             if (!isTeacher || !isDrawing) return;
             isDrawing = false;
             
-            // ✨ إفلات النص وحفظ موقعه الجديد
             if (draggingTextId) {
                 const pos = getMousePos(e || window.event);
                 const newDx = (pos.x * canvas.width - dragOffsetX) / canvas.width;
@@ -455,9 +490,8 @@
                 });
                 
                 draggingTextId = null;
-                // إرجاع المؤشر لشكله الطبيعي
                 if (isTextMode) canvas.style.cursor = "text";
-                else canvas.style.cursor = "crosshair"; // أو default حسب الرغبة
+                else canvas.style.cursor = "crosshair";
                 return;
             }
 
@@ -939,8 +973,58 @@
         }
 
         // ==========================================
-        // 💬 Chat
+        // 💬 Chat (محسّن بالإيموجي والملفات)
         // ==========================================
+        function toggleEmojiPicker() {
+            const picker = document.getElementById('emojiPicker');
+            picker.style.display = (picker.style.display === 'none' || picker.style.display === '') ? 'grid' : 'none';
+        }
+
+        function addEmoji(emoji) {
+            const input = document.getElementById('chatInput');
+            input.value += emoji;
+            input.focus();
+        }
+
+        async function uploadChatFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('uploadStatus').classList.remove('hidden');
+            document.getElementById('uploadStatus').innerText = 'جاري رفع الملف...';
+
+            try {
+                const token = await currentUser.getIdToken();
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('folder', 'chat_files');
+
+                const res = await fetch('/api/cloudinary/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.url) {
+                    await db.collection('sessions').doc(sessionId).collection('messages').add({
+                        sender: isTeacher ? 'teacher' : 'student',
+                        type: 'file',
+                        fileName: file.name,
+                        fileUrl: data.url,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    document.getElementById('uploadStatus').classList.add('hidden');
+                } else {
+                    throw new Error('Upload failed');
+                }
+            } catch (e) {
+                document.getElementById('uploadStatus').innerText = 'فشل رفع الملف';
+                setTimeout(() => document.getElementById('uploadStatus').classList.add('hidden'), 2000);
+            }
+            event.target.value = ''; // تفريغ حقل الملف
+        }
+
         function listenToChat() {
             db.collection('sessions').doc(sessionId).collection('messages').orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
                 const container = document.getElementById('chatMessages');
@@ -949,9 +1033,39 @@
                     const data = doc.data();
                     const isTeacherMsg = data.sender === 'teacher';
                     const isMine = (isTeacher && isTeacherMsg) || (!isTeacher && !isTeacherMsg);
+                    
                     const bubble = document.createElement('div');
-                    bubble.className = `p-2 rounded-lg text-xs font-medium ${isMine ? 'bg-amber-600/30 border border-amber-500/30 text-amber-200 ml-auto' : 'bg-gray-800 border border-white/10 text-white mr-auto'} max-w-[85%] break-words`;
-                    bubble.innerText = data.text || '';
+                    bubble.className = `p-2 rounded-lg text-xs font-medium flex flex-col gap-1 ${isMine ? 'bg-amber-600/30 border border-amber-500/30 text-amber-200 ml-auto' : 'bg-gray-800 border border-white/10 text-white mr-auto'} max-w-[85%] break-words`;
+                    
+                    if (data.type === 'file' && data.fileUrl) {
+                        const url = data.fileUrl;
+                        const fileName = data.fileName || 'ملف';
+                        const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null || (url.includes('cloudinary') && url.includes('image'));
+
+                        if (isImage) {
+                            const img = document.createElement('img');
+                            img.src = url;
+                            img.className = "rounded-md max-w-full h-auto max-h-40 cursor-pointer object-cover";
+                            img.onclick = () => window.open(url, '_blank');
+                            bubble.appendChild(img);
+                            
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.target = "_blank";
+                            link.innerText = fileName;
+                            link.className = "text-xs underline mt-1";
+                            bubble.appendChild(link);
+                        } else {
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.target = "_blank";
+                            link.className = "flex items-center gap-2 text-white hover:underline";
+                            link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> <span>${fileName}</span>`;
+                            bubble.appendChild(link);
+                        }
+                    } else {
+                        bubble.innerText = data.text || '';
+                    }
                     container.appendChild(bubble);
                 });
                 container.scrollTop = container.scrollHeight;
@@ -965,12 +1079,17 @@
             const text = input.value.trim();
             if (text) {
                 input.value = '';
-                await db.collection('sessions').doc(sessionId).collection('messages').add({ sender: isTeacher ? 'teacher' : 'student', text: text, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                await db.collection('sessions').doc(sessionId).collection('messages').add({
+                    sender: isTeacher ? 'teacher' : 'student',
+                    type: 'text',
+                    text: text,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
             }
         }
 
         // ==========================================
-        // 🎉 Animations
+        // 🎉 Animations (تشغيل فيديو للبالون والكاس)
         // ==========================================
         let isInitialAnimationLoad = true; 
 
@@ -991,10 +1110,11 @@
             });
         }
 
-        function playAnimation(type) {
+             function playAnimation(type) {
             const overlay = document.getElementById('animationOverlay');
             const sound = document.getElementById(`sound_${type}`);
             if (sound) sound.play();
+            
             if (type === 'fireworks') {
                 for (let i = 0; i < 50; i++) {
                     const p = document.createElement('div'); p.className = 'firework-particle';
@@ -1003,17 +1123,31 @@
                     p.style.transform = `translate(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px)`;
                     overlay.appendChild(p); setTimeout(() => p.remove(), 1500);
                 }
-            } else if (type === 'balloons') {
-                for (let i = 0; i < 15; i++) {
-                    const b = document.createElement('div'); b.className = 'balloon';
-                    b.style.left = Math.random() * 100 + '%'; b.style.animationDelay = Math.random() * 1 + 's';
-                    b.innerText = ['🎈', '🎈', '🎈', '🎉'][Math.floor(Math.random() * 4)];
-                    overlay.appendChild(b); setTimeout(() => b.remove(), 4000);
-                }
+            } else if (type === 'balloons' || type === 'trophy') {
+                const video = document.createElement('video');
+                video.src = `/static/videos/${type}.mp4`; 
+                video.style.position = 'absolute';
+                video.style.top = '50%';
+                video.style.left = '50%';
+                video.style.transform = 'translate(-50%, -50%)';
+                video.style.zIndex = '50';
+                video.style.maxWidth = '70%';
+                video.style.maxHeight = '80%';
+                
+                // ✨ شلنا الإطار والظل والحواف
+                video.style.borderRadius = '0';
+                video.style.boxShadow = 'none';
+                video.style.background = 'transparent';
+                
+                video.autoplay = true;
+                video.playsInline = true;
+                overlay.appendChild(video);
+                
+                video.onended = () => video.remove(); 
+                setTimeout(() => { if(video.parentNode) video.remove(); }, 15000); 
             } else {
                 const el = document.createElement('div'); el.className = 'anim-object';
-                if (type === 'trophy') el.innerText = '🏆';
-                else if (type === 'heart') el.innerText = '❤️';
+                if (type === 'heart') el.innerText = '❤️';
                 else if (type === 'happy') el.innerText = '😊';
                 else if (type === 'sad') el.innerText = '😢';
                 else if (type === 'question') {
