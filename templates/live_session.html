@@ -87,7 +87,7 @@
         
         <!-- Whiteboard Area -->
         <div class="flex-1 flex flex-col">
-            <!-- Toolbar (Teacher Only) - تم تحسين z-index وإزالة overflow-x-auto لكي لا تظهر قائمة السكرول -->
+            <!-- Toolbar (Teacher Only) -->
             <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap">
                 <span class="text-sm text-white/70 ml-2">الألوان:</span>
                 
@@ -106,6 +106,55 @@
                 <button onclick="enablePen()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg> قلم
                 </button>
+
+                <!-- زر الأشكال الهندسية -->
+                <div class="relative inline-block">
+                    <button onclick="toggleShapeMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" /></svg>
+                        <span id="currentShapeLabel">أشكال</span>
+                    </button>
+                    <div id="shapeMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 grid grid-cols-4 gap-2 w-64" style="display: none;">
+                        <button onclick="selectShape('rectangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مستطيل">
+                            <span class="text-lg">▭</span> مستطيل
+                        </button>
+                        <button onclick="selectShape('square')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مربع">
+                            <span class="text-lg">⏹</span> مربع
+                        </button>
+                        <button onclick="selectShape('circle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="دائرة">
+                            <span class="text-lg">◯</span> دائرة
+                        </button>
+                        <button onclick="selectShape('ellipse')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="بيضاوي">
+                            <span class="text-lg">⬏</span> بيضاوي
+                        </button>
+                        <button onclick="selectShape('line')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خط مستقيم">
+                            <span class="text-lg">╱</span> خط
+                        </button>
+                        <button onclick="selectShape('arrow')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سهم">
+                            <span class="text-lg">➔</span> سهم
+                        </button>
+                        <button onclick="selectShape('triangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مثلث">
+                            <span class="text-lg">△</span> مثلث
+                        </button>
+                        <button onclick="selectShape('diamond')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="معين">
+                            <span class="text-lg">◇</span> معين
+                        </button>
+                        <button onclick="selectShape('pentagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خماسي">
+                            <span class="text-lg">⬠</span> خماسي
+                        </button>
+                        <button onclick="selectShape('hexagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سداسي">
+                            <span class="text-lg">⬡</span> سداسي
+                        </button>
+                        <button onclick="selectShape('star')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="نجمة">
+                            <span class="text-lg">☆</span> نجمة
+                        </button>
+                        <button onclick="selectShape('check')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة صح">
+                            <span class="text-lg text-green-400">✓</span> صح
+                        </button>
+                        <button onclick="selectShape('cross')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة خطأ">
+                            <span class="text-lg text-red-400">✕</span> خطأ
+                        </button>
+                    </div>
+                </div>
 
                 <!-- زر المؤشر مع القائمة المنسدلة المحدثة -->
                 <div class="relative inline-block">
@@ -137,7 +186,7 @@
                 <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> ممحاة
                 </button>
-                <div class="h-6 w-px bg-white/20 mx-2"></div>
+                <div class="h-4 w-px bg-white/15 mx-2"></div>
                 
                 <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
                 <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
@@ -309,6 +358,9 @@
         let strokeWidth = 4.0;
         let isEraser = false;
         let isTextMode = false;
+        let isShapeMode = false;
+        let selectedShape = null;
+        let shapeStartPos = null;
         let isDrawing = false;
         let currentStroke = [];
         let strokeDocIds = [];
@@ -346,6 +398,7 @@
 
         function togglePointerMenu() {
             const menu = document.getElementById('pointerMenu');
+            document.getElementById('shapeMenu').style.display = 'none';
             menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
         }
 
@@ -353,7 +406,6 @@
             pointerEmoji = emoji;
             document.getElementById('currentPointerIcon').innerText = emoji;
             enablePointer();
-            // إغلاق القائمة فور الاختيار كي تعود السبورة لطبيعتها
             document.getElementById('pointerMenu').style.display = 'none';
         }
 
@@ -369,15 +421,38 @@
             isPointerMode = true;
             isEraser = false;
             isTextMode = false;
+            isShapeMode = false;
             canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
             document.getElementById('sizePopup').style.display = 'none';
         }
 
-        // إغلاق قائمة المؤشر فور النقر خارجها
+        // إداراة الأشكال الهندسية
+        function toggleShapeMenu() {
+            const menu = document.getElementById('shapeMenu');
+            document.getElementById('pointerMenu').style.display = 'none';
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
+        }
+
+        function selectShape(shapeType) {
+            selectedShape = shapeType;
+            isShapeMode = true;
+            isEraser = false;
+            isTextMode = false;
+            isPointerMode = false;
+            canvas.style.cursor = 'crosshair';
+            document.getElementById('shapeMenu').style.display = 'none';
+            document.getElementById('sizePopup').style.display = 'flex';
+        }
+
+        // إغلاق القوائم المنسدلة فور النقر خارجها
         document.addEventListener('click', function(e) {
             const pointerContainer = document.getElementById('pointerMenu')?.parentElement;
             if (pointerContainer && !pointerContainer.contains(e.target)) {
                 document.getElementById('pointerMenu').style.display = 'none';
+            }
+            const shapeContainer = document.getElementById('shapeMenu')?.parentElement;
+            if (shapeContainer && !shapeContainer.contains(e.target)) {
+                document.getElementById('shapeMenu').style.display = 'none';
             }
         });
 
@@ -426,7 +501,7 @@
         }
 
         // ==========================================
-        // 🎨 Whiteboard, Magic Eraser, Text Tool & Auto Drag
+        // 🎨 Whiteboard, Magic Eraser, Text Tool, Shapes & Auto Drag
         // ==========================================
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
@@ -499,6 +574,12 @@
                 return;
             }
 
+            if (isShapeMode) {
+                isDrawing = true;
+                shapeStartPos = { x: pos.x, y: pos.y };
+                return;
+            }
+
             isDrawing = true;
             currentStroke = [{ dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth }];
             drawStroke(currentStroke);
@@ -512,27 +593,13 @@
                 const tempPx = pos.x * canvas.width - dragOffsetX;
                 const tempPy = pos.y * canvas.height - dragOffsetY;
                 
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                currentStrokes.forEach(s => {
-                    if (s.type === 'text') {
-                        let drawX = s.dx * canvas.width;
-                        let drawY = s.dy * canvas.height;
-                        if (s.id === draggingTextId) {
-                            drawX = tempPx;
-                            drawY = tempPy;
-                        }
-                        ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
-                        ctx.fillStyle = s.color;
-                        ctx.textBaseline = 'top';
-                        ctx.textAlign = 'left';
-                        ctx.fillText(s.text, drawX, drawY);
-                    } else {
-                        drawStroke(s.points);
-                    }
-                });
+                redrawAllStrokes();
+                return;
+            }
+
+            if (isShapeMode && shapeStartPos) {
+                redrawAllStrokes();
+                drawShapePreview(selectedShape, shapeStartPos.x, shapeStartPos.y, pos.x, pos.y, selectedColor, strokeWidth);
                 return;
             }
             
@@ -567,8 +634,27 @@
                 
                 draggingTextId = null;
                 if (isTextMode) canvas.style.cursor = "text";
+                else if (isShapeMode) canvas.style.cursor = "crosshair";
                 else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
                 else canvas.style.cursor = PEN_CURSOR;
+                return;
+            }
+
+            if (isShapeMode && shapeStartPos) {
+                const pos = getMousePos(e || window.event);
+                db.collection('sessions').doc(sessionId).collection('strokes').add({
+                    type: 'shape',
+                    shape: selectedShape,
+                    startX: shapeStartPos.x,
+                    startY: shapeStartPos.y,
+                    endX: pos.x,
+                    endY: pos.y,
+                    color: selectedColor,
+                    strokeWidth: strokeWidth,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(err => console.error("Error saving shape:", err));
+                
+                shapeStartPos = null;
                 return;
             }
 
@@ -581,7 +667,8 @@
             }
             
             if (!isEraser && !isTextMode) {
-                if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+                if (isShapeMode) canvas.style.cursor = "crosshair";
+                else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
                 else canvas.style.cursor = PEN_CURSOR;
             }
         }
@@ -616,6 +703,165 @@
             ctx.stroke();
         }
 
+        function drawShape(type, x1, y1, x2, y2, color, width) {
+            ctx.beginPath();
+            ctx.lineWidth = width;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const startX = x1 * canvas.width;
+            const startY = y1 * canvas.height;
+            const endX = x2 * canvas.width;
+            const endY = y2 * canvas.height;
+            const w = endX - startX;
+            const h = endY - startY;
+
+            switch(type) {
+                case 'rectangle':
+                    ctx.strokeRect(startX, startY, w, h);
+                    break;
+                case 'square':
+                    const side = Math.max(Math.abs(w), Math.abs(h));
+                    ctx.strokeRect(startX, startY, w < 0 ? -side : side, h < 0 ? -side : side);
+                    break;
+                case 'circle':
+                    const radius = Math.sqrt(w * w + h * h);
+                    ctx.beginPath();
+                    ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    break;
+                case 'ellipse':
+                    ctx.beginPath();
+                    ctx.ellipse(startX + w / 2, startY + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    break;
+                case 'line':
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                    break;
+                case 'arrow':
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                    const headlen = 15;
+                    const angle = Math.atan2(endY - startY, endX - startX);
+                    ctx.beginPath();
+                    ctx.moveTo(endX, endY);
+                    ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+                    ctx.moveTo(endX, endY);
+                    ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+                    ctx.stroke();
+                    break;
+                case 'triangle':
+                    ctx.beginPath();
+                    ctx.moveTo(startX + w / 2, startY);
+                    ctx.lineTo(startX, startY + h);
+                    ctx.lineTo(startX + w, startY + h);
+                    ctx.closePath();
+                    ctx.stroke();
+                    break;
+                case 'diamond':
+                    ctx.beginPath();
+                    ctx.moveTo(startX + w / 2, startY);
+                    ctx.lineTo(startX + w, startY + h / 2);
+                    ctx.lineTo(startX + w / 2, startY + h);
+                    ctx.lineTo(startX, startY + h / 2);
+                    ctx.closePath();
+                    ctx.stroke();
+                    break;
+                case 'pentagon':
+                    drawPolygon(startX + w / 2, startY + h / 2, 5, Math.max(Math.abs(w), Math.abs(h)) / 2);
+                    break;
+                case 'hexagon':
+                    drawPolygon(startX + w / 2, startY + h / 2, 6, Math.max(Math.abs(w), Math.abs(h)) / 2);
+                    break;
+                case 'star':
+                    drawStar(startX + w / 2, startY + h / 2, 5, Math.max(Math.abs(w), Math.abs(h)) / 2, Math.max(Math.abs(w), Math.abs(h)) / 4);
+                    break;
+                case 'check':
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY + h / 2);
+                    ctx.lineTo(startX + w / 3, startY + h);
+                    ctx.lineTo(startX + w, startY);
+                    ctx.stroke();
+                    break;
+                case 'cross':
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(startX + w, startY + h);
+                    ctx.moveTo(startX + w, startY);
+                    ctx.lineTo(startX, startY + h);
+                    ctx.stroke();
+                    break;
+            }
+        }
+
+        function drawPolygon(cx, cy, sides, radius) {
+            if (sides < 3) return;
+            ctx.beginPath();
+            ctx.moveTo(cx + radius * Math.cos(0), cy + radius * Math.sin(0));
+            for (let i = 1; i <= sides; i++) {
+                ctx.lineTo(cx + radius * Math.cos(i * 2 * Math.PI / sides), cy + radius * Math.sin(i * 2 * Math.PI / sides));
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+            let rot = Math.PI / 2 * 3;
+            let x = cx;
+            let y = cy;
+            let step = Math.PI / spikes;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                x = cx + Math.cos(rot) * outerRadius;
+                y = cy + Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+
+                x = cx + Math.cos(rot) * innerRadius;
+                y = cy + Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(cx, cy - outerRadius);
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawShapePreview(type, x1, y1, x2, y2, color, width) {
+            ctx.save();
+            ctx.globalAlpha = 0.7;
+            drawShape(type, x1, y1, x2, y2, color, width);
+            ctx.restore();
+        }
+
+        function redrawAllStrokes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            currentStrokes.forEach(s => {
+                if (s.type === 'text') {
+                    ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
+                    ctx.fillStyle = s.color;
+                    ctx.textBaseline = 'top';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(s.text, s.dx * canvas.width, s.dy * canvas.height);
+                } else if (s.type === 'shape') {
+                    drawShape(s.shape, s.startX, s.startY, s.endX, s.endY, s.color, s.strokeWidth);
+                } else {
+                    drawStroke(s.points);
+                }
+            });
+        }
+
         function redrawCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
         function listenToWhiteboard() {
@@ -637,7 +883,11 @@
                             ctx.fillText(data.text, data.dx * canvas.width, data.dy * canvas.height);
                             strokeDocIds.push(doc.id);
                             currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18 });
-                        } else {
+                       } else if (data.type === 'shape') {
+                        drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
+                          strokeDocIds.push(doc.id);
+                             currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth });
+                                } else {
                             const points = data.points || [];
                             drawStroke(points);
                             strokeDocIds.push(doc.id);
@@ -719,6 +969,18 @@
                     if (px >= tx && px <= tx + textWidth && py >= ty && py <= ty + (stroke.fontSize || 18)) {
                         hit = true;
                     }
+                } else if (stroke.type === 'shape') {
+                    const sx = stroke.startX * canvas.width;
+                    const sy = stroke.startY * canvas.height;
+                    const ex = stroke.endX * canvas.width;
+                    const ey = stroke.endY * canvas.height;
+                    const minX = Math.min(sx, ex) - 10;
+                    const maxX = Math.max(sx, ex) + 10;
+                    const minY = Math.min(sy, ey) - 10;
+                    const maxY = Math.max(sy, ey) + 10;
+                    if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+                        hit = true;
+                    }
                 } else {
                     for (let j = 0; j < stroke.points.length; j++) {
                         const p = stroke.points[j];
@@ -742,7 +1004,8 @@
             isEraser = false;
             isTextMode = false;
             isPointerMode = false;
-            canvas.style.cursor = PEN_CURSOR;
+            if (isShapeMode) canvas.style.cursor = "crosshair";
+            else canvas.style.cursor = PEN_CURSOR;
             document.getElementById('sizePopup').style.display = 'flex';
         }
 
@@ -754,6 +1017,7 @@
         function enableEraser() {
             isEraser = true;
             isTextMode = false;
+            isShapeMode = false;
             isPointerMode = false;
             canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1.5'><path d='M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z'/><path d='M4.22 15.22l5.65 5.65' /></svg>\") 2 20, cell";
             document.getElementById('sizePopup').style.display = 'none';
@@ -762,6 +1026,7 @@
         function enableText() {
             isTextMode = true;
             isEraser = false;
+            isShapeMode = false;
             isPointerMode = false;
             canvas.style.cursor = "text";
             document.getElementById('sizePopup').style.display = 'none';
@@ -770,6 +1035,7 @@
         function enablePen() {
             isEraser = false;
             isTextMode = false;
+            isShapeMode = false;
             isPointerMode = false;
             canvas.style.cursor = PEN_CURSOR;
             document.getElementById('sizePopup').style.display = 'none';
