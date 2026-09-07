@@ -72,14 +72,7 @@
             <span id="sessionTitle" class="text-sm font-medium">جلسة مع المعلم</span>
         </div>
 
-        <div class="flex items-center gap-2 relative">
-            <button id="undoBtn" onclick="undoStroke()" class="p-2 hover:bg-white/10 rounded-lg hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-            </button>
-            <button id="clearBtn" onclick="clearBoard()" class="p-2 hover:bg-white/10 rounded-lg hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
-        </div>
+        <div class="flex items-center gap-2 relative"></div>
     </header>
 
     <!-- Main Content -->
@@ -88,18 +81,54 @@
         <!-- Whiteboard Area -->
         <div class="flex-1 flex flex-col">
             <!-- Toolbar (Teacher Only) -->
-            <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 overflow-x-auto hidden">
-                <span class="text-sm text-white/70 ml-2">الألوان:</span>
+            <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative">
+                <!-- أزرار التراجع والحذف في أقصى اليمين -->
+                <button id="undoBtn" onclick="undoStroke()" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg flex items-center gap-1 text-xs text-white shrink-0 border border-white/20" title="تراجع">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg> تراجع
+                </button>
+                <button id="clearBtn" onclick="clearBoard()" class="p-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg flex items-center gap-1 text-xs text-red-400 shrink-0 border border-red-500/30" title="حذف الكل">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> مسح الكل
+                </button>
+
+                <div class="h-6 w-px bg-white/20 mx-1"></div>
+
+                <span class="text-sm text-white/70 ml-1">الألوان:</span>
                 
                 <button onclick="selectColor('black')" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
                 <button onclick="selectColor('red')" class="w-7 h-7 rounded-full bg-red-500 border-2 border-white/30 shrink-0"></button>
                 <button onclick="selectColor('blue')" class="w-7 h-7 rounded-full bg-blue-500 border-2 border-white/30 shrink-0"></button>
                 <button onclick="selectColor('green')" class="w-7 h-7 rounded-full bg-green-500 border-2 border-white/30 shrink-0"></button>
-                
+
                 <div id="sizePopup" class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded-lg ml-2" style="display: none;">
                     <button onclick="selectSize(8)" class="w-6 h-6 rounded-full bg-white border-2 border-black" title="عريض"></button>
                     <button onclick="selectSize(4)" class="w-4 h-4 rounded-full bg-white border-2 border-black" title="وسط"></button>
                     <button onclick="selectSize(2)" class="w-2 h-2 rounded-full bg-white border-2 border-black" title="رفيع"></button>
+                </div>
+
+                <!-- زر القلم -->
+                <button onclick="enablePen()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg> قلم
+                </button>
+
+                <!-- زر المؤشر -->
+                <div class="relative inline-block">
+                    <button onclick="togglePointerMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <span id="currentPointerIcon" class="text-lg">👆</span> مؤشر
+                    </button>
+                    <div id="pointerMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 flex flex-col gap-2" style="display: none;">
+                        <div class="flex gap-1">
+                            <button onclick="setPointerEmoji('👈')" class="text-2xl p-1 hover:bg-white/10 rounded">👈</button>
+                            <button onclick="setPointerEmoji('👉')" class="text-2xl p-1 hover:bg-white/10 rounded">👉</button>
+                            <button onclick="setPointerEmoji('👆')" class="text-2xl p-1 hover:bg-white/10 rounded">👆</button>
+                            <button onclick="setPointerEmoji('👇')" class="text-2xl p-1 hover:bg-white/10 rounded">👇</button>
+                            <button onclick="setPointerEmoji('☝️')" class="text-2xl p-1 hover:bg-white/10 rounded">☝️</button>
+                        </div>
+                        <div class="flex items-center gap-2 justify-center border-t border-white/20 pt-2">
+                            <button onclick="changePointerSize(-8)" class="text-white bg-gray-700 w-8 h-8 rounded hover:bg-gray-600 font-bold">-</button>
+                            <span id="pointerSizeDisplay" class="text-white text-sm w-12 text-center">48px</span>
+                            <button onclick="changePointerSize(8)" class="text-white bg-gray-700 w-8 h-8 rounded hover:bg-gray-600 font-bold">+</button>
+                        </div>
+                    </div>
                 </div>
 
                 <button onclick="enableText()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
@@ -110,20 +139,33 @@
                 <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> ممحاة
                 </button>
+
                 <div class="h-6 w-px bg-white/20 mx-2"></div>
                 
-                <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
-                <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
-                <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
-                <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
-                <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
-                <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl" style="transform: scaleX(-1); display: inline-block;">❓</button>
-                <button onclick="triggerAnimation('fireworks')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎆</button>
+                <!-- زر التفاعلات الموحد بقائمة منسدلة لمنع الاكتظاظ -->
+                <div class="relative inline-block">
+                    <button onclick="toggleAnimMenu()" class="px-3 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 font-bold text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <span>تفاعلات 🎉</span>
+                    </button>
+                    <div id="animMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 flex gap-2" style="display: none;">
+                        <button onclick="triggerAnimation('happy')" class="p-1 hover:bg-white/10 rounded text-2xl" title="سعيد">😊</button>
+                        <button onclick="triggerAnimation('sad')" class="p-1 hover:bg-white/10 rounded text-2xl" title="حزين">😢</button>
+                        <button onclick="triggerAnimation('trophy')" class="p-1 hover:bg-white/10 rounded text-2xl" title="كأس">🏆</button>
+                        <button onclick="triggerAnimation('balloons')" class="p-1 hover:bg-white/10 rounded text-2xl" title="بالونات">🎈</button>
+                        <button onclick="triggerAnimation('heart')" class="p-1 hover:bg-white/10 rounded text-2xl" title="قلب">❤️</button>
+                        <button onclick="triggerAnimation('question')" class="p-1 hover:bg-white/10 rounded text-2xl" title="سؤال" style="transform: scaleX(-1); display: inline-block;">❓</button>
+                        <button onclick="triggerAnimation('fireworks')" class="p-1 hover:bg-white/10 rounded text-2xl" title="مفرقعات">🎆</button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Canvas -->
+            <!-- Canvas Container -->
             <div class="flex-1 relative bg-white">
                 <canvas id="whiteboard"></canvas>
+                <!-- مؤشر ماوس المعلم للظهور المباشر عند الطالب -->
+                <div id="remoteTeacherCursor" class="absolute pointer-events-none transition-all duration-75 z-40 hidden flex items-center justify-center select-none" style="transform: translate(-50%, -50%);">
+                    <span id="remoteCursorEmoji" class="leading-none">👆</span>
+                </div>
                 <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
             </div>
         </div>
@@ -142,7 +184,7 @@
             <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
         </div>
 
-        <!-- Chat Panel (محسّن) -->
+        <!-- Chat Panel -->
         <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative">
             <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
                 <div class="flex items-center gap-2">
@@ -154,9 +196,7 @@
                 <div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
             </div>
             
-            <!-- شريط أدوات الشات (الإيموجي والملفات) -->
             <div class="p-3 bg-[#1E1E1E] border-t border-white/10 relative">
-                <!-- قائمة الإيموجي -->
                 <div id="emojiPicker" class="absolute bottom-16 left-3 right-3 bg-[#2C2C2C] p-2 rounded-lg shadow-lg grid grid-cols-8 gap-1 z-50 border border-white/10">
                     <button onclick="addEmoji('😀')" class="text-xl hover:bg-white/10 p-1 rounded">😀</button>
                     <button onclick="addEmoji('😁')" class="text-xl hover:bg-white/10 p-1 rounded">😁</button>
@@ -307,6 +347,69 @@
         let dragOffsetX = 0;
         let dragOffsetY = 0;
 
+        const PEN_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='black' stroke='white' stroke-width='1'><path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/></svg>\") 2 22, crosshair";
+        
+        let isPointerMode = false;
+        let pointerEmoji = '👆';
+        let pointerSize = 48;
+
+        function generateEmojiCursor(emoji, size) {
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="${size * 0.8}">${emoji}</text></svg>`;
+            return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${size / 2} ${size / 2}, pointer`;
+        }
+
+        function togglePointerMenu() {
+            const menu = document.getElementById('pointerMenu');
+            document.getElementById('animMenu').style.display = 'none';
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
+        }
+
+        function toggleAnimMenu() {
+            const menu = document.getElementById('animMenu');
+            document.getElementById('pointerMenu').style.display = 'none';
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
+        }
+
+        function setPointerEmoji(emoji) {
+            pointerEmoji = emoji;
+            document.getElementById('currentPointerIcon').innerText = emoji;
+            enablePointer();
+            document.getElementById('pointerMenu').style.display = 'none';
+            if (isTeacher) {
+                updatePointerPositionInFirebase(lastKnownX, lastKnownY, true);
+            }
+        }
+
+        function changePointerSize(delta) {
+            pointerSize = Math.max(24, Math.min(128, pointerSize + delta));
+            document.getElementById('pointerSizeDisplay').innerText = pointerSize + 'px';
+            if (isPointerMode) {
+                enablePointer();
+            }
+            if (isTeacher) {
+                updatePointerPositionInFirebase(lastKnownX, lastKnownY, true);
+            }
+        }
+
+        function enablePointer() {
+            isPointerMode = true;
+            isEraser = false;
+            isTextMode = false;
+            canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+            document.getElementById('sizePopup').style.display = 'none';
+        }
+
+        document.addEventListener('click', function(e) {
+            const pointerContainer = document.getElementById('pointerMenu')?.parentElement;
+            const animContainer = document.getElementById('animMenu')?.parentElement;
+            if (pointerContainer && !pointerContainer.contains(e.target)) {
+                document.getElementById('pointerMenu').style.display = 'none';
+            }
+            if (animContainer && !animContainer.contains(e.target)) {
+                document.getElementById('animMenu').style.display = 'none';
+            }
+        });
+
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
@@ -318,6 +421,7 @@
                 listenToChat();
                 listenToSessionState();
                 listenToAnimations();
+                listenToPointerPosition();
                 
                 window.addEventListener('beforeunload', async (event) => {
                     if (agoraEngine) await agoraEngine.leave();
@@ -341,8 +445,6 @@
             document.getElementById('sessionTitle').innerText = isTeacher ? `جلسة مع الطالب: ${studentName}` : 'جلسة مع المعلم';
             if (isTeacher) {
                 document.getElementById('teacherToolbar').classList.remove('hidden');
-                document.getElementById('undoBtn').classList.remove('hidden');
-                document.getElementById('clearBtn').classList.remove('hidden');
             } else {
                 document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
                 document.getElementById('endSessionBtn').classList.remove('bg-red-600');
@@ -352,18 +454,81 @@
         }
 
         // ==========================================
-        // 🎨 Whiteboard, Magic Eraser, Text Tool & Auto Drag
+        // 🎨 Whiteboard & Cursor Sync
         // ==========================================
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
+
+        let lastKnownX = 0;
+        let lastKnownY = 0;
+        let pointerThrottleTimer = null;
+
+        function updatePointerPositionInFirebase(x, y, active = true) {
+            if (!isTeacher) return;
+            lastKnownX = x;
+            lastKnownY = y;
+            if (!pointerThrottleTimer) {
+                pointerThrottleTimer = setTimeout(() => {
+                    db.collection('sessions').doc(sessionId).collection('pointer').doc('teacher').set({
+                        x: lastKnownX,
+                        y: lastKnownY,
+                        emoji: pointerEmoji,
+                        size: pointerSize,
+                        active: active,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(() => {});
+                    pointerThrottleTimer = null;
+                }, 30);
+            }
+        }
+
+        function listenToPointerPosition() {
+            if (isTeacher) return; 
+            
+            const cursorEl = document.getElementById('remoteTeacherCursor');
+            const emojiEl = document.getElementById('remoteCursorEmoji');
+
+            db.collection('sessions').doc(sessionId).collection('pointer').doc('teacher')
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data && data.active) {
+                            const rect = canvas.getBoundingClientRect();
+                            const posX = data.x * rect.width;
+                            const posY = data.y * rect.height;
+                            
+                            cursorEl.style.left = `${posX}px`;
+                            cursorEl.style.top = `${posY}px`;
+                            emojiEl.innerText = data.emoji || '👆';
+                            emojiEl.style.fontSize = `${data.size || 48}px`;
+                            cursorEl.classList.remove('hidden');
+                        } else {
+                            cursorEl.classList.add('hidden');
+                        }
+                    } else {
+                        cursorEl.classList.add('hidden');
+                    }
+                });
+        }
 
         function initCanvas() {
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
             canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mousemove', (e) => {
+                const pos = getMousePos(e);
+                if (isTeacher) updatePointerPositionInFirebase(pos.x, pos.y, true);
+                draw(e);
+            });
             canvas.addEventListener('mouseup', endDraw);
-            canvas.addEventListener('mouseleave', endDraw);
+            canvas.addEventListener('mouseleave', (e) => {
+                endDraw(e);
+                if (isTeacher) updatePointerPositionInFirebase(lastKnownX, lastKnownY, false);
+            });
+            canvas.addEventListener('mouseenter', (e) => {
+                const pos = getMousePos(e);
+                if (isTeacher) updatePointerPositionInFirebase(pos.x, pos.y, true);
+            });
             canvas.addEventListener('touchstart', handleTouch);
             canvas.addEventListener('touchmove', handleTouch);
             canvas.addEventListener('touchend', handleTouchEnd);
@@ -402,6 +567,10 @@
             const px = pos.x * canvas.width;
             const py = pos.y * canvas.height;
             
+            updatePointerPositionInFirebase(pos.x, pos.y, true);
+
+            if (isPointerMode) return; 
+            
             if (isEraser) {
                 isDrawing = true;
                 eraseStrokeAt(pos.x, pos.y);
@@ -429,8 +598,10 @@
         }
 
         function draw(e) {
-            if (!isTeacher || !isDrawing) return;
+            if (!isTeacher) return;
             const pos = getMousePos(e);
+
+            if (!isDrawing) return;
             
             if (draggingTextId) {
                 const tempPx = pos.x * canvas.width - dragOffsetX;
@@ -491,7 +662,8 @@
                 
                 draggingTextId = null;
                 if (isTextMode) canvas.style.cursor = "text";
-                else canvas.style.cursor = "crosshair";
+                else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+                else canvas.style.cursor = PEN_CURSOR;
                 return;
             }
 
@@ -502,6 +674,11 @@
                 }).catch(err => console.error("Error saving stroke:", err));
                 currentStroke = [];
             }
+            
+            if (!isEraser && !isTextMode) {
+                if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+                else canvas.style.cursor = PEN_CURSOR;
+            }
         }
 
         function handleTouch(e) {
@@ -509,6 +686,10 @@
             const touch = e.touches[0];
             if (!touch) return;
             const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
+            if (isTeacher) {
+                const pos = getMousePos(mockEvent);
+                updatePointerPositionInFirebase(pos.x, pos.y, true);
+            }
             if (e.type === 'touchstart') startDraw(mockEvent);
             else if (e.type === 'touchmove') draw(mockEvent);
         }
@@ -659,7 +840,8 @@
             selectedColor = color;
             isEraser = false;
             isTextMode = false;
-            canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='black' stroke='white' stroke-width='1'><path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/></svg>\") 2 22, crosshair";
+            isPointerMode = false;
+            canvas.style.cursor = PEN_CURSOR;
             document.getElementById('sizePopup').style.display = 'flex';
         }
 
@@ -671,6 +853,7 @@
         function enableEraser() {
             isEraser = true;
             isTextMode = false;
+            isPointerMode = false;
             canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1.5'><path d='M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z'/><path d='M4.22 15.22l5.65 5.65' /></svg>\") 2 20, cell";
             document.getElementById('sizePopup').style.display = 'none';
         }
@@ -678,7 +861,16 @@
         function enableText() {
             isTextMode = true;
             isEraser = false;
+            isPointerMode = false;
             canvas.style.cursor = "text";
+            document.getElementById('sizePopup').style.display = 'none';
+        }
+
+        function enablePen() {
+            isEraser = false;
+            isTextMode = false;
+            isPointerMode = false;
+            canvas.style.cursor = PEN_CURSOR;
             document.getElementById('sizePopup').style.display = 'none';
         }
 
@@ -696,7 +888,7 @@
         }
 
         // ==========================================
-        // ⏱️ Timer & Extend (Count Up)
+        // ⏱️ Timer & Extend
         // ==========================================
         function startSessionTimer() {
             sessionTimer = setInterval(() => {
@@ -973,7 +1165,7 @@
         }
 
         // ==========================================
-        // 💬 Chat (محسّن بالإيموجي والملفات)
+        // 💬 Chat
         // ==========================================
         function toggleEmojiPicker() {
             const picker = document.getElementById('emojiPicker');
@@ -1022,7 +1214,7 @@
                 document.getElementById('uploadStatus').innerText = 'فشل رفع الملف';
                 setTimeout(() => document.getElementById('uploadStatus').classList.add('hidden'), 2000);
             }
-            event.target.value = ''; // تفريغ حقل الملف
+            event.target.value = '';
         }
 
         function listenToChat() {
@@ -1089,12 +1281,13 @@
         }
 
         // ==========================================
-        // 🎉 Animations (تشغيل فيديو للبالون والكاس)
+        // 🎉 Animations
         // ==========================================
         let isInitialAnimationLoad = true; 
 
         function triggerAnimation(type) {
             if (!isTeacher) return;
+            document.getElementById('animMenu').style.display = 'none';
             db.collection('sessions').doc(sessionId).collection('animations').add({ type: type, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
         }
 
@@ -1110,7 +1303,7 @@
             });
         }
 
-             function playAnimation(type) {
+        function playAnimation(type) {
             const overlay = document.getElementById('animationOverlay');
             const sound = document.getElementById(`sound_${type}`);
             if (sound) sound.play();
@@ -1134,7 +1327,6 @@
                 video.style.maxWidth = '70%';
                 video.style.maxHeight = '80%';
                 
-                // ✨ شلنا الإطار والظل والحواف
                 video.style.borderRadius = '0';
                 video.style.boxShadow = 'none';
                 video.style.background = 'transparent';
