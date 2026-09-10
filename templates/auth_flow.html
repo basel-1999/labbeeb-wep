@@ -62,8 +62,8 @@
         <div class="bg-white rounded-3xl shadow-xl p-7 w-full max-w-[550px]">
             
             <!-- Header -->
-            <div class="flex justify-between items-center mb-5">
-                <button onclick="previousStep()" class="text-textDark">
+            <div class="flex justify-between items-center mb-2">
+                <button onclick="previousStep()" class="text-textDark p-1 rounded-lg hover:bg-gray-100 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                     </svg>
@@ -71,6 +71,11 @@
                 <div class="bg-accentOrange/10 px-3 py-1 rounded-lg">
                     <span id="roleTitle" class="text-accentOrange font-bold text-sm">الطالب الطموح</span>
                 </div>
+            </div>
+
+            <!-- Logo Section -->
+            <div class="flex justify-center -mt-4 -mb-4">
+                <img src="/static/images/logo.png" alt="لوجو لبيب" class="h-44 w-auto object-contain block">
             </div>
 
             <!-- Progress Bar -->
@@ -113,7 +118,7 @@
                     <span id="displayPhone" class="font-bold text-accentOrange"></span>
                 </p>
                 
-                             <div dir="ltr" class="flex justify-between gap-1.5 sm:gap-2 mb-5" id="otpInputs">
+                <div dir="ltr" class="flex justify-between gap-1.5 sm:gap-2 mb-5" id="otpInputs">
                     <input type="text" inputmode="numeric" maxlength="1" class="otp-input flex-1 w-9 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                     <input type="text" inputmode="numeric" maxlength="1" class="otp-input flex-1 w-9 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                     <input type="text" inputmode="numeric" maxlength="1" class="otp-input flex-1 w-9 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold bg-beigeCard rounded-xl focus:outline-none focus:ring-2 focus:ring-oliveGreen">
@@ -648,7 +653,7 @@
                             phone: phone,
                             role: 'student',
                             status: 'active',
-                            sessionCredits: 0, // ✨ تم إلغاء الحصة الترحيبية
+                            sessionCredits: 0,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         }, { merge: true });
                     } else if (userData.name && userData.name.trim() !== '' && userData.name !== 'طالب لبيب') {
@@ -731,14 +736,12 @@
 
             toggleLoading(true);
             try {
-                // 1. حفظ اسم الطالب ومرحلته في الداتابيز
                 await db.collection('users').doc(user.uid).set({
                     name: studentName,
                     grade: studentGrade,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
-                // 2. استدعاء الباك-ند لإنشاء الجلسة بعد فحص الرصيد بشكل آمن
                 const token = await user.getIdToken();
                 const formData = new FormData();
                 formData.append('studentName', studentName);
@@ -760,7 +763,6 @@
                 const result = await response.json();
                 const sessionId = result.sessionId;
 
-                // 3. إذا كان الطلب مجدول، نحدث الوقت في الجلسة
                 if (bookingType === 'schedule') {
                     const dateStr = document.getElementById('scheduleDate').value;
                     const timeStr = document.getElementById('scheduleTime').value;
@@ -771,7 +773,6 @@
                     });
                 }
 
-                // 4. الدخول للوحة التحكم
                 const nameEncoded = encodeURIComponent(studentName);
                 const subjectEncoded = encodeURIComponent(subject);
                 window.location.href = `/student-dashboard?uid=${user.uid}&name=${nameEncoded}&subject=${subjectEncoded}&type=${bookingType}`;
@@ -806,7 +807,6 @@
                 verifyOtp();
             } 
             else if (currentStep === 2) {
-                // Validate Teacher Form
                 if (!document.getElementById('signupPhone').value.trim() || 
                     !document.getElementById('fullName').value.trim() || 
                     !document.getElementById('country').value || 

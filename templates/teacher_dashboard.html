@@ -68,19 +68,37 @@
 </head>
 <body class="pb-20">
 
-    <!-- Header / AppBar -->
-    <header class="bg-white shadow-sm sticky top-0 z-40">
-        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
-            <h1 class="text-xl font-bold text-oliveGreen">لبيب | بوابة المعلم</h1>
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-oliveGreen/15 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                </div>
-                <div>
-                    <p id="teacherNameDisplay" class="text-sm font-bold text-textDark">أ. باسل أبو هدة</p>
-                    <p id="teacherStatusDisplay" class="text-xs text-gray-500">حساب جديد</p>
+   <!-- Header / AppBar -->
+    <header class="bg-white shadow-sm sticky top-0 z-40 w-full">
+        <div class="w-full px-4 sm:px-6 py-2 sm:py-3 flex justify-between items-center gap-2">
+            
+            <!-- الجزء الأيمن: اللوجو وعنوان البوابة -->
+            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                <!-- صورة اللوجو (نفس مسار التطبيق وبحجم بارز) -->
+                <img src="/static/images/logo.png" 
+                     alt="" 
+                     onerror="this.style.display='none'" 
+                     class="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0">
+                
+                <div class="min-w-0">
+                    <h1 class="text-sm sm:text-base font-bold text-oliveGreen truncate">منصة لبيب</h1>
+                    <p class="text-xs sm:text-sm text-gray-500 truncate">بوابة المعلم</p>
                 </div>
             </div>
+
+            <!-- الجزء الأيسر: بيانات المعلم -->
+            <div class="flex items-center gap-3 shrink-0">
+                <div class="p-2 bg-oliveGreen/15 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <p id="teacherNameDisplay" class="text-xs sm:text-sm font-bold text-textDark truncate">أ. باسل أبو هدة</p>
+                    <p id="teacherStatusDisplay" class="text-[10px] sm:text-xs text-gray-500 truncate">حساب جديد</p>
+                </div>
+            </div>
+
         </div>
     </header>
 
