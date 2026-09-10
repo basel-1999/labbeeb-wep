@@ -95,6 +95,12 @@
                 <button onclick="selectColor('red')" class="w-7 h-7 rounded-full bg-red-500 border-2 border-white/30 shrink-0"></button>
                 <button onclick="selectColor('blue')" class="w-7 h-7 rounded-full bg-blue-500 border-2 border-white/30 shrink-0"></button>
                 <button onclick="selectColor('green')" class="w-7 h-7 rounded-full bg-green-500 border-2 border-white/30 shrink-0"></button>
+                 <!-- الألوان الجديدة المضافة -->
+                <button onclick="selectColor('orange')" class="w-7 h-7 rounded-full bg-orange-500 border-2 border-white/30 shrink-0" title="برتقالي"></button>
+                <button onclick="selectColor('purple')" class="w-7 h-7 rounded-full bg-purple-500 border-2 border-white/30 shrink-0" title="بنفسجي"></button>
+                <button onclick="selectColor('#ec4899')" class="w-7 h-7 rounded-full bg-pink-500 border-2 border-white/30 shrink-0" title="وردي"></button>
+                <button onclick="selectColor('#eab308')" class="w-7 h-7 rounded-full bg-yellow-500 border-2 border-white/30 shrink-0" title="أصفر"></button>       
+
 
                 <div id="sizePopup" class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded-lg ml-2" style="display: none;">
                     <button onclick="selectSize(8)" class="w-6 h-6 rounded-full bg-white border-2 border-black" title="عريض"></button>
@@ -516,7 +522,20 @@
             canvas.addEventListener('touchstart', handleTouch);
             canvas.addEventListener('touchmove', handleTouch);
             canvas.addEventListener('touchend', handleTouchEnd);
+            canvas.addEventListener('dblclick', handleDoubleClick);
         }
+        function handleDoubleClick(e) {
+    if (!isTeacher) return;
+    const pos = getMousePos(e);
+    const px = pos.x * canvas.width;
+    const py = pos.y * canvas.height;
+
+    const hitText = getTextAtPosition(px, py);
+    if (hitText) {
+        // فتح مربع النص مجدداً للتعديل
+        createTextInput(hitText.dx, hitText.dy, hitText);
+    }
+}
 
         function resizeCanvas() {
             canvas.width = canvas.offsetWidth;
@@ -897,62 +916,90 @@
                 });
         }
 
-        function createTextInput(x, y) {
-            const boardContainer = canvas.parentElement;
-            if (!boardContainer) return;
 
-            const oldInput = document.getElementById('tempTextInput');
-            if (oldInput) oldInput.remove();
+        
 
-            const input = document.createElement('input');
-            input.id = 'tempTextInput';
-            input.type = 'text';
-            input.placeholder = 'اكتب ثم اضغط Enter';
-            input.style.position = 'absolute';
-            input.style.left = (x * canvas.offsetWidth) + 'px';
-            input.style.top = (y * canvas.offsetHeight) + 'px';
-            input.style.zIndex = '1000';
-            input.style.fontSize = '18px';
-            input.style.color = selectedColor;
-            input.style.background = 'rgba(255,255,255,0.9)';
-            input.style.border = `2px solid ${selectedColor}`;
-            input.style.padding = '4px';
-            input.style.fontFamily = 'Cairo, sans-serif';
-            input.style.outline = 'none';
-            input.style.borderRadius = '4px';
-            input.style.minWidth = '150px';
+function createTextInput(x, y, existingData = null) {
+    const boardContainer = canvas.parentElement;
+    if (!boardContainer) return;
 
-            boardContainer.appendChild(input);
-            setTimeout(() => input.focus(), 10);
+    // إزالة أي حقل نصي مؤقت سابق
+    const oldInput = document.getElementById('tempTextInput');
+    if (oldInput) oldInput.remove();
 
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    const text = input.value;
-                    if (text.trim() !== '') {
-                        db.collection('sessions').doc(sessionId).collection('strokes').add({
-                            type: 'text',
-                            dx: x,
-                            dy: y,
-                            text: text,
-                            color: selectedColor,
-                            fontSize: 18,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    }
-                    input.remove();
-                    canvas.style.cursor = "text";
-                } else if (event.key === 'Escape') {
-                    input.remove();
-                    canvas.style.cursor = "text";
-                }
-            });
+    const input = document.createElement('input');
+    input.id = 'tempTextInput';
+    input.type = 'text';
+    input.placeholder = 'اكتب هنا...';
+    input.value = existingData ? existingData.text : '';
+    input.style.position = 'absolute';
+    input.style.left = (x * canvas.offsetWidth) + 'px';
+    input.style.top = (y * canvas.offsetHeight) + 'px';
+    input.style.zIndex = '1000';
+    input.style.fontSize = (existingData?.fontSize || 18) + 'px';
+    input.style.color = existingData ? existingData.color : selectedColor;
+    input.style.background = 'rgba(255,255,255,0.9)';
+    input.style.border = `2px solid ${existingData ? existingData.color : selectedColor}`;
+    input.style.padding = '4px';
+    input.style.fontFamily = 'Cairo, sans-serif';
+    input.style.outline = 'none';
+    input.style.borderRadius = '4px';
+    input.style.minWidth = '150px';
 
-            input.addEventListener('blur', () => {
-                setTimeout(() => {
-                    if (input.parentNode) input.remove();
-                }, 150);
-            });
+    boardContainer.appendChild(input);
+    setTimeout(() => input.focus(), 10);
+
+    let isSaved = false;
+
+    // دالة لحفظ النص تلقائياً
+    const saveTextAutomatically = () => {
+        if (isSaved) return;
+        isSaved = true;
+
+        const text = input.value.trim();
+        if (text !== '') {
+            if (existingData) {
+                // تحديث نص موجود سابقاً عند التعديل
+                db.collection('sessions').doc(sessionId).collection('strokes').doc(existingData.id).update({
+                    text: text
+                });
+            } else {
+                // إضافة نص جديد
+                db.collection('sessions').doc(sessionId).collection('strokes').add({
+                    type: 'text',
+                    dx: x,
+                    dy: y,
+                    text: text,
+                    color: selectedColor,
+                    fontSize: 18,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        } else if (existingData) {
+            // إذا فرّغ النص بالكامل عند التعديل يتم حذفه
+            db.collection('sessions').doc(sessionId).collection('strokes').doc(existingData.id).delete();
         }
+
+        if (input.parentNode) input.remove();
+        canvas.style.cursor = "text";
+    };
+
+    // حفظ عند كتابة أي تغيير بشكل لحظي أو عند الضغط خارج المربع (Blur)
+    input.addEventListener('blur', saveTextAutomatically);
+
+    // الحفظ وإلغاء التركيز أيضاً مع مفتاح Enter
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            saveTextAutomatically();
+        } else if (event.key === 'Escape') {
+            isSaved = true;
+            if (input.parentNode) input.remove();
+            canvas.style.cursor = "text";
+        }
+    });
+}
+
+
 
         function eraseStrokeAt(x, y) {
             const px = x * canvas.width;
@@ -1482,16 +1529,16 @@
                     p.style.transform = `translate(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px)`;
                     overlay.appendChild(p); setTimeout(() => p.remove(), 1500);
                 }
-            } else if (type === 'balloons' || type === 'trophy') {
+           } else if (type === 'balloons' || type === 'trophy') {
                 const video = document.createElement('video');
                 video.src = `/static/videos/${type}.mp4`; 
                 video.style.position = 'absolute';
-                video.style.top = '50%';
-                video.style.left = '50%';
-                video.style.transform = 'translate(-50%, -50%)';
+                video.style.top = '0';
+                video.style.left = '0';
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'cover'; // أو 'contain' إذا كنت تريد رؤية أبصار الفيديو كاملة دون قص الأطراف
                 video.style.zIndex = '50';
-                video.style.maxWidth = '70%';
-                video.style.maxHeight = '80%';
                 
                 video.style.borderRadius = '0';
                 video.style.boxShadow = 'none';
