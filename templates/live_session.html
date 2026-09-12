@@ -1424,18 +1424,18 @@ function createTextInput(x, y, existingData = null) {
                 if (doc.exists) {
                     const data = doc.data();
                     
-                                      // بدء التايمر فقط عندما يدخل الطالب والمعلم معاً
-                    if (data.studentJoined && data.teacherJoined && !sessionTimer) {
-                        let startMs = Date.now();
-                        if (data.timerStartedAt && typeof data.timerStartedAt.toDate === 'function') {
-                            startMs = data.timerStartedAt.toDate().getTime();
-                        } else {
-                            // حفظ وقت بدء المؤقت في قاعدة البيانات ليبقى ثابتاً عند التحديث
-                            db.collection('sessions').doc(sessionId).update({
+                    // بدء التايمر فقط عندما يدخل الطالب والمعلم معاً
+                    if (data.studentJoined && data.teacherJoined) {
+                        // إذا كان لدينا وقت بدء الحصة من السيرفر، نشغل المؤقت بهذا الوقت
+                        if (data.timerStartedAt && typeof data.timerStartedAt.toDate === 'function' && !sessionTimer) {
+                            startSessionTimer(data.timerStartedAt.toDate().getTime());
+                        } 
+                        // إذا لم يكن لدينا الوقت محفوظاً بعد، نحفظه في قاعدة البيانات
+                        if (!data.timerStartedAt) {
+                            db.collection('sessions').doc(sessionId).set({
                                 'timerStartedAt': firebase.firestore.FieldValue.serverTimestamp()
-                            });
+                            }, { merge: true });
                         }
-                        startSessionTimer(startMs);
                     }
 
                     if (data.status === 'completed') {
