@@ -93,7 +93,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2V9a2 2 0 00-2-2H9a2 2 0 00-2 2v10a2 2 0 002 2zm7-9a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                <span id="walletBalance" class="text-xs sm:text-sm font-bold text-textDark">0 حصص</span>
+                <span id="walletBalance" class="text-xs sm:text-sm font-bold text-textDark">0 نقاط</span>
                 <button onclick="openRechargeModal()" class="bg-accentOrange text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md shrink-0">+ شحن</button>
             </div>
 
@@ -255,15 +255,15 @@
                 الدفع بالبطاقة
             </h3>
             <p class="text-xs text-gray-500 mb-4 text-center">سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.</p>
-            <div class="space-y-2 mb-6">
+                       <div class="space-y-2 mb-6">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="1|35" checked> حصة واحدة (35 ر.س)
+                    <input type="radio" name="cardPackage" value="6|50" checked> 6 نقاط (50 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="5|150"> باقة 5 حصص (150 ر.س)
+                    <input type="radio" name="cardPackage" value="12|100"> 12 نقطة (100 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="12|320"> باقة التفوق 12 حصة (320 ر.س)
+                    <input type="radio" name="cardPackage" value="18|150"> باقة التفوق 18 نقطة (150 ر.س)
                 </label>
             </div>
             <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
@@ -284,15 +284,15 @@
                 التحويل البنكي
             </h3>
             <p class="text-xs text-gray-500 mb-4">اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:</p>
-            <div class="space-y-2 mb-4">
+                       <div class="space-y-2 mb-4">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="1|حصة واحدة (35 ر.س)" checked> حصة واحدة (35 ر.س)
+                    <input type="radio" name="bankPackage" value="6|6 نقاط (50 ر.س)" checked> 6 نقاط (50 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="5|باقة 5 حصص (150 ر.س)"> باقة 5 حصص (150 ر.س)
+                    <input type="radio" name="bankPackage" value="12|12 نقطة (100 ر.س)"> 12 نقطة (100 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="12|باقة التفوق 12 حصة (320 ر.س)"> باقة التفوق 12 حصة (320 ر.س)
+                    <input type="radio" name="bankPackage" value="18|باقة التفوق 18 نقطة (150 ر.س)"> باقة التفوق 18 نقطة (150 ر.س)
                 </label>
             </div>
             <input type="text" id="referenceNumber" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
@@ -394,12 +394,15 @@
             }
         });
 
-        function listenToWallet() {
+               function listenToWallet() {
             if (!currentUser) return;
+            // نجعل الرصيد متاحاً للاستخدام في دالة فتح مودال الحجز
+            window.currentWalletPoints = 0; 
             db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
                 if (doc.exists) {
-                    const balance = doc.data().sessionCredits || 0;
-                    document.getElementById('walletBalance').innerText = `${balance} حصص`;
+                    const balance = doc.data().points || 0;
+                    window.currentWalletPoints = balance;
+                    document.getElementById('walletBalance').innerText = `${balance} نقاط`;
                 }
             });
         }
@@ -808,7 +811,13 @@
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-        function openBookingModal() {
+               function openBookingModal() {
+            // فحص رصيد النقاط قبل السماح بفتح مودال الحجز
+            if (!window.currentWalletPoints || window.currentWalletPoints < 1) {
+                showSnackBar('رصيدك 0 نقاط، يرجى شحن النقاط لطلب حصة.', '#D97706');
+                return; // إيقاف العملية ومنع فتح المودال
+            }
+
             openModal('bookingModal');
             document.querySelectorAll('input[name="bookingType"]').forEach(radio => {
                 radio.onchange = (e) => {

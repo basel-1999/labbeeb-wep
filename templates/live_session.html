@@ -62,9 +62,15 @@
 
     <!-- App Bar -->
     <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0">
-        <div class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20">
+                <div class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span id="timerDisplay" class="font-bold text-amber-400">00:00:00</span>
+        </div>
+        
+        <!-- خانة رصيد النقاط (تظهر للطالب فقط) -->
+        <div id="studentPointsContainer" class="flex items-center bg-oliveGreen/40 rounded-lg px-3 py-1.5 border border-oliveGreen/30 mr-2 hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 16v1m0-1c1.11 0 2.08-.402 2.599-1" /></svg>
+            <span id="studentPointsDisplay" class="font-bold text-amber-400">0 نقاط</span>
         </div>
         
         <div class="flex items-center gap-2">
@@ -465,10 +471,15 @@
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
-                initUI();
+                               initUI();
                 initCanvas();
                 initAgora();
-                startSessionTimer();
+                
+                // تحديث قاعدة البيانات بأن هذا الطرف دخل الجلسة
+                await db.collection('sessions').doc(sessionId).set({
+                    [isTeacher ? 'teacherJoined' : 'studentJoined']: true
+                }, { merge: true });
+
                 listenToWhiteboard();
                 listenToChat();
                 listenToSessionState();
@@ -502,6 +513,9 @@
                 document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
                 document.getElementById('endSessionBtn').classList.remove('bg-red-600');
                 document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
+                
+                // إظهار خانة رصيد النقاط للطالب فقط
+                document.getElementById('studentPointsContainer').classList.remove('hidden');
             }
             document.getElementById('screenShareBtn').classList.remove('hidden');
         }
@@ -1104,26 +1118,78 @@ function createTextInput(x, y, existingData = null) {
         // ==========================================
         // ⏱️ Timer & Extend (Count Up)
         // ==========================================
+               let deductionInterval = null;
+        let hasShown2PointsWarning = false;
+        let currentStudentPoints = 0;
+
         function startSessionTimer() {
+            if (sessionTimer) clearInterval(sessionTimer); // منع تكرار المؤقت
             sessionTimer = setInterval(() => {
                 elapsedSeconds++;
                 updateTimerUI();
-                
-                if ((maxSeconds - elapsedSeconds) === 600 && !hasShown10MinWarning) {
-                    hasShown10MinWarning = true;
-                    showSnackBar('⏳ تنبيه: تبقى 10 دقائق على نهاية الحصة.', 'orange');
-                }
-                if ((maxSeconds - elapsedSeconds) === 120 && !hasShown2MinWarning) {
-                    hasShown2MinWarning = true;
-                    if (!isTeacher) openModal('extendModal');
-                }
-                if (elapsedSeconds >= maxSeconds) {
-                    clearInterval(sessionTimer);
-                    db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() });
-                    showSnackBar('⌛ انتهت مدة الحصة. سيتم إغلاق الجلسة الآن.', 'red');
-                    setTimeout(() => window.location.href = '/', 3000);
-                }
             }, 1000);
+
+            // بدء نظام الخصم للطالب فقط
+            if (!isTeacher) {
+                startPointsDeductionSystem();
+            }
+        }
+
+        // ==========================================
+        // 💰 نظام خصم النقاط والتنبيهات الجديد
+        // ==========================================
+        function startPointsDeductionSystem() {
+            // 1. الاستماع لتغير رصيد النقاط لتحديث الواجهة وإظهار التنبيهات
+            db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
+                if (doc.exists) {
+                    currentStudentPoints = doc.data().points || 0;
+                    document.getElementById('studentPointsDisplay').innerText = `${currentStudentPoints} نقاط`;
+
+                    // شرط النقطتين المتبقيتين (20 دقيقة)
+                    if (currentStudentPoints === 2 && !hasShown2PointsWarning) {
+                        hasShown2PointsWarning = true;
+                        showSnackBar('⚠️ تنبيه: تبقى لديك نقطتان فقط (20 دقيقة).', 'orange');
+                    }
+
+                    // شرط انتهاء الرصيد
+                    if (currentStudentPoints === 0) {
+                        showSnackBar('❌ انتهى رصيدك من النقاط. سيتم إنهاء الجلسة الآن.', 'red');
+                        clearInterval(deductionInterval);
+                        clearInterval(sessionTimer);
+                        // إنهاء الجلسة في قاعدة البيانات وتحويل الطالب
+                        db.collection('sessions').doc(sessionId).update({
+                            'status': 'completed',
+                            'completedAt': firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        setTimeout(() => window.location.href = '/student-dashboard', 3000);
+                    }
+                }
+            });
+
+            // 2. مؤقت دوري كل 10 دقائق (600000 مللي ثانية) لاستدعاء API الخصم
+            deductionInterval = setInterval(async () => {
+                await deductPoint();
+            }, 600000); 
+        }
+
+        async function deductPoint() {
+            try {
+                const token = await currentUser.getIdToken();
+                const res = await fetch(`/api/session/deduct-point/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'فشل خصم النقطة');
+                
+                // إذا أعاد السيرفر أن الرصيد انتهى، نقوم بإيقاف المؤقت
+                if (data.status === 'out_of_points') {
+                    clearInterval(deductionInterval);
+                }
+            } catch (e) {
+                console.error("Deduction error:", e.message);
+                showSnackBar('خطأ في خصم النقاط: ' + e.message, 'red');
+            }
         }
 
         function updateTimerUI() {
@@ -1341,10 +1407,16 @@ function createTextInput(x, y, existingData = null) {
             }
         }
 
-        function listenToSessionState() {
+               function listenToSessionState() {
             db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
+                    
+                    // بدء التايمر فقط عندما يدخل الطالب والمعلم معاً
+                    if (data.studentJoined && data.teacherJoined && !sessionTimer) {
+                        startSessionTimer();
+                    }
+
                     if (data.status === 'completed') {
                         showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
                         if (agoraEngine) agoraEngine.leave();
