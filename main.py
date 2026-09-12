@@ -10,10 +10,20 @@ from routers.session_router import router as session_router
 
 from routers.payment_router import router as payment_router
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # ==========================================
 # 🚀 تهيئة تطبيق FastAPI
 # ==========================================
 app = FastAPI(title="منصة لبيب التعليمية")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # هذا يسمح لجميع المواقع (مثل Netlify) بالوصول للـ API
+    allow_credentials=True,
+    allow_methods=["*"],  # يسمح بجميع أنواع الطلبات (POST, GET, إلخ)
+    allow_headers=["*"],  # يسمح بجميع الترويسات (Headers)
+)
 
 # إعداد المجلدات (للتأكد من وجودها عند أول تشغيل)
 os.makedirs("static", exist_ok=True)
@@ -192,10 +202,6 @@ async def payment_success(request: Request):
 # ▶️ تشغيل السيرفر
 # ==========================================
 
-@app.get("/payment-success", response_class=HTMLResponse, dependencies=[Depends(auth_guard)])
-async def payment_success(request: Request):
-    """صفحة العودة بعد إتمام الدفع"""
-    return templates.TemplateResponse(request=request, name="payment_success.html")
 
 if __name__ == "__main__":
     import uvicorn
