@@ -207,54 +207,40 @@ async def extend_session_duration(sessionId: str, studentId: str = Form(...), ui
     return {"message": "تم تمديد الجلسة بنجاح"}
 
 
-
 @router.post("/api/session/deduct-point/{sessionId}")
 async def deduct_session_point(sessionId: str, uid: str = Depends(get_current_user)):
     """خصم نقطة واحدة كل 10 دقائق بشكل آمن أثناء الحصة المباشرة"""
     try:
-        transaction = db.transaction()
-        
-        @firestore.transactional
-        def run_deduction_transaction(transaction, user_ref, session_ref):
-            # قراءة بيانات المستخدم
-            user_doc = transaction.get(user_ref)
-            if not user_doc.exists:
-                raise HTTPException(status_code=404, detail="المستخدم غير موجود")
-                
-            user_data = user_doc.to_dict()
-            current_points = user_data.get('points', 0)
-            
-                     # قراءة حالة الجلسة للتأكد أنها ما زالت نشطة
-            session_doc = transaction.get(session_ref)
-            if not session_doc.exists:
-                raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
-                
-            session_data = session_doc.to_dict()
-            # التأكد أن الجلسة بدأت ولم تنتهِ (تم إضافة in_progress و pending للسماح بالخصم)
-            if session_data.get('status') not in ['accepted', 'active', 'in_progress', 'pending']:
-                raise HTTPException(status_code=400, detail="الجلسة غير نشطة لخصم النقاط")
-            
-            # التحقق من الرصيد
-            if current_points <= 0:
-                # إذا وصل لصفر، نعيد رسالة للفرونت-إند لإنهاء الجلسة
-                return {"status": "out_of_points", "remaining_points": 0}
-                
-            # خصم نقطة واحدة
-            new_points = current_points - 1
-            transaction.update(user_ref, {
-                'points': new_points
-            })
-            
-            return {"status": "success", "remaining_points": new_points}
-
         user_ref = db.collection('users').document(uid)
         session_ref = db.collection('sessions').document(sessionId)
         
-        result = run_deduction_transaction(transaction, user_ref, session_ref)
-        return result
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+            
+        user_data = user_doc.to_dict()
+        current_points = user_data.get('points', 0)
         
+        session_doc = session_ref.get()
+        if not session_doc.exists:
+            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+            
+        session_data = session_doc.to_dict()
+        # التأكد أن الجلسة بدأت ولم تنتهِ
+        if session_data.get('status') not in ['accepted', 'active', 'in_progress', 'pending']:
+            raise HTTPException(status_code=400, detail="الجلسة غير نشطة لخصم النقاط")
+        
+        # التحقق من الرصيد
+        if current_points <= 0:
+            return {"status": "out_of_points", "remaining_points": 0}
+            
+        # خصم نقطة واحدة باستخدام Increment الآمن
+        user_ref.update({'points': firestore.Increment(-1)})
+        
+        return {"status": "success", "remaining_points": current_points - 1}
+
     except HTTPException:
-        raise # إعادة رمي أخطاء HTTP المخصصة
+        raise
     except Exception as e:
         error_str = str(e)
         print(f"❌ ERROR in deduct_session_point: {error_str}")
