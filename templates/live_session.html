@@ -468,22 +468,25 @@
             }
         });
 
-        auth.onAuthStateChanged(async (user) => {
+               auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
-                               initUI();
+                initUI();
                 initCanvas();
-                initAgora();
                 
-                // تحديث قاعدة البيانات بأن هذا الطرف دخل الجلسة
-                await db.collection('sessions').doc(sessionId).set({
-                    [isTeacher ? 'teacherJoined' : 'studentJoined']: true
-                }, { merge: true });
-
+                // 1. بدء الاستماع للسبورة والدردشة فوراً قبل أي شيء آخر
                 listenToWhiteboard();
                 listenToChat();
                 listenToSessionState();
                 listenToAnimations();
+                
+                // 2. تحديث قاعدة البيانات بأن هذا الطرف دخل الجلسة
+                db.collection('sessions').doc(sessionId).set({
+                    [isTeacher ? 'teacherJoined' : 'studentJoined']: true
+                }, { merge: true });
+
+                // 3. تشغيل الصوت في الخلفية (لن يعطل السبورة بعد الآن)
+                initAgora();
                 
                 window.addEventListener('beforeunload', async (event) => {
                     if (agoraEngine) await agoraEngine.leave();
