@@ -1122,8 +1122,13 @@ function createTextInput(x, y, existingData = null) {
         let hasShown2PointsWarning = false;
         let currentStudentPoints = 0;
 
-        function startSessionTimer() {
-            if (sessionTimer) clearInterval(sessionTimer); // منع تكرار المؤقت
+        function startSessionTimer(startMs) {
+            if (sessionTimer) clearInterval(sessionTimer);
+            const now = Date.now();
+            // حساب الثواني المنقضية فعلياً منذ بدء الجلسة
+            elapsedSeconds = Math.max(0, Math.floor((now - startMs) / 1000));
+            updateTimerUI();
+
             sessionTimer = setInterval(() => {
                 elapsedSeconds++;
                 updateTimerUI();
@@ -1131,32 +1136,29 @@ function createTextInput(x, y, existingData = null) {
 
             // بدء نظام الخصم للطالب فقط
             if (!isTeacher) {
-                startPointsDeductionSystem();
+                startPointsDeductionSystem(startMs);
             }
         }
 
         // ==========================================
         // 💰 نظام خصم النقاط والتنبيهات الجديد
         // ==========================================
-        function startPointsDeductionSystem() {
+        function startPointsDeductionSystem(startMs) {
             // 1. الاستماع لتغير رصيد النقاط لتحديث الواجهة وإظهار التنبيهات
             db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
                 if (doc.exists) {
                     currentStudentPoints = doc.data().points || 0;
                     document.getElementById('studentPointsDisplay').innerText = `${currentStudentPoints} نقاط`;
 
-                    // شرط النقطتين المتبقيتين (20 دقيقة)
                     if (currentStudentPoints === 2 && !hasShown2PointsWarning) {
                         hasShown2PointsWarning = true;
                         showSnackBar('⚠️ تنبيه: تبقى لديك نقطتان فقط (20 دقيقة).', 'orange');
                     }
 
-                    // شرط انتهاء الرصيد
                     if (currentStudentPoints === 0) {
                         showSnackBar('❌ انتهى رصيدك من النقاط. سيتم إنهاء الجلسة الآن.', 'red');
                         clearInterval(deductionInterval);
                         clearInterval(sessionTimer);
-                        // إنهاء الجلسة في قاعدة البيانات وتحويل الطالب
                         db.collection('sessions').doc(sessionId).update({
                             'status': 'completed',
                             'completedAt': firebase.firestore.FieldValue.serverTimestamp()
@@ -1166,10 +1168,20 @@ function createTextInput(x, y, existingData = null) {
                 }
             });
 
-            // 2. مؤقت دوري كل 10 دقائق (600000 مللي ثانية) لاستدعاء API الخصم
-            deductionInterval = setInterval(async () => {
+            // 2. حساب الوقت المتبقي حتى أول 10 دقائق حقيقية
+            const now = Date.now();
+            const elapsedMs = now - startMs;
+            const remainder = elapsedMs % 600000; // 10 دقائق بالملي ثانية
+            const timeToNextDeduction = 600000 - remainder;
+
+            // أول خصم يحدث بالضبط عند مرور 10 دقائق من وقت بدء الحصة
+            setTimeout(async () => {
                 await deductPoint();
-            }, 600000); 
+                // بعد أول خصم، نضبط المؤقت ليكرر كل 10 دقائق
+                deductionInterval = setInterval(async () => {
+                    await deductPoint();
+                }, 600000);
+            }, timeToNextDeduction);
         }
 
         async function deductPoint() {
@@ -1412,9 +1424,18 @@ function createTextInput(x, y, existingData = null) {
                 if (doc.exists) {
                     const data = doc.data();
                     
-                    // بدء التايمر فقط عندما يدخل الطالب والمعلم معاً
+                                      // بدء التايمر فقط عندما يدخل الطالب والمعلم معاً
                     if (data.studentJoined && data.teacherJoined && !sessionTimer) {
-                        startSessionTimer();
+                        let startMs = Date.now();
+                        if (data.timerStartedAt && typeof data.timerStartedAt.toDate === 'function') {
+                            startMs = data.timerStartedAt.toDate().getTime();
+                        } else {
+                            // حفظ وقت بدء المؤقت في قاعدة البيانات ليبقى ثابتاً عند التحديث
+                            db.collection('sessions').doc(sessionId).update({
+                                'timerStartedAt': firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        }
+                        startSessionTimer(startMs);
                     }
 
                     if (data.status === 'completed') {
