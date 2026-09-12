@@ -224,14 +224,14 @@ async def deduct_session_point(sessionId: str, uid: str = Depends(get_current_us
             user_data = user_doc.to_dict()
             current_points = user_data.get('points', 0)
             
-            # قراءة حالة الجلسة للتأكد أنها ما زالت نشطة
+                     # قراءة حالة الجلسة للتأكد أنها ما زالت نشطة
             session_doc = transaction.get(session_ref)
             if not session_doc.exists:
                 raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
                 
             session_data = session_doc.to_dict()
-            # التأكد أن الجلسة بدأت ولم تنتهِ
-            if session_data.get('status') not in ['accepted', 'active']:
+            # التأكد أن الجلسة بدأت ولم تنتهِ (تم إضافة in_progress و pending للسماح بالخصم)
+            if session_data.get('status') not in ['accepted', 'active', 'in_progress', 'pending']:
                 raise HTTPException(status_code=400, detail="الجلسة غير نشطة لخصم النقاط")
             
             # التحقق من الرصيد
