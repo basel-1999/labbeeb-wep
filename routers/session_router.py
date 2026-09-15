@@ -10,6 +10,7 @@ import uuid
 from dotenv import load_dotenv
 from typing import Optional
 import json 
+from datetime import datetime, timezone
 import httpx
 
 load_dotenv()
@@ -99,13 +100,11 @@ async def create_session_request(
             raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
 
         user_data = user_snap.to_dict()
-        raw_credits = user_data.get('sessionCredits', 0)
-        current_credits = raw_credits if isinstance(raw_credits, int) else 0
+        raw_points = user_data.get('points', 0)
+        current_points = raw_points if isinstance(raw_points, (int, float)) else 0
 
-        if current_credits <= 0:
-            raise HTTPException(status_code=400, detail="رصيدك الحالي لا يكفي لإنشاء حصة جديدة. يرجى شحن المحفظة.")
-
-        user_ref.update({'sessionCredits': current_credits - 1})
+        if current_points <= 0:
+            raise HTTPException(status_code=400, detail="لا يوجد لديك نقاط كافية.")
 
         session_ref = db.collection('sessions').document()
         session_ref.set({
@@ -120,6 +119,11 @@ async def create_session_request(
             'topic': topic,
             'grade': grade,
             'status': 'pending',
+            'studentJoinedAt': None,
+            'teacherJoinedAt': None,
+            'timerStartedAt': None,
+            'pointsDeducted': 0,
+            'lastDeductionAt': None,
             'bookingType': 'now',  
             'createdAt': firestore.SERVER_TIMESTAMP,
             'audioRecordingUrl': None,
@@ -140,6 +144,147 @@ async def create_session_request(
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
 
+@router.post("/api/session/join/{sessionId}")
+async def join_session(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        session_snap = session_ref.get()
+
+        if not session_snap.exists:
+            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+
+        session_data = session_snap.to_dict()
+
+        is_student = session_data.get('studentId') == uid
+        is_teacher = session_data.get('teacherId') == uid
+
+        if not is_student and not is_teacher:
+            raise HTTPException(status_code=403, detail="غير مصرح لك بدخول هذه الجلسة.")
+
+        update_data = {}
+
+        if is_student and session_data.get('studentJoinedAt') is None:
+            update_data['studentJoinedAt'] = firestore.SERVER_TIMESTAMP
+
+        if is_teacher and session_data.get('teacherJoinedAt') is None:
+            update_data['teacherJoinedAt'] = firestore.SERVER_TIMESTAMP
+
+        if update_data:
+            session_ref.update(update_data)
+
+        # إعادة قراءة الوثيقة بعد التحديث للتأكد من حالة الطرفين
+        session_snap = session_ref.get()
+        session_data = session_snap.to_dict()
+
+        student_joined = session_data.get('studentJoinedAt') is not None
+        teacher_joined = session_data.get('teacherJoinedAt') is not None
+
+        if student_joined and teacher_joined and session_data.get('timerStartedAt') is None:
+            session_ref.update({
+                'timerStartedAt': firestore.SERVER_TIMESTAMP,
+                'status': 'active'
+            })
+
+        return {"message": "تم تسجيل الدخول"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_str = str(e)
+        print(f"❌ ERROR in join_session: {error_str}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
+
+
+@router.post("/api/session/deduct/{sessionId}")
+async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        session_snap = session_ref.get()
+
+        if not session_snap.exists:
+            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+
+        session_data = session_snap.to_dict()
+
+        if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
+            raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
+
+        now_utc = datetime.now(timezone.utc)
+        log_ts = now_utc.strftime('%H:%M:%S')
+
+        timer_started_at = session_data.get('timerStartedAt')
+        if timer_started_at is None or session_data.get('status') != 'active':
+            print(f"🕐 [{log_ts}] session={sessionId} DEDUCT SKIPPED → "
+                  f"timerStartedAt={timer_started_at} status={session_data.get('status')}")
+            return {"message": "التايمر لم يبدأ بعد", "pointsDeducted": session_data.get('pointsDeducted', 0)}
+
+        # عدد الفواصل (كل 5 دقائق) التي يجب أن تكون قد تم خصمها حتى الآن
+        elapsed_seconds = (now_utc - timer_started_at).total_seconds()
+        intervals_due = int(elapsed_seconds // 300)  # كل 300 ثانية = 5 دقائق
+
+        already_deducted = session_data.get('pointsDeducted', 0)
+        intervals_already_done = int(round(already_deducted / 0.5))
+
+        intervals_to_deduct = intervals_due - intervals_already_done
+
+        print(f"🕐 [{log_ts}] session={sessionId} elapsed={elapsed_seconds:.0f}s "
+              f"intervals_due={intervals_due} intervals_already_done={intervals_already_done} "
+              f"already_deducted={already_deducted} intervals_to_deduct={intervals_to_deduct}")
+
+        if intervals_to_deduct <= 0:
+            print(f"🕐 [{log_ts}] session={sessionId} → لا يوجد خصم مستحق الآن")
+            return {"message": "لا يوجد خصم مستحق الآن", "pointsDeducted": already_deducted}
+
+        points_to_deduct = intervals_to_deduct * 0.5
+        student_id = session_data.get('studentId')
+        student_ref = db.collection('users').document(student_id)
+        student_snap = student_ref.get()
+
+        if not student_snap.exists:
+            print(f"🕐 [{log_ts}] session={sessionId} ❌ student {student_id} not found")
+            raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
+
+        student_data = student_snap.to_dict()
+        current_points = student_data.get('points', 0)
+        new_points = max(0, current_points - points_to_deduct)
+
+        student_ref.update({'points': new_points})
+
+        session_update = {
+            'pointsDeducted': already_deducted + points_to_deduct,
+            'lastDeductionAt': firestore.SERVER_TIMESTAMP
+        }
+
+        # ⛔ إنهاء الحصة تلقائياً لما النقاط تنفد
+        session_ended = False
+        if new_points <= 0:
+            session_update['status'] = 'completed'
+            session_update['completedAt'] = firestore.SERVER_TIMESTAMP
+            session_update['endReason'] = 'out_of_points'
+            session_ended = True
+
+        session_ref.update(session_update)
+
+        print(f"🕐 [{log_ts}] session={sessionId} ✅ DEDUCTED {points_to_deduct} → "
+              f"totalDeducted={already_deducted + points_to_deduct} studentPointsBefore={current_points} "
+              f"studentPointsAfter={new_points} sessionEnded={session_ended}")
+
+        return {
+            "message": "تم الخصم",
+            "pointsDeducted": already_deducted + points_to_deduct,
+            "studentPoints": new_points,
+            "sessionEnded": session_ended
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_str = str(e)
+        print(f"❌ ERROR in deduct_session_points: {error_str}")
+        if "429" in error_str or "Quota" in error_str:
+            raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة لاحقاً.")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
+
 @router.post("/api/session/cancel/{sessionId}")
 async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_user)):
     try:
@@ -159,29 +304,12 @@ async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_
         if session_data.get('studentId') != uid:
             raise HTTPException(status_code=403, detail="غير مصرح لك بإلغاء هذا الطلب.")
 
-        # 1. إرجاع الرصيد للطالب
-        user_ref = db.collection('users').document(uid)
-        user_snap = user_ref.get()
-        
-        if user_snap.exists:
-            user_data = user_snap.to_dict()
-            raw_credits = user_data.get('sessionCredits', 0)
-            if not isinstance(raw_credits, (int, float)):
-                raw_credits = 0
-            current_credits = int(raw_credits)
-            
-            # زيادة الرصيد بمقدار 1
-            user_ref.update({'sessionCredits': current_credits + 1})
-        else:
-            raise HTTPException(status_code=404, detail="حساب الطالب غير موجود لإرجاع الرصيد.")
-
-        # 2. تغيير حالة الجلسة إلى ملغاة
         session_ref.update({
             'status': 'cancelled',
             'cancelledAt': firestore.SERVER_TIMESTAMP
         })
 
-        return {"message": "تم إلغاء الطلب وإرجاع الرصيد بنجاح"}
+        return {"message": "تم إلغاء الطلب بنجاح"}
 
     except HTTPException:
         raise # إعادة رمي أخطاء HTTP المخصصة
@@ -192,33 +320,8 @@ async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_
             raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية.")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
-@router.post("/api/session/extend/{sessionId}")
-async def extend_session_duration(sessionId: str, studentId: str = Form(...), uid: str = Depends(get_current_user)):
-    if uid != studentId:
-        raise HTTPException(status_code=403, detail="إجراء غير مصرح به: لا يمكنك تمديد جلسة لمستخدم آخر.")
 
-    user_ref = db.collection('users').document(studentId)
-    user_snap = user_ref.get()
 
-    if not user_snap.exists:
-        raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
-
-    user_data = user_snap.to_dict()
-    raw_credits = user_data.get('sessionCredits', 0)
-    current_credits = raw_credits if isinstance(raw_credits, int) else 0
-
-    if current_credits <= 0:
-        raise HTTPException(status_code=400, detail="رصيدك الحالي لا يكفي لتمديد الحصة. يرجى شحن المحفظة أولاً.")
-
-    user_ref.update({'sessionCredits': current_credits - 1})
-
-    db.collection('sessions').document(sessionId).update({
-        'extensionsCount': firestore.Increment(1),
-        'lastExtendedAt': firestore.SERVER_TIMESTAMP ,
-        'timerStartedAt': firestore.SERVER_TIMESTAMP
-    })
-
-    return {"message": "تم تمديد الجلسة بنجاح"}
 
 @router.post("/api/session/accept/{sessionId}")
 async def accept_session(
@@ -334,7 +437,7 @@ async def register_teacher(
 @router.post("/api/payment/create-checkout")
 async def create_tap_checkout(
     amount: float = Form(...),
-    sessionsCount: int = Form(...),
+    pointsCount: int = Form(...),
     uid: str = Depends(get_current_user)
 ):
     """إنشاء رابط دفع آمن عبر بوابة Tap Payments"""
@@ -359,12 +462,12 @@ async def create_tap_checkout(
                    "currency": "SAR",
             "threeDSecure": True,
             "save_card_later": False,
-            "description": f"شحن محفظة منصة لبيب ({sessionsCount} حصص)",
+            "description": f"شحن محفظة منصة لبيب ({pointsCount} نقطة)",
             "statement_descriptor": "Labeeb Platform",
             "metadata": {
                 "studentId": uid,
                 "studentName": student_name,
-                "sessionsCount": sessionsCount
+                "pointsCount": pointsCount
             },
             "reference": {
                 "transaction": str(uuid.uuid4()),
@@ -452,32 +555,32 @@ async def tap_webhook(request: Request):
         if verify_response.status_code == 200 and verified_data.get("status") == "CAPTURED":
             metadata = verified_data.get("metadata", {})
             student_id = metadata.get("studentId")
-            sessions_count_str = metadata.get("sessionsCount", "0")
+            points_count_str = metadata.get("pointsCount", "0")
 
             # التأكد من صحة البيانات قبل شحن المحفظة
-            if student_id and sessions_count_str.isdigit():
-                sessions_count = int(sessions_count_str)
-                if sessions_count > 0:
+            if student_id and points_count_str.isdigit():
+                points_count = int(points_count_str)
+                if points_count > 0:
                     # شحن رصيد الطالب في Firestore
                     user_ref = db.collection('users').document(student_id)
                     user_snap = user_ref.get()
 
                     if user_snap.exists:
                         user_data = user_snap.to_dict()
-                        current_credits = user_data.get('sessionCredits', 0)
+                        current_points = user_data.get('points', 0)
                         
                         # زيادة الرصيد
                         user_ref.update({
-                            'sessionCredits': current_credits + sessions_count
+                            'points': current_points + points_count
                         })
-                        print(f"✅ Wallet topped up for {student_id}: +{sessions_count} sessions")
+                        print(f"✅ Wallet topped up for {student_id}: +{points_count} points")
 
                         # حفظ سجل الدفع في قاعدة البيانات للأرشيف
                         db.collection('recharge_requests').add({
                             'studentId': student_id,
                             'studentName': metadata.get("studentName", "طالب"),
-                            'packageTitle': f"دفع إلكتروني ({sessions_count} حصص)",
-                            'sessionsCount': sessions_count,
+                            'packageTitle': f"دفع إلكتروني ({points_count} نقطة)",
+                            'pointsCount': points_count,
                             'referenceNumber': charge_id, # استخدام الـ ID الحقيقي
                             'receiptImageUrl': '',
                             'status': 'approved',
@@ -488,7 +591,7 @@ async def tap_webhook(request: Request):
                     else:
                         print("❌ Webhook Error: Student not found.")
                 else:
-                    print("❌ Webhook Error: Invalid sessions count.")
+                    print("❌ Webhook Error: Invalid points count.")
             else:
                 print("❌ Webhook Error: Missing or invalid metadata.")
         else:

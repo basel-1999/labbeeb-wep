@@ -653,7 +653,7 @@
                             phone: phone,
                             role: 'student',
                             status: 'active',
-                            sessionCredits: 0,
+                            points: 0,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         }, { merge: true });
                     } else if (userData.name && userData.name.trim() !== '' && userData.name !== 'طالب لبيب') {

@@ -88,12 +88,12 @@
 
         <!-- الجزء الأيسر: المحفظة والإشعارات -->
         <div class="flex items-center gap-2 sm:gap-4 shrink-0">
-            <!-- رصيد الحصص / المحفظة -->
-            <div class="flex items-center gap-1 sm:gap-2 bg-oliveGreen/10 px-2.5 sm:px-3.5 py-1.5 rounded-full border border-oliveGreen/20">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2V9a2 2 0 00-2-2H9a2 2 0 00-2 2v10a2 2 0 002 2zm7-9a2 2 0 11-4 0 2 2 0 014 0z" />
+            <!-- رصيد النقاط -->
+            <div class="flex items-center gap-1 sm:gap-2 bg-accentGold/10 px-2.5 sm:px-3.5 py-1.5 rounded-full border border-accentGold/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 text-accentGold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                 </svg>
-                <span id="walletBalance" class="text-xs sm:text-sm font-bold text-textDark">0 حصص</span>
+                <span id="pointsBalance" class="text-xs sm:text-sm font-bold text-textDark">0 نقطة</span>
                 <button onclick="openRechargeModal()" class="bg-accentOrange text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md shrink-0">+ شحن</button>
             </div>
 
@@ -257,13 +257,13 @@
             <p class="text-xs text-gray-500 mb-4 text-center">سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.</p>
             <div class="space-y-2 mb-6">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="1|35" checked> حصة واحدة (35 ر.س)
+                    <input type="radio" name="cardPackage" value="6|50" checked> باقة 6 نقاط (50 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="5|150"> باقة 5 حصص (150 ر.س)
+                    <input type="radio" name="cardPackage" value="30|250"> باقة 30 نقطة (250 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="12|320"> باقة التفوق 12 حصة (320 ر.س)
+                    <input type="radio" name="cardPackage" value="72|600"> باقة التفوق 72 نقطة (600 ر.س)
                 </label>
             </div>
             <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
@@ -286,13 +286,13 @@
             <p class="text-xs text-gray-500 mb-4">اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:</p>
             <div class="space-y-2 mb-4">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="1|حصة واحدة (35 ر.س)" checked> حصة واحدة (35 ر.س)
+                    <input type="radio" name="bankPackage" value="6|باقة 6 نقاط (50 ر.س)" checked> باقة 6 نقاط (50 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="5|باقة 5 حصص (150 ر.س)"> باقة 5 حصص (150 ر.س)
+                    <input type="radio" name="bankPackage" value="30|باقة 30 نقطة (250 ر.س)"> باقة 30 نقطة (250 ر.س)
                 </label>
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="12|باقة التفوق 12 حصة (320 ر.س)"> باقة التفوق 12 حصة (320 ر.س)
+                    <input type="radio" name="bankPackage" value="72|باقة التفوق 72 نقطة (600 ر.س)"> باقة التفوق 72 نقطة (600 ر.س)
                 </label>
             </div>
             <input type="text" id="referenceNumber" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
@@ -394,12 +394,13 @@
             }
         });
 
+
         function listenToWallet() {
             if (!currentUser) return;
             db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
                 if (doc.exists) {
-                    const balance = doc.data().sessionCredits || 0;
-                    document.getElementById('walletBalance').innerText = `${balance} حصص`;
+                    const points = doc.data().points || 0;
+                    document.getElementById('pointsBalance').innerText = `${points} نقطة`;
                 }
             });
         }
@@ -737,7 +738,7 @@
         }
 
         async function cancelSession(sessionId) {
-            if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟ سيتم إرجاع الحصة إلى رصيدك.')) return;
+            if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
             
             try {
                 const token = await currentUser.getIdToken();
@@ -747,7 +748,7 @@
                 });
 
                 if (res.ok) {
-                    showSnackBar('تم إلغاء الطلب وإرجاع الرصيد إلى محفظتك ✅', '#4E6B45');
+                    showSnackBar('تم إلغاء الطلب بنجاح ✅', '#4E6B45');
                 } else {
                     let errorMsg = 'فشل الإلغاء في السيرفر.';
                     try {
@@ -908,8 +909,8 @@
 
         async function payWithTap() {
             const packageVal = document.querySelector('input[name="cardPackage"]:checked').value;
-            const [sessionsCountStr, amountStr] = packageVal.split('|');
-            const sessionsCount = parseInt(sessionsCountStr);
+            const [pointsCountStr, amountStr] = packageVal.split('|');
+            const pointsCount = parseInt(pointsCountStr);
             const amount = parseFloat(amountStr);
 
             showSnackBar('جاري تجهيز صفحة الدفع الآمنة...', '#4E6B45');
@@ -918,7 +919,7 @@
                 const token = await currentUser.getIdToken();
                 const formData = new FormData();
                 formData.append('amount', amount);
-                formData.append('sessionsCount', sessionsCount);
+                formData.append('pointsCount', pointsCount);
 
                 const res = await fetch('/api/payment/create-checkout', {
                     method: 'POST',
@@ -962,8 +963,7 @@
             try {
                 const token = await currentUser.getIdToken();
                 const packageVal = document.querySelector('input[name="bankPackage"]:checked').value;
-                const [sessionsCount, packageTitle] = packageVal.split('|');
-
+                const [pointsCount, packageTitle] = packageVal.split('|');
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
                 formData.append('folder', 'recharge_receipts');
@@ -981,7 +981,7 @@
                     studentId: currentUser.uid,
                     studentName: displayName,
                     packageTitle: packageTitle,
-                    sessionsCount: parseInt(sessionsCount),
+                    pointsCount: parseInt(pointsCount),
                     referenceNumber: refNum,
                     receiptImageUrl: uploadData.url,
                     status: 'pending',
