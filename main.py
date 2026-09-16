@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware  # <--- تمت إضافة هذا السطر فقط
 
 # استيراد راوترات الـ API
 from routers.api_router import router as api_router
@@ -14,6 +15,23 @@ from routers.payment_router import router as payment_router
 # 🚀 تهيئة تطبيق FastAPI
 # ==========================================
 app = FastAPI(title="منصة لبيب التعليمية")
+
+# ✨ تمت إضافة إعدادات الـ CORS هنا فقط
+origins = [
+    "https://wondrous-kelpie-f32cff.netlify.app",  # رابط الأدمن على Netlify
+    "https://labbeeb-wep.onrender.com",           # رابط السيرفر نفسه
+    "http://localhost",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # إعداد المجلدات (للتأكد من وجودها عند أول تشغيل)
 os.makedirs("static", exist_ok=True)
