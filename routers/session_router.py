@@ -12,6 +12,7 @@ from typing import Optional
 import json 
 from datetime import datetime, timezone
 import httpx
+import asyncio
 
 load_dotenv()
 
@@ -654,32 +655,55 @@ async def complete_session(
     audio_url = None
     pdf_url = None
 
-       # رفع التسجيل الصوتي
-    if audio:
-        audio_bytes = await audio.read()
-        if audio_bytes:
-            print("Uploading Audio...")
-            audio_upload = cloudinary.uploader.upload(
-                audio_bytes,
-                resource_type="video", 
-                folder="session_audio"
-                # ✨ تم إزالة filename لأنها تسبب خطأ وانهيار للسيرفر
-            )
-            audio_url = audio_upload.get("secure_url")
-            print("Audio uploaded successfully:", audio_url)
+    # ⚡ قراءة الملفين أولاً (سريعة)، ثم رفعهما لـ Cloudinary بالتوازي بدل التتابع
+    # cloudinary.uploader.upload سينكرونية (blocking)، فبنشغلها بخيط منفصل عبر asyncio.to_thread
+    # عشان الرفعتين يصيرن بنفس الوقت بدل ما توحدة تنتظر التانية
 
-       # رفع ملف PDF
-    if pdf:
-        pdf_bytes = await pdf.read()
+    audio_bytes = await audio.read() if audio else None
+    pdf_bytes = await pdf.read() if pdf else None
+
+    def upload_audio(data: bytes):
+        print("Uploading Audio...")
+        result = cloudinary.uploader.upload(
+            data,
+            resource_type="video",
+            folder="session_audio"
+            # ✨ تم إزالة filename لأنها تسبب خطأ وانهيار للسيرفر
+        )
+        print("Audio uploaded successfully:", result.get("secure_url"))
+        return result.get("secure_url")
+
+    def upload_pdf(data: bytes):
+        print("Uploading PDF...")
+        result = cloudinary.uploader.upload(
+            data,
+            resource_type="auto",
+            folder="session_pdfs"
+        )
+        print("PDF uploaded successfully:", result.get("secure_url"))
+        return result.get("secure_url")
+
+    upload_tasks = []
+    if audio_bytes:
+        upload_tasks.append(asyncio.to_thread(upload_audio, audio_bytes))
+    if pdf_bytes:
+        upload_tasks.append(asyncio.to_thread(upload_pdf, pdf_bytes))
+
+    if upload_tasks:
+        results = await asyncio.gather(*upload_tasks, return_exceptions=True)
+        idx = 0
+        if audio_bytes:
+            r = results[idx]; idx += 1
+            if isinstance(r, Exception):
+                print(f"❌ Audio upload failed: {r}")
+            else:
+                audio_url = r
         if pdf_bytes:
-            print("Uploading PDF...")
-            pdf_upload = cloudinary.uploader.upload(
-                pdf_bytes,
-                resource_type="auto", 
-                folder="session_pdfs"
-            )
-            pdf_url = pdf_upload.get("secure_url")
-            print("PDF uploaded successfully:", pdf_url)
+            r = results[idx]; idx += 1
+            if isinstance(r, Exception):
+                print(f"❌ PDF upload failed: {r}")
+            else:
+                pdf_url = r
 
     # تحديث حالة الجلسة
     update_data = {

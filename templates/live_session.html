@@ -81,8 +81,12 @@
             <button id="undoBtn" onclick="undoStroke()" class="p-2 hover:bg-white/10 rounded-lg hidden">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
             </button>
-            <button id="clearBtn" onclick="clearBoard()" class="p-2 hover:bg-white/10 rounded-lg hidden">
+            <button id="clearBtn" onclick="confirmClearBoard()" class="p-2 hover:bg-white/10 rounded-lg hidden">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+            <button id="newPageBtn" onclick="startNewPage()" class="p-2 hover:bg-white/10 rounded-lg hidden flex items-center gap-1 text-xs text-white/80" title="حفظ السبورة الحالية والانتقال لصفحة جديدة">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                <span id="pageCounterLabel">صفحة جديدة</span>
             </button>
         </div>
     </header>
@@ -383,6 +387,9 @@
         let dragOffsetX = 0;
         let dragOffsetY = 0;
 
+        // 📄 صفحات السبورة المحفوظة (كل صورة = صفحة سابقة قبل المسح)
+        let boardPages = [];
+
         // مؤشر القلم (للرسم)
         const PEN_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='black' stroke='white' stroke-width='1'><path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/></svg>\") 2 22, crosshair";
         
@@ -492,6 +499,7 @@
                 document.getElementById('teacherToolbar').classList.remove('hidden');
                 document.getElementById('undoBtn').classList.remove('hidden');
                 document.getElementById('clearBtn').classList.remove('hidden');
+                document.getElementById('newPageBtn').classList.remove('hidden');
             } else {
                 document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
                 document.getElementById('endSessionBtn').classList.remove('bg-red-600');
@@ -1096,6 +1104,45 @@ function createTextInput(x, y, existingData = null) {
             });
         }
 
+        // 📄 حفظ السبورة الحالية كصفحة، ثم مسحها للبدء بصفحة جديدة فارغة
+        function startNewPage() {
+            if (!isTeacher) return;
+            if (!confirm('سيتم حفظ محتوى السبورة الحالية كصفحة ضمن ملف PDF النهائي، ثم البدء بصفحة جديدة فارغة. متابعة؟')) return;
+
+            // نتأكد إنه في محتوى فعلي مرسوم قبل ما نحفظها (تجنب صفحات فاضية)
+            const hasContent = currentStrokes.length > 0;
+            if (hasContent) {
+                const snapshot = canvas.toDataURL('image/png');
+                boardPages.push(snapshot);
+            }
+
+            clearBoard();
+            updatePageCounter();
+            showSnackBar(hasContent
+                ? `تم حفظ الصفحة رقم ${boardPages.length} ✅ - ابدأ بالصفحة الجديدة`
+                : 'السبورة فارغة أصلاً، تم المسح دون حفظ صفحة', 'green');
+        }
+
+        // ⚠️ عند الضغط على زر المسح العادي: نعطي المعلم خيار الحفظ أولاً بدل ما نمسح بصمت
+        function confirmClearBoard() {
+            if (!isTeacher) return;
+            if (currentStrokes.length === 0) {
+                clearBoard();
+                return;
+            }
+            const wantsSave = confirm('هل تريد حفظ السبورة الحالية كصفحة قبل المسح؟\n\nاضغط "موافق" للحفظ ثم المسح، أو "إلغاء" لمتابعة خيار المسح بدون حفظ.');
+            if (wantsSave) {
+                startNewPage();
+            } else if (confirm('تأكيد: سيتم مسح السبورة نهائياً بدون حفظها بالملف. متابعة؟')) {
+                clearBoard();
+            }
+        }
+
+        function updatePageCounter() {
+            const label = document.getElementById('pageCounterLabel');
+            if (label) label.innerText = boardPages.length > 0 ? `صفحة جديدة (${boardPages.length} محفوظة)` : 'صفحة جديدة';
+        }
+
         // ==========================================
         // ⏱️ Timer & Extend (Count Up)
         // ==========================================
@@ -1614,26 +1661,41 @@ function createTextInput(x, y, existingData = null) {
         async function startExportProcess() {
             document.getElementById('endModalContent').classList.add('hidden');
             document.getElementById('endModalProgress').classList.remove('hidden');
-            updateProgress(0.15, 'جاري التقاط صورة السبورة...');
+            updateProgress(0.10, 'جاري تجميع صفحات السبورة...');
             try {
-                const canvasImg = canvas.toDataURL('image/png');
+                // نلتقط الصفحة الأخيرة (الحالية) إذا فيها محتوى، ونضيفها لكل الصفحات المحفوظة سابقاً
+                const finalHasContent = currentStrokes.length > 0;
+                const allPages = finalHasContent ? [...boardPages, canvas.toDataURL('image/png')] : [...boardPages];
+
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                pdf.addImage(canvasImg, 'PNG', 0, 0, 210, 297);
+                if (allPages.length === 0) {
+                    // ما في أي محتوى مرسوم إطلاقاً بكل الحصة - نضيف صفحة بيضاء بدل PDF فاضي يسبب خطأ
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                } else {
+                    allPages.forEach((imgData, idx) => {
+                        if (idx > 0) pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                    });
+                }
                 const pdfBlob = pdf.output('blob');
-                updateProgress(0.35, 'جاري إيقاف التسجيل الصوتي...');
+
+                updateProgress(0.30, 'جاري إيقاف التسجيل الصوتي...');
                 const audioFile = await stopAudioRecording();
-                updateProgress(0.55, 'جاري رفع الملفات للسيرفر...');
+
+                updateProgress(0.45, 'جاري رفع الصوت والسبورة معاً... (قد يستغرق وقتاً حسب طول الحصة)');
                 const token = await currentUser.getIdToken();
                 const formData = new FormData();
                 formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
                 if (audioFile) formData.append('audio', audioFile, audioFile.name);
+
                 const res = await fetch(`/api/session/complete/${sessionId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
                 if (!res.ok) throw new Error('فشل حفظ الجلسة في السيرفر');
+
                 updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
                 if (agoraEngine) await agoraEngine.leave();
                 if (screenShareClient) await screenShareClient.leave();
-                updateProgress(1.0, 'تم الانتهاء بنجاح! جاري تحويلك...');
+                updateProgress(1.0, `تم حفظ ${allPages.length || 1} صفحة بنجاح! جاري تحويلك...`);
                 setTimeout(() => window.location.href = '/teacher-dashboard', 500);
             } catch (e) { showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red'); closeModal('endSessionModal'); }
         }
