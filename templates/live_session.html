@@ -1,1737 +1,1753 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>غرفة البث المباشر - منصة لبيب</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <!-- Agora Web SDK -->
-    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
-    <!-- PDF & Screenshot Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        oliveGreen: '#4E6B45',
-                        accentOrange: '#D97706',
-                    },
-                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>غرفة البث المباشر - منصة لبيب</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <!-- Firebase -->
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+        <!-- Agora Web SDK -->
+        <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+        <!-- PDF & Screenshot Libraries -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            oliveGreen: '#4E6B45',
+                            accentOrange: '#D97706',
+                        },
+                        fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                    }
                 }
             }
-        }
-    </script>
-    <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #1E1E1E; color: white; overflow: hidden; }
-        #whiteboard { background-color: white; touch-action: none; width: 100%; height: 100%; display: block; cursor: default; }
-        
-        .modal { display: none; }
-        .modal.active { display: flex; }
-        .snackbar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { bottom: 0; opacity: 0; } to { bottom: 80px; opacity: 1; } }
-
-        /* Animations CSS */
-        .anim-object { position: absolute; font-size: 100px; z-index: 50; pointer-events: none; animation: popUp 2.5s ease-out forwards; }
-        @keyframes popUp { 0% { transform: scale(0) rotate(0deg); opacity: 0; } 20% { transform: scale(1.2) rotate(10deg); opacity: 1; } 80% { transform: scale(1) rotate(0deg); opacity: 1; } 100% { transform: scale(1.5) translateY(-50px); opacity: 0; } }
-        .balloon { position: absolute; font-size: 60px; animation: floatUp 3s ease-in forwards; }
-        @keyframes floatUp { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(-20vh) rotate(15deg); opacity: 0; } }
-        .firework-particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: explode 1.5s ease-out forwards; }
-        @keyframes explode { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
-        
-        #timerDisplay { font-size: 1.125rem; }
-
-        /* ضبط أبعاد الفيديو */
-        #screenSharePlayer video {
-            object-fit: contain !important;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        /* تنسيق قائمة الإيموجيز */
-        #emojiPicker { display: none; }
-    </style>
-</head>
-<body class="h-screen flex flex-col">
-
-    <!-- App Bar -->
-    <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0">
-        <div class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span id="timerDisplay" class="font-bold text-amber-400">00:00:00</span>
-        </div>
-
-        <div id="pointsDisplayContainer" class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20 hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-            <span id="pointsDisplay" class="font-bold text-amber-400">0 نقطة</span>
-        </div>
-
-        <div class="flex items-center gap-2">
-            <svg id="micStatusIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-            <span id="sessionTitle" class="text-sm font-medium">جلسة مع المعلم</span>
-        </div>
-
-        <div class="flex items-center gap-2 relative">
-            <button id="undoBtn" onclick="undoStroke()" class="p-2 hover:bg-white/10 rounded-lg hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-            </button>
-            <button id="clearBtn" onclick="confirmClearBoard()" class="p-2 hover:bg-white/10 rounded-lg hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
-            <button id="newPageBtn" onclick="startNewPage()" class="p-2 hover:bg-white/10 rounded-lg hidden flex items-center gap-1 text-xs text-white/80" title="حفظ السبورة الحالية والانتقال لصفحة جديدة">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                <span id="pageCounterLabel">صفحة جديدة</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="flex-1 flex overflow-hidden relative">
-        
-        <!-- Whiteboard Area -->
-        <div class="flex-1 flex flex-col">
-            <!-- Toolbar (Teacher Only) -->
-            <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap">
-                <span class="text-sm text-white/70 ml-2">الألوان:</span>
-                
-                <button onclick="selectColor('black')" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
-                <button onclick="selectColor('red')" class="w-7 h-7 rounded-full bg-red-500 border-2 border-white/30 shrink-0"></button>
-                <button onclick="selectColor('blue')" class="w-7 h-7 rounded-full bg-blue-500 border-2 border-white/30 shrink-0"></button>
-                <button onclick="selectColor('green')" class="w-7 h-7 rounded-full bg-green-500 border-2 border-white/30 shrink-0"></button>
-                 <!-- الألوان الجديدة المضافة -->
-                <button onclick="selectColor('orange')" class="w-7 h-7 rounded-full bg-orange-500 border-2 border-white/30 shrink-0" title="برتقالي"></button>
-                <button onclick="selectColor('purple')" class="w-7 h-7 rounded-full bg-purple-500 border-2 border-white/30 shrink-0" title="بنفسجي"></button>
-                <button onclick="selectColor('#ec4899')" class="w-7 h-7 rounded-full bg-pink-500 border-2 border-white/30 shrink-0" title="وردي"></button>
-                <button onclick="selectColor('#eab308')" class="w-7 h-7 rounded-full bg-yellow-500 border-2 border-white/30 shrink-0" title="أصفر"></button>       
-
-
-                <div id="sizePopup" class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded-lg ml-2" style="display: none;">
-                    <button onclick="selectSize(8)" class="w-6 h-6 rounded-full bg-white border-2 border-black" title="عريض"></button>
-                    <button onclick="selectSize(4)" class="w-4 h-4 rounded-full bg-white border-2 border-black" title="وسط"></button>
-                    <button onclick="selectSize(2)" class="w-2 h-2 rounded-full bg-white border-2 border-black" title="رفيع"></button>
-                </div>
-
-                <!-- زر القلم -->
-                <button onclick="enablePen()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg> قلم
-                </button>
-
-                <!-- زر الأشكال الهندسية -->
-                <div class="relative inline-block">
-                    <button onclick="toggleShapeMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" /></svg>
-                        <span id="currentShapeLabel">أشكال</span>
-                    </button>
-                    <div id="shapeMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 grid grid-cols-4 gap-2 w-64" style="display: none;">
-                        <button onclick="selectShape('rectangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مستطيل">
-                            <span class="text-lg">▭</span> مستطيل
-                        </button>
-                        <button onclick="selectShape('square')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مربع">
-                            <span class="text-lg">⏹</span> مربع
-                        </button>
-                        <button onclick="selectShape('circle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="دائرة">
-                            <span class="text-lg">◯</span> دائرة
-                        </button>
-                        <button onclick="selectShape('ellipse')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="بيضاوي">
-                            <span class="text-lg">⬏</span> بيضاوي
-                        </button>
-                        <button onclick="selectShape('line')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خط مستقيم">
-                            <span class="text-lg">╱</span> خط
-                        </button>
-                        <button onclick="selectShape('arrow')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سهم">
-                            <span class="text-lg">➔</span> سهم
-                        </button>
-                        <button onclick="selectShape('triangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مثلث">
-                            <span class="text-lg">△</span> مثلث
-                        </button>
-                        <button onclick="selectShape('diamond')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="معين">
-                            <span class="text-lg">◇</span> معين
-                        </button>
-                        <button onclick="selectShape('pentagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خماسي">
-                            <span class="text-lg">⬠</span> خماسي
-                        </button>
-                        <button onclick="selectShape('hexagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سداسي">
-                            <span class="text-lg">⬡</span> سداسي
-                        </button>
-                        <button onclick="selectShape('star')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="نجمة">
-                            <span class="text-lg">☆</span> نجمة
-                        </button>
-                        <button onclick="selectShape('check')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة صح">
-                            <span class="text-lg text-green-400">✓</span> صح
-                        </button>
-                        <button onclick="selectShape('cross')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة خطأ">
-                            <span class="text-lg text-red-400">✕</span> خطأ
-                        </button>
-                    </div>
-                </div>
-
-                <!-- زر المؤشر مع القائمة المنسدلة المحدثة -->
-                <div class="relative inline-block">
-                    <button onclick="togglePointerMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                        <span id="currentPointerIcon" class="text-lg">👆</span> مؤشر
-                    </button>
-                    <!-- القائمة المنسدلة الآن تطفو بوضوح فوق السبورة مع z-50 -->
-                    <div id="pointerMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 flex flex-col gap-2" style="display: none;">
-                        <div class="flex gap-1">
-                            <button onclick="setPointerEmoji('👈')" class="text-2xl p-1 hover:bg-white/10 rounded">👈</button>
-                            <button onclick="setPointerEmoji('👉')" class="text-2xl p-1 hover:bg-white/10 rounded">👉</button>
-                            <button onclick="setPointerEmoji('👆')" class="text-2xl p-1 hover:bg-white/10 rounded">👆</button>
-                            <button onclick="setPointerEmoji('👇')" class="text-2xl p-1 hover:bg-white/10 rounded">👇</button>
-                            <button onclick="setPointerEmoji('☝️')" class="text-2xl p-1 hover:bg-white/10 rounded">☝️</button>
-                        </div>
-                        <div class="flex items-center gap-2 justify-center border-t border-white/20 pt-2">
-                            <button onclick="changePointerSize(-8)" class="text-white bg-gray-700 w-8 h-8 rounded hover:bg-gray-600 font-bold">-</button>
-                            <span id="pointerSizeDisplay" class="text-white text-sm w-12 text-center">48px</span>
-                            <button onclick="changePointerSize(8)" class="text-white bg-gray-700 w-8 h-8 rounded hover:bg-gray-600 font-bold">+</button>
-                        </div>
-                    </div>
-                </div>
-
-                <button onclick="enableText()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-                    نص
-                </button>
-
-                <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> ممحاة
-                </button>
-                <div class="h-4 w-px bg-white/15 mx-2"></div>
-                
-                <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
-                <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
-                <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
-                <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
-                <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
-                <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl" style="transform: scaleX(-1); display: inline-block;">❓</button>
-                <button onclick="triggerAnimation('fireworks')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎆</button>
-            </div>
-
-            <!-- Canvas -->
-            <div class="flex-1 relative bg-white">
-                <canvas id="whiteboard"></canvas>
-                <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
-            </div>
-        </div>
-
-        <!-- Screen Share View -->
-        <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex-col shrink-0 relative transition-all duration-300" style="display: none;">
-            <div class="bg-amber-400 text-black font-bold py-1 px-3 text-sm flex justify-between items-center z-10">
-                <span id="screenShareTitle">شاشة الطرف الآخر</span>
-                <button onclick="toggleFullScreenScreenShare()" class="text-black hover:bg-black/10 rounded p-1 text-xs font-bold flex items-center gap-1">
-                    <svg id="fullscreenIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                    </svg>
-                    <span id="fullscreenText">تكبير</span>
-                </button>
-            </div>
-            <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
-        </div>
-
-        <!-- Chat Panel -->
-        <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative">
-            <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
-                <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                    <h3 class="font-bold text-sm">الدردشة الحية</h3>
-                </div>
-            </div>
-            <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-3">
-                <div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
-            </div>
+        </script>
+        <style>
+            body { font-family: 'Cairo', sans-serif; background-color: #1E1E1E; color: white; overflow: hidden; }
+            #whiteboard { background-color: white; touch-action: none; width: 100%; height: 100%; display: block; cursor: default; }
             
-            <div class="p-3 bg-[#1E1E1E] border-t border-white/10 relative">
-                <div id="emojiPicker" class="absolute bottom-16 left-3 right-3 bg-[#2C2C2C] p-2 rounded-lg shadow-lg grid grid-cols-8 gap-1 z-50 border border-white/10">
-                    <button onclick="addEmoji('😀')" class="text-xl hover:bg-white/10 p-1 rounded">😀</button>
-                    <button onclick="addEmoji('😁')" class="text-xl hover:bg-white/10 p-1 rounded">😁</button>
-                    <button onclick="addEmoji('😂')" class="text-xl hover:bg-white/10 p-1 rounded">😂</button>
-                    <button onclick="addEmoji('🤣')" class="text-xl hover:bg-white/10 p-1 rounded">🤣</button>
-                    <button onclick="addEmoji('😍')" class="text-xl hover:bg-white/10 p-1 rounded">😍</button>
-                    <button onclick="addEmoji('😘')" class="text-xl hover:bg-white/10 p-1 rounded">😘</button>
-                    <button onclick="addEmoji('🤔')" class="text-xl hover:bg-white/10 p-1 rounded">🤔</button>
-                    <button onclick="addEmoji('😴')" class="text-xl hover:bg-white/10 p-1 rounded">😴</button>
-                    <button onclick="addEmoji('👍')" class="text-xl hover:bg-white/10 p-1 rounded">👍</button>
-                    <button onclick="addEmoji('👎')" class="text-xl hover:bg-white/10 p-1 rounded">👎</button>
-                    <button onclick="addEmoji('👏')" class="text-xl hover:bg-white/10 p-1 rounded">👏</button>
-                    <button onclick="addEmoji('🙏')" class="text-xl hover:bg-white/10 p-1 rounded">🙏</button>
-                    <button onclick="addEmoji('💪')" class="text-xl hover:bg-white/10 p-1 rounded">💪</button>
-                    <button onclick="addEmoji('🎉')" class="text-xl hover:bg-white/10 p-1 rounded">🎉</button>
-                    <button onclick="addEmoji('🔥')" class="text-xl hover:bg-white/10 p-1 rounded">🔥</button>
-                    <button onclick="addEmoji('💯')" class="text-xl hover:bg-white/10 p-1 rounded">💯</button>
-                    <button onclick="addEmoji('❓')" class="text-xl hover:bg-white/10 p-1 rounded">❓</button>
-                    <button onclick="addEmoji('❗')" class="text-xl hover:bg-white/10 p-1 rounded">❗</button>
-                    <button onclick="addEmoji('📚')" class="text-xl hover:bg-white/10 p-1 rounded">📚</button>
-                    <button onclick="addEmoji('✏️')" class="text-xl hover:bg-white/10 p-1 rounded">✏️</button>
-                    <button onclick="addEmoji('🧮')" class="text-xl hover:bg-white/10 p-1 rounded">🧮</button>
-                    <button onclick="addEmoji('🎓')" class="text-xl hover:bg-white/10 p-1 rounded">🎓</button>
-                    <button onclick="addEmoji('🤝')" class="text-xl hover:bg-white/10 p-1 rounded">🤝</button>
-                    <button onclick="addEmoji('🥇')" class="text-xl hover:bg-white/10 p-1 rounded">🥇</button>
-                </div>
+            .modal { display: none; }
+            .modal.active { display: flex; }
+            .snackbar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
+            @keyframes slideUp { from { bottom: 0; opacity: 0; } to { bottom: 80px; opacity: 1; } }
 
-                <div id="uploadStatus" class="hidden text-xs text-amber-400 mb-2 text-center">جاري رفع الملف... يرجى الانتظار.</div>
+            /* Animations CSS */
+            .anim-object { position: absolute; font-size: 100px; z-index: 50; pointer-events: none; animation: popUp 2.5s ease-out forwards; }
+            @keyframes popUp { 0% { transform: scale(0) rotate(0deg); opacity: 0; } 20% { transform: scale(1.2) rotate(10deg); opacity: 1; } 80% { transform: scale(1) rotate(0deg); opacity: 1; } 100% { transform: scale(1.5) translateY(-50px); opacity: 0; } }
+            .balloon { position: absolute; font-size: 60px; animation: floatUp 3s ease-in forwards; }
+            @keyframes floatUp { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(-20vh) rotate(15deg); opacity: 0; } }
+            .firework-particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: explode 1.5s ease-out forwards; }
+            @keyframes explode { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
+            
+            #timerDisplay { font-size: 1.125rem; }
 
-                <div class="flex gap-2 items-center">
-                    <button onclick="toggleEmojiPicker()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </button>
-                    <button onclick="document.getElementById('fileInput').click()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                    </button>
-                    <input type="file" id="fileInput" class="hidden" onchange="uploadChatFile(event)" accept="image/*,.pdf,.doc,.docx,.txt">
-                    <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
-                    <button onclick="sendMessage()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
-                        إرسال
-                    </button>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Bottom Controls -->
-    <footer class="bg-[#2C2C2C] h-16 flex items-center justify-center gap-6 shrink-0">
-        <button id="muteBtn" onclick="toggleMute()" class="p-3 rounded-full bg-green-600 hover:bg-green-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-        </button>
-        
-        <button id="screenShareBtn" onclick="toggleScreenShare()" class="hidden p-3 rounded-full bg-white/10 hover:bg-white/20 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-        </button>
-
-        <button id="endSessionBtn" onclick="confirmEndSession()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1m0 0V6m0-1h1m3 0h2m-3 0h1m6 0h2m-6 0H6m12 0h1m-1 0h1m-1 0h1" /></svg>
-            <span id="endSessionText">إنهاء الجلسة</span>
-        </button>
-    </footer>
-
-    <!-- Modals -->
-    
-
-    <div id="endSessionModal" class="modal fixed inset-0 bg-black/80 z-50 items-center justify-center">
-        <div class="bg-[#2C2C2C] rounded-2xl p-6 max-w-md w-full">
-            <h3 id="endModalTitle" class="font-bold text-lg mb-4 text-white">إنهاء الجلسة</h3>
-            <div id="endModalContent">
-                <p class="text-white/70 text-sm mb-4">هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟</p>
-                <div class="flex justify-end gap-3">
-                    <button onclick="closeModal('endSessionModal')" class="text-white/50 text-sm">إلغاء</button>
-                    <button onclick="startExportProcess()" class="bg-red-600 text-white font-bold px-4 py-2 rounded-lg text-sm">إنهاء وحفظ</button>
-                </div>
-            </div>
-            <div id="endModalProgress" class="hidden">
-                <p id="progressStatus" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
-                <div class="w-full bg-white/10 rounded-full h-2.5 mb-2">
-                    <div id="progressBar" class="bg-amber-400 h-2.5 rounded-full" style="width: 0%"></div>
-                </div>
-                <p id="progressPercent" class="text-white/50 text-xs text-right">0%</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hidden Audio Elements -->
-    <audio id="sound_happy" src="/static/sounds/happy.mp3"></audio>
-    <audio id="sound_sad" src="/static/sounds/sad.mp3"></audio>
-    <audio id="sound_trophy" src="/static/sounds/trophy.mp3"></audio>
-    <audio id="sound_balloons" src="/static/sounds/balloons.mp3"></audio>
-    <audio id="sound_heart" src="/static/sounds/heart.mp3"></audio>
-    <audio id="sound_question" src="/static/sounds/question.mp3"></audio>
-    <audio id="sound_fireworks" src="/static/sounds/fireworks.mp3"></audio>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
-            authDomain: "labeeb-app-2026.firebaseapp.com",
-            projectId: "labeeb-app-2026",
-            storageBucket: "labeeb-app-2026.firebasestorage.app",
-            messagingSenderId: "201953565667",
-            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get('sessionId') || 'unknown_session';
-        const role = urlParams.get('role') || 'student';
-        const studentName = urlParams.get('studentName') || 'طالب';
-        const isTeacher = role === 'teacher';
-
-        let currentUser = null;
-        let selectedColor = 'black';
-        let strokeWidth = 4.0;
-        let isEraser = false;
-        let isTextMode = false;
-        let isShapeMode = false;
-        let selectedShape = null;
-        let shapeStartPos = null;
-        let isDrawing = false;
-        let currentStroke = [];
-        let strokeDocIds = [];
-        let currentStrokes = [];
-        let isChatOpen = true;
-        let unreadMessages = 0;
-        let isMuted = false;
-        let isScreenSharing = false;
-        let screenShareUid = 0;
-        let elapsedSeconds = 0; 
-        let sessionTimer = null;
-        let agoraEngine = null;
-        let localAudioTrack = null;
-        let screenShareClient = null;
-        const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
-
-        let draggingTextId = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
-
-        // 📄 صفحات السبورة المحفوظة (كل صورة = صفحة سابقة قبل المسح)
-        let boardPages = [];
-
-        // مؤشر القلم (للرسم)
-        const PEN_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='black' stroke='white' stroke-width='1'><path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/></svg>\") 2 22, crosshair";
-        
-        let isPointerMode = false;
-        let pointerEmoji = '👆';
-        let pointerSize = 48;
-
-        function generateEmojiCursor(emoji, size) {
-            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="${size * 0.8}">${emoji}</text></svg>`;
-            return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${size / 2} ${size / 2}, pointer`;
-        }
-
-        function togglePointerMenu() {
-            const menu = document.getElementById('pointerMenu');
-            document.getElementById('shapeMenu').style.display = 'none';
-            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
-        }
-
-        function setPointerEmoji(emoji) {
-            pointerEmoji = emoji;
-            document.getElementById('currentPointerIcon').innerText = emoji;
-            enablePointer();
-            document.getElementById('pointerMenu').style.display = 'none';
-        }
-
-        function changePointerSize(delta) {
-            pointerSize = Math.max(24, Math.min(128, pointerSize + delta));
-            document.getElementById('pointerSizeDisplay').innerText = pointerSize + 'px';
-            if (isPointerMode) {
-                enablePointer();
+            /* ضبط أبعاد الفيديو */
+            #screenSharePlayer video {
+                object-fit: contain !important;
+                width: 100% !important;
+                height: 100% !important;
             }
-        }
 
-        function enablePointer() {
-            isPointerMode = true;
-            isEraser = false;
-            isTextMode = false;
-            isShapeMode = false;
-            canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
-            document.getElementById('sizePopup').style.display = 'none';
-        }
+            /* تنسيق قائمة الإيموجيز */
+            #emojiPicker { display: none; }
+        </style>
+    </head>
+    <body class="h-screen flex flex-col">
 
-        // إداراة الأشكال الهندسية
-        function toggleShapeMenu() {
-            const menu = document.getElementById('shapeMenu');
-            document.getElementById('pointerMenu').style.display = 'none';
-            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
-        }
+        <!-- App Bar -->
+        <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0">
+            <div class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span id="timerDisplay" class="font-bold text-amber-400">00:00:00</span>
+            </div>
 
-        function selectShape(shapeType) {
-            selectedShape = shapeType;
-            isShapeMode = true;
-            isEraser = false;
-            isTextMode = false;
-            isPointerMode = false;
-            canvas.style.cursor = 'crosshair';
-            document.getElementById('shapeMenu').style.display = 'none';
-            document.getElementById('sizePopup').style.display = 'flex';
-        }
+            <div id="pointsDisplayContainer" class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20 hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                <span id="pointsDisplay" class="font-bold text-amber-400">0 نقطة</span>
+            </div>
 
-        // إغلاق القوائم المنسدلة فور النقر خارجها
-        document.addEventListener('click', function(e) {
-            const pointerContainer = document.getElementById('pointerMenu')?.parentElement;
-            if (pointerContainer && !pointerContainer.contains(e.target)) {
+            <div class="flex items-center gap-2">
+                <svg id="micStatusIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                <span id="sessionTitle" class="text-sm font-medium">جلسة مع المعلم</span>
+            </div>
+
+            <div class="flex items-center gap-2 relative">
+                <button id="undoBtn" onclick="undoStroke()" class="p-2 hover:bg-white/10 rounded-lg hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                </button>
+                <button id="clearBtn" onclick="confirmClearBoard()" class="p-2 hover:bg-white/10 rounded-lg hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+                <button id="newPageBtn" onclick="startNewPage()" class="p-2 hover:bg-white/10 rounded-lg hidden flex items-center gap-1 text-xs text-white/80" title="حفظ السبورة الحالية والانتقال لصفحة جديدة">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                    <span id="pageCounterLabel">صفحة جديدة</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex overflow-hidden relative">
+            
+            <!-- Whiteboard Area -->
+            <div class="flex-1 flex flex-col">
+                <!-- Toolbar (Teacher Only) -->
+                <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap">
+                    <span class="text-sm text-white/70 ml-2">الألوان:</span>
+                    
+                    <button onclick="selectColor('black')" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
+                    <button onclick="selectColor('red')" class="w-7 h-7 rounded-full bg-red-500 border-2 border-white/30 shrink-0"></button>
+                    <button onclick="selectColor('blue')" class="w-7 h-7 rounded-full bg-blue-500 border-2 border-white/30 shrink-0"></button>
+                    <button onclick="selectColor('green')" class="w-7 h-7 rounded-full bg-green-500 border-2 border-white/30 shrink-0"></button>
+                    <!-- الألوان الجديدة المضافة -->
+                    <button onclick="selectColor('orange')" class="w-7 h-7 rounded-full bg-orange-500 border-2 border-white/30 shrink-0" title="برتقالي"></button>
+                    <button onclick="selectColor('purple')" class="w-7 h-7 rounded-full bg-purple-500 border-2 border-white/30 shrink-0" title="بنفسجي"></button>
+                    <button onclick="selectColor('#ec4899')" class="w-7 h-7 rounded-full bg-pink-500 border-2 border-white/30 shrink-0" title="وردي"></button>
+                    <button onclick="selectColor('#eab308')" class="w-7 h-7 rounded-full bg-yellow-500 border-2 border-white/30 shrink-0" title="أصفر"></button>       
+
+
+                    <div id="sizePopup" class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded-lg ml-2" style="display: none;">
+                        <button onclick="selectSize(8)" class="w-6 h-6 rounded-full bg-white border-2 border-black" title="عريض"></button>
+                        <button onclick="selectSize(4)" class="w-4 h-4 rounded-full bg-white border-2 border-black" title="وسط"></button>
+                        <button onclick="selectSize(2)" class="w-2 h-2 rounded-full bg-white border-2 border-black" title="رفيع"></button>
+                    </div>
+
+                    <!-- زر القلم -->
+                    <button onclick="enablePen()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg> قلم
+                    </button>
+
+                    <!-- زر الأشكال الهندسية -->
+                    <div class="relative inline-block">
+                        <button onclick="toggleShapeMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" /></svg>
+                            <span id="currentShapeLabel">أشكال</span>
+                        </button>
+                        <div id="shapeMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 grid grid-cols-4 gap-2 w-64" style="display: none;">
+                            <button onclick="selectShape('rectangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مستطيل">
+                                <span class="text-lg">▭</span> مستطيل
+                            </button>
+                            <button onclick="selectShape('square')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مربع">
+                                <span class="text-lg">⏹</span> مربع
+                            </button>
+                            <button onclick="selectShape('circle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="دائرة">
+                                <span class="text-lg">◯</span> دائرة
+                            </button>
+                            <button onclick="selectShape('ellipse')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="بيضاوي">
+                                <span class="text-lg">⬏</span> بيضاوي
+                            </button>
+                            <button onclick="selectShape('line')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خط مستقيم">
+                                <span class="text-lg">╱</span> خط
+                            </button>
+                            <button onclick="selectShape('arrow')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سهم">
+                                <span class="text-lg">➔</span> سهم
+                            </button>
+                            <button onclick="selectShape('triangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مثلث">
+                                <span class="text-lg">△</span> مثلث
+                            </button>
+                            <button onclick="selectShape('diamond')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="معين">
+                                <span class="text-lg">◇</span> معين
+                            </button>
+                            <button onclick="selectShape('pentagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خماسي">
+                                <span class="text-lg">⬠</span> خماسي
+                            </button>
+                            <button onclick="selectShape('hexagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سداسي">
+                                <span class="text-lg">⬡</span> سداسي
+                            </button>
+                            <button onclick="selectShape('star')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="نجمة">
+                                <span class="text-lg">☆</span> نجمة
+                            </button>
+                            <button onclick="selectShape('check')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة صح">
+                                <span class="text-lg text-green-400">✓</span> صح
+                            </button>
+                            <button onclick="selectShape('cross')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة خطأ">
+                                <span class="text-lg text-red-400">✕</span> خطأ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- زر المؤشر مع القائمة المنسدلة المحدثة -->
+                    <div class="relative inline-block">
+                        <button onclick="togglePointerMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                            <span id="currentPointerIcon" class="text-lg">👆</span> مؤشر
+                        </button>
+                        <!-- القائمة المنسدلة الآن تطفو بوضوح فوق السبورة مع z-50 -->
+                        <div id="pointerMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 flex flex-col gap-2" style="display: none;">
+                            <div class="flex gap-1">
+                                <button onclick="setPointerEmoji('👈')" class="text-2xl p-1 hover:bg-white/10 rounded">👈</button>
+                                <button onclick="setPointerEmoji('👉')" class="text-2xl p-1 hover:bg-white/10 rounded">👉</button>
+                                <button onclick="setPointerEmoji('👆')" class="text-2xl p-1 hover:bg-white/10 rounded">👆</button>
+                                <button onclick="setPointerEmoji('👇')" class="text-2xl p-1 hover:bg-white/10 rounded">👇</button>
+                                <button onclick="setPointerEmoji('☝️')" class="text-2xl p-1 hover:bg-white/10 rounded">☝️</button>
+                            </div>
+                            <div class="flex items-center gap-2 justify-center border-t border-white/20 pt-2">
+                                <button onclick="changePointerSize(-8)" class="text-white bg-gray-700 w-8 h-8 rounded hover:bg-gray-600 font-bold">-</button>
+                                <span id="pointerSizeDisplay" class="text-white text-sm w-12 text-center">48px</span>
+                                <button onclick="changePointerSize(8)" class="text-white bg-gray-700 w-8 h-8 rounded hover:bg-gray-600 font-bold">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="enableText()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
+                        نص
+                    </button>
+
+                    <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> ممحاة
+                    </button>
+                    <div class="h-4 w-px bg-white/15 mx-2"></div>
+                    
+                    <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
+                    <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
+                    <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
+                    <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
+                    <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
+                    <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl" style="transform: scaleX(-1); display: inline-block;">❓</button>
+                    <button onclick="triggerAnimation('fireworks')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎆</button>
+                </div>
+
+                <!-- Canvas -->
+                <div class="flex-1 relative bg-white">
+                    <canvas id="whiteboard"></canvas>
+                    <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
+                </div>
+            </div>
+
+            <!-- Screen Share View -->
+            <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex-col shrink-0 relative transition-all duration-300" style="display: none;">
+                <div class="bg-amber-400 text-black font-bold py-1 px-3 text-sm flex justify-between items-center z-10">
+                    <span id="screenShareTitle">شاشة الطرف الآخر</span>
+                    <button onclick="toggleFullScreenScreenShare()" class="text-black hover:bg-black/10 rounded p-1 text-xs font-bold flex items-center gap-1">
+                        <svg id="fullscreenIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                        <span id="fullscreenText">تكبير</span>
+                    </button>
+                </div>
+                <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
+            </div>
+
+            <!-- Chat Panel -->
+            <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative">
+                <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                        <h3 class="font-bold text-sm">الدردشة الحية</h3>
+                    </div>
+                </div>
+                <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-3">
+                    <div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
+                </div>
+                
+                <div class="p-3 bg-[#1E1E1E] border-t border-white/10 relative">
+                    <div id="emojiPicker" class="absolute bottom-16 left-3 right-3 bg-[#2C2C2C] p-2 rounded-lg shadow-lg grid grid-cols-8 gap-1 z-50 border border-white/10">
+                        <button onclick="addEmoji('😀')" class="text-xl hover:bg-white/10 p-1 rounded">😀</button>
+                        <button onclick="addEmoji('😁')" class="text-xl hover:bg-white/10 p-1 rounded">😁</button>
+                        <button onclick="addEmoji('😂')" class="text-xl hover:bg-white/10 p-1 rounded">😂</button>
+                        <button onclick="addEmoji('🤣')" class="text-xl hover:bg-white/10 p-1 rounded">🤣</button>
+                        <button onclick="addEmoji('😍')" class="text-xl hover:bg-white/10 p-1 rounded">😍</button>
+                        <button onclick="addEmoji('😘')" class="text-xl hover:bg-white/10 p-1 rounded">😘</button>
+                        <button onclick="addEmoji('🤔')" class="text-xl hover:bg-white/10 p-1 rounded">🤔</button>
+                        <button onclick="addEmoji('😴')" class="text-xl hover:bg-white/10 p-1 rounded">😴</button>
+                        <button onclick="addEmoji('👍')" class="text-xl hover:bg-white/10 p-1 rounded">👍</button>
+                        <button onclick="addEmoji('👎')" class="text-xl hover:bg-white/10 p-1 rounded">👎</button>
+                        <button onclick="addEmoji('👏')" class="text-xl hover:bg-white/10 p-1 rounded">👏</button>
+                        <button onclick="addEmoji('🙏')" class="text-xl hover:bg-white/10 p-1 rounded">🙏</button>
+                        <button onclick="addEmoji('💪')" class="text-xl hover:bg-white/10 p-1 rounded">💪</button>
+                        <button onclick="addEmoji('🎉')" class="text-xl hover:bg-white/10 p-1 rounded">🎉</button>
+                        <button onclick="addEmoji('🔥')" class="text-xl hover:bg-white/10 p-1 rounded">🔥</button>
+                        <button onclick="addEmoji('💯')" class="text-xl hover:bg-white/10 p-1 rounded">💯</button>
+                        <button onclick="addEmoji('❓')" class="text-xl hover:bg-white/10 p-1 rounded">❓</button>
+                        <button onclick="addEmoji('❗')" class="text-xl hover:bg-white/10 p-1 rounded">❗</button>
+                        <button onclick="addEmoji('📚')" class="text-xl hover:bg-white/10 p-1 rounded">📚</button>
+                        <button onclick="addEmoji('✏️')" class="text-xl hover:bg-white/10 p-1 rounded">✏️</button>
+                        <button onclick="addEmoji('🧮')" class="text-xl hover:bg-white/10 p-1 rounded">🧮</button>
+                        <button onclick="addEmoji('🎓')" class="text-xl hover:bg-white/10 p-1 rounded">🎓</button>
+                        <button onclick="addEmoji('🤝')" class="text-xl hover:bg-white/10 p-1 rounded">🤝</button>
+                        <button onclick="addEmoji('🥇')" class="text-xl hover:bg-white/10 p-1 rounded">🥇</button>
+                    </div>
+
+                    <div id="uploadStatus" class="hidden text-xs text-amber-400 mb-2 text-center">جاري رفع الملف... يرجى الانتظار.</div>
+
+                    <div class="flex gap-2 items-center">
+                        <button onclick="toggleEmojiPicker()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                        <button onclick="document.getElementById('fileInput').click()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                        </button>
+                        <input type="file" id="fileInput" class="hidden" onchange="uploadChatFile(event)" accept="image/*,.pdf,.doc,.docx,.txt">
+                        <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
+                        <button onclick="sendMessage()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
+                            إرسال
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Controls -->
+        <footer class="bg-[#2C2C2C] h-16 flex items-center justify-center gap-6 shrink-0">
+            <button id="muteBtn" onclick="toggleMute()" class="p-3 rounded-full bg-green-600 hover:bg-green-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+            </button>
+            
+            <button id="screenShareBtn" onclick="toggleScreenShare()" class="hidden p-3 rounded-full bg-white/10 hover:bg-white/20 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            </button>
+
+            <button id="endSessionBtn" onclick="confirmEndSession()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1m0 0V6m0-1h1m3 0h2m-3 0h1m6 0h2m-6 0H6m12 0h1m-1 0h1m-1 0h1" /></svg>
+                <span id="endSessionText">إنهاء الجلسة</span>
+            </button>
+        </footer>
+
+        <!-- Modals -->
+        
+
+        <div id="endSessionModal" class="modal fixed inset-0 bg-black/80 z-50 items-center justify-center">
+            <div class="bg-[#2C2C2C] rounded-2xl p-6 max-w-md w-full">
+                <h3 id="endModalTitle" class="font-bold text-lg mb-4 text-white">إنهاء الجلسة</h3>
+                <div id="endModalContent">
+                    <p class="text-white/70 text-sm mb-4">هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟</p>
+                    <div class="flex justify-end gap-3">
+                        <button onclick="closeModal('endSessionModal')" class="text-white/50 text-sm">إلغاء</button>
+                        <button onclick="startExportProcess()" class="bg-red-600 text-white font-bold px-4 py-2 rounded-lg text-sm">إنهاء وحفظ</button>
+                    </div>
+                </div>
+                <div id="endModalProgress" class="hidden">
+                    <p id="progressStatus" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
+                    <div class="w-full bg-white/10 rounded-full h-2.5 mb-2">
+                        <div id="progressBar" class="bg-amber-400 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <p id="progressPercent" class="text-white/50 text-xs text-right">0%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Audio Elements -->
+        <audio id="sound_happy" src="/static/sounds/happy.mp3"></audio>
+        <audio id="sound_sad" src="/static/sounds/sad.mp3"></audio>
+        <audio id="sound_trophy" src="/static/sounds/trophy.mp3"></audio>
+        <audio id="sound_balloons" src="/static/sounds/balloons.mp3"></audio>
+        <audio id="sound_heart" src="/static/sounds/heart.mp3"></audio>
+        <audio id="sound_question" src="/static/sounds/question.mp3"></audio>
+        <audio id="sound_fireworks" src="/static/sounds/fireworks.mp3"></audio>
+
+        <script>
+            const firebaseConfig = {
+                apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+                authDomain: "labeeb-app-2026.firebaseapp.com",
+                projectId: "labeeb-app-2026",
+                storageBucket: "labeeb-app-2026.firebasestorage.app",
+                messagingSenderId: "201953565667",
+                appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+            };
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('sessionId') || 'unknown_session';
+            const role = urlParams.get('role') || 'student';
+            const studentName = urlParams.get('studentName') || 'طالب';
+            const isTeacher = role === 'teacher';
+
+            let currentUser = null;
+            let selectedColor = 'black';
+            let strokeWidth = 4.0;
+            let isEraser = false;
+            let isTextMode = false;
+            let isShapeMode = false;
+            let selectedShape = null;
+            let shapeStartPos = null;
+            let isDrawing = false;
+            let currentStroke = [];
+            let strokeDocIds = [];
+            let currentStrokes = [];
+            let isChatOpen = true;
+            let unreadMessages = 0;
+            let isMuted = false;
+            let isScreenSharing = false;
+            let screenShareUid = 0;
+            let elapsedSeconds = 0; 
+            let sessionTimer = null;
+            let agoraEngine = null;
+            let localAudioTrack = null;
+            let screenShareClient = null;
+            const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
+
+            let draggingTextId = null;
+            let dragOffsetX = 0;
+            let dragOffsetY = 0;
+
+            // 📄 صفحات السبورة المحفوظة (كل صورة = صفحة سابقة قبل المسح)
+            let boardPages = [];
+
+            // مؤشر القلم (للرسم)
+            const PEN_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='black' stroke='white' stroke-width='1'><path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/></svg>\") 2 22, crosshair";
+            
+            let isPointerMode = false;
+            let pointerEmoji = '👆';
+            let pointerSize = 48;
+
+            function generateEmojiCursor(emoji, size) {
+                const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="${size * 0.8}">${emoji}</text></svg>`;
+                return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${size / 2} ${size / 2}, pointer`;
+            }
+
+            function togglePointerMenu() {
+                const menu = document.getElementById('pointerMenu');
+                document.getElementById('shapeMenu').style.display = 'none';
+                menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
+            }
+
+            function setPointerEmoji(emoji) {
+                pointerEmoji = emoji;
+                document.getElementById('currentPointerIcon').innerText = emoji;
+                enablePointer();
                 document.getElementById('pointerMenu').style.display = 'none';
             }
-            const shapeContainer = document.getElementById('shapeMenu')?.parentElement;
-            if (shapeContainer && !shapeContainer.contains(e.target)) {
-                document.getElementById('shapeMenu').style.display = 'none';
-            }
-        });
 
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                currentUser = user;
-                initUI();
-                initCanvas();
-                initAgora();
-                registerSessionJoin();
-                listenToSyncedTimer();
-                listenToWhiteboard();
-                listenToChat();
-                listenToSessionState();
-                listenToAnimations();
-                
-                window.addEventListener('beforeunload', async (event) => {
-                    if (agoraEngine) await agoraEngine.leave();
-                    if (screenShareClient) await screenShareClient.leave();
-                    try {
-                        const doc = await db.collection('sessions').doc(sessionId).get();
-                        if (doc.exists && doc.data().status !== 'completed') {
-                            await db.collection('sessions').doc(sessionId).update({
-                                'status': 'interrupted',
-                                'interruptedBy': isTeacher ? 'teacher' : 'student'
-                            });
-                        }
-                    } catch (e) {}
-                });
-            } else {
-                window.location.href = '/';
-            }
-        });
-
-        function initUI() {
-            document.getElementById('sessionTitle').innerText = isTeacher ? `جلسة مع الطالب: ${studentName}` : 'جلسة مع المعلم';
-            if (isTeacher) {
-                document.getElementById('teacherToolbar').classList.remove('hidden');
-                document.getElementById('undoBtn').classList.remove('hidden');
-                document.getElementById('clearBtn').classList.remove('hidden');
-                document.getElementById('newPageBtn').classList.remove('hidden');
-            } else {
-                document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
-                document.getElementById('endSessionBtn').classList.remove('bg-red-600');
-                document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
-                document.getElementById('pointsDisplayContainer').classList.remove('hidden');
-            }
-            document.getElementById('screenShareBtn').classList.remove('hidden');
-        }
-
-        // ==========================================
-        // 🎨 Whiteboard, Magic Eraser, Text Tool, Shapes & Auto Drag
-        // ==========================================
-        const canvas = document.getElementById('whiteboard');
-        const ctx = canvas.getContext('2d');
-
-        function initCanvas() {
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', endDraw);
-            canvas.addEventListener('mouseleave', endDraw);
-            canvas.addEventListener('touchstart', handleTouch);
-            canvas.addEventListener('touchmove', handleTouch);
-            canvas.addEventListener('touchend', handleTouchEnd);
-            canvas.addEventListener('dblclick', handleDoubleClick);
-        }
-        function handleDoubleClick(e) {
-    if (!isTeacher) return;
-    const pos = getMousePos(e);
-    const px = pos.x * canvas.width;
-    const py = pos.y * canvas.height;
-
-    const hitText = getTextAtPosition(px, py);
-    if (hitText) {
-        // فتح مربع النص مجدداً للتعديل
-        createTextInput(hitText.dx, hitText.dy, hitText);
-    }
-}
-
-        function resizeCanvas() {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            redrawCanvas();
-        }
-
-        function getMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
-        }
-
-        function getTextAtPosition(px, py) {
-            for (let i = currentStrokes.length - 1; i >= 0; i--) {
-                const s = currentStrokes[i];
-                if (s.type === 'text') {
-                    ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
-                    const textWidth = ctx.measureText(s.text).width;
-                    const tx = s.dx * canvas.width;
-                    const ty = s.dy * canvas.height;
-                    if (px >= tx - 5 && px <= tx + textWidth + 5 && py >= ty - 5 && py <= ty + (s.fontSize || 18) + 5) {
-                        return s;
-                    }
+            function changePointerSize(delta) {
+                pointerSize = Math.max(24, Math.min(128, pointerSize + delta));
+                document.getElementById('pointerSizeDisplay').innerText = pointerSize + 'px';
+                if (isPointerMode) {
+                    enablePointer();
                 }
             }
-            return null;
+
+            function enablePointer() {
+                isPointerMode = true;
+                isEraser = false;
+                isTextMode = false;
+                isShapeMode = false;
+                canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+                document.getElementById('sizePopup').style.display = 'none';
+            }
+
+            // إداراة الأشكال الهندسية
+            function toggleShapeMenu() {
+                const menu = document.getElementById('shapeMenu');
+                document.getElementById('pointerMenu').style.display = 'none';
+                menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'grid' : 'none';
+            }
+
+            function selectShape(shapeType) {
+                selectedShape = shapeType;
+                isShapeMode = true;
+                isEraser = false;
+                isTextMode = false;
+                isPointerMode = false;
+                canvas.style.cursor = 'crosshair';
+                document.getElementById('shapeMenu').style.display = 'none';
+                document.getElementById('sizePopup').style.display = 'flex';
+            }
+
+            // إغلاق القوائم المنسدلة فور النقر خارجها
+            document.addEventListener('click', function(e) {
+                const pointerContainer = document.getElementById('pointerMenu')?.parentElement;
+                if (pointerContainer && !pointerContainer.contains(e.target)) {
+                    document.getElementById('pointerMenu').style.display = 'none';
+                }
+                const shapeContainer = document.getElementById('shapeMenu')?.parentElement;
+                if (shapeContainer && !shapeContainer.contains(e.target)) {
+                    document.getElementById('shapeMenu').style.display = 'none';
+                }
+            });
+
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    currentUser = user;
+                    initUI();
+                    initCanvas();
+                    initAgora();
+                    registerSessionJoin();
+                    listenToSyncedTimer();
+                    listenToWhiteboard();
+                    listenToChat();
+                    listenToSessionState();
+                    listenToAnimations();
+                    
+                    window.addEventListener('beforeunload', async (event) => {
+                        if (agoraEngine) await agoraEngine.leave();
+                        if (screenShareClient) await screenShareClient.leave();
+                        try {
+                            const doc = await db.collection('sessions').doc(sessionId).get();
+                            if (doc.exists && doc.data().status !== 'completed') {
+                                await db.collection('sessions').doc(sessionId).update({
+                                    'status': 'interrupted',
+                                    'interruptedBy': isTeacher ? 'teacher' : 'student'
+                                });
+                            }
+                        } catch (e) {}
+                    });
+                } else {
+                    window.location.href = '/';
+                }
+            });
+
+            function initUI() {
+                document.getElementById('sessionTitle').innerText = isTeacher ? `جلسة مع الطالب: ${studentName}` : 'جلسة مع المعلم';
+                if (isTeacher) {
+                    document.getElementById('teacherToolbar').classList.remove('hidden');
+                    document.getElementById('undoBtn').classList.remove('hidden');
+                    document.getElementById('clearBtn').classList.remove('hidden');
+                    document.getElementById('newPageBtn').classList.remove('hidden');
+                } else {
+                    document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
+                    document.getElementById('endSessionBtn').classList.remove('bg-red-600');
+                    document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
+                    document.getElementById('pointsDisplayContainer').classList.remove('hidden');
+                }
+                document.getElementById('screenShareBtn').classList.remove('hidden');
+            }
+
+            // ==========================================
+            // 🎨 Whiteboard, Magic Eraser, Text Tool, Shapes & Auto Drag
+            // ==========================================
+            const canvas = document.getElementById('whiteboard');
+            const ctx = canvas.getContext('2d');
+
+            function initCanvas() {
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                canvas.addEventListener('mousedown', startDraw);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', endDraw);
+                canvas.addEventListener('mouseleave', endDraw);
+                canvas.addEventListener('touchstart', handleTouch);
+                canvas.addEventListener('touchmove', handleTouch);
+                canvas.addEventListener('touchend', handleTouchEnd);
+                canvas.addEventListener('dblclick', handleDoubleClick);
+            }
+            function handleDoubleClick(e) {
+        if (!isTeacher) return;
+        const pos = getMousePos(e);
+        const px = pos.x * canvas.width;
+        const py = pos.y * canvas.height;
+
+        const hitText = getTextAtPosition(px, py);
+        if (hitText) {
+            // فتح مربع النص مجدداً للتعديل
+            createTextInput(hitText.dx, hitText.dy, hitText);
         }
+    }
 
-        function startDraw(e) {
-            if (!isTeacher) return;
-            const pos = getMousePos(e);
-            const px = pos.x * canvas.width;
-            const py = pos.y * canvas.height;
-            
-            if (isPointerMode) return; 
-            
-            if (isEraser) {
-                isDrawing = true;
-                eraseStrokeAt(pos.x, pos.y);
-                return;
+            function resizeCanvas() {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                redrawCanvas();
             }
 
-            const hitText = getTextAtPosition(px, py);
-            if (hitText) {
-                draggingTextId = hitText.id;
-                dragOffsetX = px - (hitText.dx * canvas.width);
-                dragOffsetY = py - (hitText.dy * canvas.height);
-                isDrawing = true;
-                canvas.style.cursor = "grabbing";
-                return;
+            function getMousePos(e) {
+                const rect = canvas.getBoundingClientRect();
+                return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
             }
 
-            if (isTextMode) {
-                createTextInput(pos.x, pos.y);
-                return;
+            function getTextAtPosition(px, py) {
+                for (let i = currentStrokes.length - 1; i >= 0; i--) {
+                    const s = currentStrokes[i];
+                    if (s.type === 'text') {
+                        ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
+                        const textWidth = ctx.measureText(s.text).width;
+                        const tx = s.dx * canvas.width;
+                        const ty = s.dy * canvas.height;
+                        if (px >= tx - 5 && px <= tx + textWidth + 5 && py >= ty - 5 && py <= ty + (s.fontSize || 18) + 5) {
+                            return s;
+                        }
+                    }
+                }
+                return null;
             }
 
-            if (isShapeMode) {
-                isDrawing = true;
-                shapeStartPos = { x: pos.x, y: pos.y };
-                return;
-            }
-
-            isDrawing = true;
-            currentStroke = [{ dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth }];
-            drawStroke(currentStroke);
-        }
-
-        function draw(e) {
-            if (!isTeacher || !isDrawing) return;
-            const pos = getMousePos(e);
-            
-            if (draggingTextId) {
-                const tempPx = pos.x * canvas.width - dragOffsetX;
-                const tempPy = pos.y * canvas.height - dragOffsetY;
+            function startDraw(e) {
+                if (!isTeacher) return;
+                const pos = getMousePos(e);
+                const px = pos.x * canvas.width;
+                const py = pos.y * canvas.height;
                 
-                redrawAllStrokes();
-                return;
+                if (isPointerMode) return; 
+                
+                if (isEraser) {
+                    isDrawing = true;
+                    eraseStrokeAt(pos.x, pos.y);
+                    return;
+                }
+
+                const hitText = getTextAtPosition(px, py);
+                if (hitText) {
+                    draggingTextId = hitText.id;
+                    dragOffsetX = px - (hitText.dx * canvas.width);
+                    dragOffsetY = py - (hitText.dy * canvas.height);
+                    isDrawing = true;
+                    canvas.style.cursor = "grabbing";
+                    return;
+                }
+
+                if (isTextMode) {
+                    createTextInput(pos.x, pos.y);
+                    return;
+                }
+
+                if (isShapeMode) {
+                    isDrawing = true;
+                    shapeStartPos = { x: pos.x, y: pos.y };
+                    return;
+                }
+
+                isDrawing = true;
+                currentStroke = [{ dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth }];
+                drawStroke(currentStroke);
             }
 
-            if (isShapeMode && shapeStartPos) {
-                redrawAllStrokes();
-                drawShapePreview(selectedShape, shapeStartPos.x, shapeStartPos.y, pos.x, pos.y, selectedColor, strokeWidth);
-                return;
+            function draw(e) {
+                if (!isTeacher || !isDrawing) return;
+                const pos = getMousePos(e);
+                
+                if (draggingTextId) {
+                    const tempPx = pos.x * canvas.width - dragOffsetX;
+                    const tempPy = pos.y * canvas.height - dragOffsetY;
+                    
+                    redrawAllStrokes();
+                    return;
+                }
+
+                if (isShapeMode && shapeStartPos) {
+                    redrawAllStrokes();
+                    drawShapePreview(selectedShape, shapeStartPos.x, shapeStartPos.y, pos.x, pos.y, selectedColor, strokeWidth);
+                    return;
+                }
+                
+                if (isEraser) {
+                    eraseStrokeAt(pos.x, pos.y);
+                } else {
+                    const point = { dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth };
+                    currentStroke.push(point);
+                    ctx.beginPath();
+                    ctx.lineWidth = currentStroke[currentStroke.length - 2].strokeWidth;
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = currentStroke[currentStroke.length - 2].color;
+                    ctx.moveTo(currentStroke[currentStroke.length - 2].dx * canvas.width, currentStroke[currentStroke.length - 2].dy * canvas.height);
+                    ctx.lineTo(point.dx * canvas.width, point.dy * canvas.height);
+                    ctx.stroke();
+                }
             }
-            
-            if (isEraser) {
-                eraseStrokeAt(pos.x, pos.y);
-            } else {
-                const point = { dx: pos.x, dy: pos.y, color: selectedColor, strokeWidth: strokeWidth };
-                currentStroke.push(point);
+
+            function endDraw(e) {
+                if (!isTeacher || !isDrawing) return;
+                isDrawing = false;
+                
+                if (draggingTextId) {
+                    const pos = getMousePos(e || window.event);
+                    const newDx = (pos.x * canvas.width - dragOffsetX) / canvas.width;
+                    const newDy = (pos.y * canvas.height - dragOffsetY) / canvas.height;
+                    
+                    db.collection('sessions').doc(sessionId).collection('strokes').doc(draggingTextId).update({
+                        dx: newDx,
+                        dy: newDy
+                    });
+                    
+                    draggingTextId = null;
+                    if (isTextMode) canvas.style.cursor = "text";
+                    else if (isShapeMode) canvas.style.cursor = "crosshair";
+                    else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+                    else canvas.style.cursor = PEN_CURSOR;
+                    return;
+                }
+
+                if (isShapeMode && shapeStartPos) {
+                    const pos = getMousePos(e || window.event);
+                    db.collection('sessions').doc(sessionId).collection('strokes').add({
+                        type: 'shape',
+                        shape: selectedShape,
+                        startX: shapeStartPos.x,
+                        startY: shapeStartPos.y,
+                        endX: pos.x,
+                        endY: pos.y,
+                        color: selectedColor,
+                        strokeWidth: strokeWidth,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(err => console.error("Error saving shape:", err));
+                    
+                    shapeStartPos = null;
+                    return;
+                }
+
+                if (!isEraser && !isTextMode && currentStroke.length > 0) {
+                    db.collection('sessions').doc(sessionId).collection('strokes').add({
+                        points: currentStroke,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(err => console.error("Error saving stroke:", err));
+                    currentStroke = [];
+                }
+                
+                if (!isEraser && !isTextMode) {
+                    if (isShapeMode) canvas.style.cursor = "crosshair";
+                    else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
+                    else canvas.style.cursor = PEN_CURSOR;
+                }
+            }
+
+            function handleTouch(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                if (!touch) return;
+                const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                if (e.type === 'touchstart') startDraw(mockEvent);
+                else if (e.type === 'touchmove') draw(mockEvent);
+            }
+
+            function handleTouchEnd(e) {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                if (!touch) return;
+                const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                endDraw(mockEvent);
+            }
+
+            function drawStroke(stroke) {
+                if (stroke.length < 1) return;
                 ctx.beginPath();
-                ctx.lineWidth = currentStroke[currentStroke.length - 2].strokeWidth;
+                ctx.lineWidth = stroke[0].strokeWidth;
                 ctx.lineCap = 'round';
-                ctx.strokeStyle = currentStroke[currentStroke.length - 2].color;
-                ctx.moveTo(currentStroke[currentStroke.length - 2].dx * canvas.width, currentStroke[currentStroke.length - 2].dy * canvas.height);
-                ctx.lineTo(point.dx * canvas.width, point.dy * canvas.height);
+                ctx.strokeStyle = stroke[0].color;
+                ctx.moveTo(stroke[0].dx * canvas.width, stroke[0].dy * canvas.height);
+                for (let i = 1; i < stroke.length; i++) {
+                    ctx.lineTo(stroke[i].dx * canvas.width, stroke[i].dy * canvas.height);
+                }
                 ctx.stroke();
             }
-        }
 
-        function endDraw(e) {
-            if (!isTeacher || !isDrawing) return;
-            isDrawing = false;
-            
-            if (draggingTextId) {
-                const pos = getMousePos(e || window.event);
-                const newDx = (pos.x * canvas.width - dragOffsetX) / canvas.width;
-                const newDy = (pos.y * canvas.height - dragOffsetY) / canvas.height;
-                
-                db.collection('sessions').doc(sessionId).collection('strokes').doc(draggingTextId).update({
-                    dx: newDx,
-                    dy: newDy
-                });
-                
-                draggingTextId = null;
-                if (isTextMode) canvas.style.cursor = "text";
-                else if (isShapeMode) canvas.style.cursor = "crosshair";
-                else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
-                else canvas.style.cursor = PEN_CURSOR;
-                return;
-            }
+            function drawShape(type, x1, y1, x2, y2, color, width) {
+                ctx.beginPath();
+                ctx.lineWidth = width;
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
 
-            if (isShapeMode && shapeStartPos) {
-                const pos = getMousePos(e || window.event);
-                db.collection('sessions').doc(sessionId).collection('strokes').add({
-                    type: 'shape',
-                    shape: selectedShape,
-                    startX: shapeStartPos.x,
-                    startY: shapeStartPos.y,
-                    endX: pos.x,
-                    endY: pos.y,
-                    color: selectedColor,
-                    strokeWidth: strokeWidth,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(err => console.error("Error saving shape:", err));
-                
-                shapeStartPos = null;
-                return;
-            }
+                const startX = x1 * canvas.width;
+                const startY = y1 * canvas.height;
+                const endX = x2 * canvas.width;
+                const endY = y2 * canvas.height;
+                const w = endX - startX;
+                const h = endY - startY;
 
-            if (!isEraser && !isTextMode && currentStroke.length > 0) {
-                db.collection('sessions').doc(sessionId).collection('strokes').add({
-                    points: currentStroke,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(err => console.error("Error saving stroke:", err));
-                currentStroke = [];
-            }
-            
-            if (!isEraser && !isTextMode) {
-                if (isShapeMode) canvas.style.cursor = "crosshair";
-                else if (isPointerMode) canvas.style.cursor = generateEmojiCursor(pointerEmoji, pointerSize);
-                else canvas.style.cursor = PEN_CURSOR;
-            }
-        }
-
-        function handleTouch(e) {
-            e.preventDefault();
-            const touch = e.touches[0];
-            if (!touch) return;
-            const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
-            if (e.type === 'touchstart') startDraw(mockEvent);
-            else if (e.type === 'touchmove') draw(mockEvent);
-        }
-
-        function handleTouchEnd(e) {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            if (!touch) return;
-            const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
-            endDraw(mockEvent);
-        }
-
-        function drawStroke(stroke) {
-            if (stroke.length < 1) return;
-            ctx.beginPath();
-            ctx.lineWidth = stroke[0].strokeWidth;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = stroke[0].color;
-            ctx.moveTo(stroke[0].dx * canvas.width, stroke[0].dy * canvas.height);
-            for (let i = 1; i < stroke.length; i++) {
-                ctx.lineTo(stroke[i].dx * canvas.width, stroke[i].dy * canvas.height);
-            }
-            ctx.stroke();
-        }
-
-        function drawShape(type, x1, y1, x2, y2, color, width) {
-            ctx.beginPath();
-            ctx.lineWidth = width;
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            const startX = x1 * canvas.width;
-            const startY = y1 * canvas.height;
-            const endX = x2 * canvas.width;
-            const endY = y2 * canvas.height;
-            const w = endX - startX;
-            const h = endY - startY;
-
-            switch(type) {
-                case 'rectangle':
-                    ctx.strokeRect(startX, startY, w, h);
-                    break;
-                case 'square':
-                    const side = Math.max(Math.abs(w), Math.abs(h));
-                    ctx.strokeRect(startX, startY, w < 0 ? -side : side, h < 0 ? -side : side);
-                    break;
-                case 'circle':
-                    const radius = Math.sqrt(w * w + h * h);
-                    ctx.beginPath();
-                    ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
-                    ctx.stroke();
-                    break;
-                case 'ellipse':
-                    ctx.beginPath();
-                    ctx.ellipse(startX + w / 2, startY + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, 2 * Math.PI);
-                    ctx.stroke();
-                    break;
-                case 'line':
-                    ctx.beginPath();
-                    ctx.moveTo(startX, startY);
-                    ctx.lineTo(endX, endY);
-                    ctx.stroke();
-                    break;
-                case 'arrow':
-                    ctx.beginPath();
-                    ctx.moveTo(startX, startY);
-                    ctx.lineTo(endX, endY);
-                    ctx.stroke();
-                    const headlen = 15;
-                    const angle = Math.atan2(endY - startY, endX - startX);
-                    ctx.beginPath();
-                    ctx.moveTo(endX, endY);
-                    ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
-                    ctx.moveTo(endX, endY);
-                    ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
-                    ctx.stroke();
-                    break;
-                case 'triangle':
-                    ctx.beginPath();
-                    ctx.moveTo(startX + w / 2, startY);
-                    ctx.lineTo(startX, startY + h);
-                    ctx.lineTo(startX + w, startY + h);
-                    ctx.closePath();
-                    ctx.stroke();
-                    break;
-                case 'diamond':
-                    ctx.beginPath();
-                    ctx.moveTo(startX + w / 2, startY);
-                    ctx.lineTo(startX + w, startY + h / 2);
-                    ctx.lineTo(startX + w / 2, startY + h);
-                    ctx.lineTo(startX, startY + h / 2);
-                    ctx.closePath();
-                    ctx.stroke();
-                    break;
-                case 'pentagon':
-                    drawPolygon(startX + w / 2, startY + h / 2, 5, Math.max(Math.abs(w), Math.abs(h)) / 2);
-                    break;
-                case 'hexagon':
-                    drawPolygon(startX + w / 2, startY + h / 2, 6, Math.max(Math.abs(w), Math.abs(h)) / 2);
-                    break;
-                case 'star':
-                    drawStar(startX + w / 2, startY + h / 2, 5, Math.max(Math.abs(w), Math.abs(h)) / 2, Math.max(Math.abs(w), Math.abs(h)) / 4);
-                    break;
-                case 'check':
-                    ctx.beginPath();
-                    ctx.moveTo(startX, startY + h / 2);
-                    ctx.lineTo(startX + w / 3, startY + h);
-                    ctx.lineTo(startX + w, startY);
-                    ctx.stroke();
-                    break;
-                case 'cross':
-                    ctx.beginPath();
-                    ctx.moveTo(startX, startY);
-                    ctx.lineTo(startX + w, startY + h);
-                    ctx.moveTo(startX + w, startY);
-                    ctx.lineTo(startX, startY + h);
-                    ctx.stroke();
-                    break;
-            }
-        }
-
-        function drawPolygon(cx, cy, sides, radius) {
-            if (sides < 3) return;
-            ctx.beginPath();
-            ctx.moveTo(cx + radius * Math.cos(0), cy + radius * Math.sin(0));
-            for (let i = 1; i <= sides; i++) {
-                ctx.lineTo(cx + radius * Math.cos(i * 2 * Math.PI / sides), cy + radius * Math.sin(i * 2 * Math.PI / sides));
-            }
-            ctx.closePath();
-            ctx.stroke();
-        }
-
-        function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
-            let rot = Math.PI / 2 * 3;
-            let x = cx;
-            let y = cy;
-            let step = Math.PI / spikes;
-
-            ctx.beginPath();
-            ctx.moveTo(cx, cy - outerRadius);
-            for (let i = 0; i < spikes; i++) {
-                x = cx + Math.cos(rot) * outerRadius;
-                y = cy + Math.sin(rot) * outerRadius;
-                ctx.lineTo(x, y);
-                rot += step;
-
-                x = cx + Math.cos(rot) * innerRadius;
-                y = cy + Math.sin(rot) * innerRadius;
-                ctx.lineTo(x, y);
-                rot += step;
-            }
-            ctx.lineTo(cx, cy - outerRadius);
-            ctx.closePath();
-            ctx.stroke();
-        }
-
-        function drawShapePreview(type, x1, y1, x2, y2, color, width) {
-            ctx.save();
-            ctx.globalAlpha = 0.7;
-            drawShape(type, x1, y1, x2, y2, color, width);
-            ctx.restore();
-        }
-
-        function redrawAllStrokes() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            currentStrokes.forEach(s => {
-                if (s.type === 'text') {
-                    ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
-                    ctx.fillStyle = s.color;
-                    ctx.textBaseline = 'top';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(s.text, s.dx * canvas.width, s.dy * canvas.height);
-                } else if (s.type === 'shape') {
-                    drawShape(s.shape, s.startX, s.startY, s.endX, s.endY, s.color, s.strokeWidth);
-                } else {
-                    drawStroke(s.points);
+                switch(type) {
+                    case 'rectangle':
+                        ctx.strokeRect(startX, startY, w, h);
+                        break;
+                    case 'square':
+                        const side = Math.max(Math.abs(w), Math.abs(h));
+                        ctx.strokeRect(startX, startY, w < 0 ? -side : side, h < 0 ? -side : side);
+                        break;
+                    case 'circle':
+                        const radius = Math.sqrt(w * w + h * h);
+                        ctx.beginPath();
+                        ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                        ctx.stroke();
+                        break;
+                    case 'ellipse':
+                        ctx.beginPath();
+                        ctx.ellipse(startX + w / 2, startY + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, 2 * Math.PI);
+                        ctx.stroke();
+                        break;
+                    case 'line':
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        break;
+                    case 'arrow':
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        const headlen = 15;
+                        const angle = Math.atan2(endY - startY, endX - startX);
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+                        ctx.stroke();
+                        break;
+                    case 'triangle':
+                        ctx.beginPath();
+                        ctx.moveTo(startX + w / 2, startY);
+                        ctx.lineTo(startX, startY + h);
+                        ctx.lineTo(startX + w, startY + h);
+                        ctx.closePath();
+                        ctx.stroke();
+                        break;
+                    case 'diamond':
+                        ctx.beginPath();
+                        ctx.moveTo(startX + w / 2, startY);
+                        ctx.lineTo(startX + w, startY + h / 2);
+                        ctx.lineTo(startX + w / 2, startY + h);
+                        ctx.lineTo(startX, startY + h / 2);
+                        ctx.closePath();
+                        ctx.stroke();
+                        break;
+                    case 'pentagon':
+                        drawPolygon(startX + w / 2, startY + h / 2, 5, Math.max(Math.abs(w), Math.abs(h)) / 2);
+                        break;
+                    case 'hexagon':
+                        drawPolygon(startX + w / 2, startY + h / 2, 6, Math.max(Math.abs(w), Math.abs(h)) / 2);
+                        break;
+                    case 'star':
+                        drawStar(startX + w / 2, startY + h / 2, 5, Math.max(Math.abs(w), Math.abs(h)) / 2, Math.max(Math.abs(w), Math.abs(h)) / 4);
+                        break;
+                    case 'check':
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY + h / 2);
+                        ctx.lineTo(startX + w / 3, startY + h);
+                        ctx.lineTo(startX + w, startY);
+                        ctx.stroke();
+                        break;
+                    case 'cross':
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(startX + w, startY + h);
+                        ctx.moveTo(startX + w, startY);
+                        ctx.lineTo(startX, startY + h);
+                        ctx.stroke();
+                        break;
                 }
-            });
-        }
+            }
 
-        function redrawCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+            function drawPolygon(cx, cy, sides, radius) {
+                if (sides < 3) return;
+                ctx.beginPath();
+                ctx.moveTo(cx + radius * Math.cos(0), cy + radius * Math.sin(0));
+                for (let i = 1; i <= sides; i++) {
+                    ctx.lineTo(cx + radius * Math.cos(i * 2 * Math.PI / sides), cy + radius * Math.sin(i * 2 * Math.PI / sides));
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
 
-        function listenToWhiteboard() {
-            db.collection('sessions').doc(sessionId).collection('strokes')
-                .orderBy('createdAt')
-                .onSnapshot((snapshot) => {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    strokeDocIds = [];
-                    currentStrokes = [];
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        if (data.type === 'text') {
-                            ctx.font = `${data.fontSize || 18}px Cairo, sans-serif`;
-                            ctx.fillStyle = data.color;
-                            ctx.textBaseline = 'top';
-                            ctx.textAlign = 'left';
-                            ctx.fillText(data.text, data.dx * canvas.width, data.dy * canvas.height);
-                            strokeDocIds.push(doc.id);
-                            currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18 });
-                       } else if (data.type === 'shape') {
-                        drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
-                          strokeDocIds.push(doc.id);
-                             currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth });
-                                } else {
-                            const points = data.points || [];
-                            drawStroke(points);
-                            strokeDocIds.push(doc.id);
-                            currentStrokes.push({ id: doc.id, points: points });
-                        }
-                    });
-                });
-        }
+            function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+                let rot = Math.PI / 2 * 3;
+                let x = cx;
+                let y = cy;
+                let step = Math.PI / spikes;
 
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - outerRadius);
+                for (let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius;
+                    y = cy + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
 
-        
+                    x = cx + Math.cos(rot) * innerRadius;
+                    y = cy + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                ctx.lineTo(cx, cy - outerRadius);
+                ctx.closePath();
+                ctx.stroke();
+            }
 
-function createTextInput(x, y, existingData = null) {
-    const boardContainer = canvas.parentElement;
-    if (!boardContainer) return;
+            function drawShapePreview(type, x1, y1, x2, y2, color, width) {
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                drawShape(type, x1, y1, x2, y2, color, width);
+                ctx.restore();
+            }
 
-    // إزالة أي حقل نصي مؤقت سابق
-    const oldInput = document.getElementById('tempTextInput');
-    if (oldInput) oldInput.remove();
-
-    const input = document.createElement('input');
-    input.id = 'tempTextInput';
-    input.type = 'text';
-    input.placeholder = 'اكتب هنا...';
-    input.value = existingData ? existingData.text : '';
-    input.style.position = 'absolute';
-    input.style.left = (x * canvas.offsetWidth) + 'px';
-    input.style.top = (y * canvas.offsetHeight) + 'px';
-    input.style.zIndex = '1000';
-    input.style.fontSize = (existingData?.fontSize || 18) + 'px';
-    input.style.color = existingData ? existingData.color : selectedColor;
-    input.style.background = 'rgba(255,255,255,0.9)';
-    input.style.border = `2px solid ${existingData ? existingData.color : selectedColor}`;
-    input.style.padding = '4px';
-    input.style.fontFamily = 'Cairo, sans-serif';
-    input.style.outline = 'none';
-    input.style.borderRadius = '4px';
-    input.style.minWidth = '150px';
-
-    boardContainer.appendChild(input);
-    setTimeout(() => input.focus(), 10);
-
-    let isSaved = false;
-
-    // دالة لحفظ النص تلقائياً
-    const saveTextAutomatically = () => {
-        if (isSaved) return;
-        isSaved = true;
-
-        const text = input.value.trim();
-        if (text !== '') {
-            if (existingData) {
-                // تحديث نص موجود سابقاً عند التعديل
-                db.collection('sessions').doc(sessionId).collection('strokes').doc(existingData.id).update({
-                    text: text
-                });
-            } else {
-                // إضافة نص جديد
-                db.collection('sessions').doc(sessionId).collection('strokes').add({
-                    type: 'text',
-                    dx: x,
-                    dy: y,
-                    text: text,
-                    color: selectedColor,
-                    fontSize: 18,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            function redrawAllStrokes() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                currentStrokes.forEach(s => {
+                    if (s.type === 'text') {
+                        ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
+                        ctx.fillStyle = s.color;
+                        ctx.textBaseline = 'top';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(s.text, s.dx * canvas.width, s.dy * canvas.height);
+                    } else if (s.type === 'shape') {
+                        drawShape(s.shape, s.startX, s.startY, s.endX, s.endY, s.color, s.strokeWidth);
+                    } else {
+                        drawStroke(s.points);
+                    }
                 });
             }
-        } else if (existingData) {
-            // إذا فرّغ النص بالكامل عند التعديل يتم حذفه
-            db.collection('sessions').doc(sessionId).collection('strokes').doc(existingData.id).delete();
-        }
 
-        if (input.parentNode) input.remove();
-        canvas.style.cursor = "text";
-    };
+            function redrawCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
-    // حفظ عند كتابة أي تغيير بشكل لحظي أو عند الضغط خارج المربع (Blur)
-    input.addEventListener('blur', saveTextAutomatically);
+            function listenToWhiteboard() {
+                db.collection('sessions').doc(sessionId).collection('strokes')
+                    .orderBy('createdAt')
+                    .onSnapshot((snapshot) => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        strokeDocIds = [];
+                        currentStrokes = [];
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            if (data.type === 'text') {
+                                ctx.font = `${data.fontSize || 18}px Cairo, sans-serif`;
+                                ctx.fillStyle = data.color;
+                                ctx.textBaseline = 'top';
+                                ctx.textAlign = 'left';
+                                ctx.fillText(data.text, data.dx * canvas.width, data.dy * canvas.height);
+                                strokeDocIds.push(doc.id);
+                                currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18 });
+                        } else if (data.type === 'shape') {
+                            drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
+                            strokeDocIds.push(doc.id);
+                                currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth });
+                                    } else {
+                                const points = data.points || [];
+                                drawStroke(points);
+                                strokeDocIds.push(doc.id);
+                                currentStrokes.push({ id: doc.id, points: points });
+                            }
+                        });
+                    });
+            }
 
-    // الحفظ وإلغاء التركيز أيضاً مع مفتاح Enter
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            saveTextAutomatically();
-        } else if (event.key === 'Escape') {
+
+            
+
+    function createTextInput(x, y, existingData = null) {
+        const boardContainer = canvas.parentElement;
+        if (!boardContainer) return;
+
+        // إزالة أي حقل نصي مؤقت سابق
+        const oldInput = document.getElementById('tempTextInput');
+        if (oldInput) oldInput.remove();
+
+        const input = document.createElement('input');
+        input.id = 'tempTextInput';
+        input.type = 'text';
+        input.placeholder = 'اكتب هنا...';
+        input.value = existingData ? existingData.text : '';
+        input.style.position = 'absolute';
+        input.style.left = (x * canvas.offsetWidth) + 'px';
+        input.style.top = (y * canvas.offsetHeight) + 'px';
+        input.style.zIndex = '1000';
+        input.style.fontSize = (existingData?.fontSize || 18) + 'px';
+        input.style.color = existingData ? existingData.color : selectedColor;
+        input.style.background = 'rgba(255,255,255,0.9)';
+        input.style.border = `2px solid ${existingData ? existingData.color : selectedColor}`;
+        input.style.padding = '4px';
+        input.style.fontFamily = 'Cairo, sans-serif';
+        input.style.outline = 'none';
+        input.style.borderRadius = '4px';
+        input.style.minWidth = '150px';
+
+        boardContainer.appendChild(input);
+        setTimeout(() => input.focus(), 10);
+
+        let isSaved = false;
+
+        // دالة لحفظ النص تلقائياً
+        const saveTextAutomatically = () => {
+            if (isSaved) return;
             isSaved = true;
+
+            const text = input.value.trim();
+            if (text !== '') {
+                if (existingData) {
+                    // تحديث نص موجود سابقاً عند التعديل
+                    db.collection('sessions').doc(sessionId).collection('strokes').doc(existingData.id).update({
+                        text: text
+                    });
+                } else {
+                    // إضافة نص جديد
+                    db.collection('sessions').doc(sessionId).collection('strokes').add({
+                        type: 'text',
+                        dx: x,
+                        dy: y,
+                        text: text,
+                        color: selectedColor,
+                        fontSize: 18,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } else if (existingData) {
+                // إذا فرّغ النص بالكامل عند التعديل يتم حذفه
+                db.collection('sessions').doc(sessionId).collection('strokes').doc(existingData.id).delete();
+            }
+
             if (input.parentNode) input.remove();
             canvas.style.cursor = "text";
-        }
-    });
-}
+        };
+
+        // حفظ عند كتابة أي تغيير بشكل لحظي أو عند الضغط خارج المربع (Blur)
+        input.addEventListener('blur', saveTextAutomatically);
+
+        // الحفظ وإلغاء التركيز أيضاً مع مفتاح Enter
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                saveTextAutomatically();
+            } else if (event.key === 'Escape') {
+                isSaved = true;
+                if (input.parentNode) input.remove();
+                canvas.style.cursor = "text";
+            }
+        });
+    }
 
 
 
-        function eraseStrokeAt(x, y) {
-            const px = x * canvas.width;
-            const py = y * canvas.height;
-            for (let i = 0; i < currentStrokes.length; i++) {
-                const stroke = currentStrokes[i];
-                let hit = false;
-                
-                if (stroke.type === 'text') {
-                    const tx = stroke.dx * canvas.width;
-                    const ty = stroke.dy * canvas.height;
-                    ctx.font = `${stroke.fontSize || 18}px Cairo, sans-serif`;
-                    const textWidth = ctx.measureText(stroke.text).width;
-                    if (px >= tx && px <= tx + textWidth && py >= ty && py <= ty + (stroke.fontSize || 18)) {
-                        hit = true;
-                    }
-                } else if (stroke.type === 'shape') {
-                    const sx = stroke.startX * canvas.width;
-                    const sy = stroke.startY * canvas.height;
-                    const ex = stroke.endX * canvas.width;
-                    const ey = stroke.endY * canvas.height;
-                    const minX = Math.min(sx, ex) - 10;
-                    const maxX = Math.max(sx, ex) + 10;
-                    const minY = Math.min(sy, ey) - 10;
-                    const maxY = Math.max(sy, ey) + 10;
-                    if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
-                        hit = true;
-                    }
-                } else {
-                    for (let j = 0; j < stroke.points.length; j++) {
-                        const p = stroke.points[j];
-                        const dist = Math.sqrt(Math.pow(px - p.dx * canvas.width, 2) + Math.pow(py - p.dy * canvas.height, 2));
-                        if (dist < 20) {
+            function eraseStrokeAt(x, y) {
+                const px = x * canvas.width;
+                const py = y * canvas.height;
+                for (let i = 0; i < currentStrokes.length; i++) {
+                    const stroke = currentStrokes[i];
+                    let hit = false;
+                    
+                    if (stroke.type === 'text') {
+                        const tx = stroke.dx * canvas.width;
+                        const ty = stroke.dy * canvas.height;
+                        ctx.font = `${stroke.fontSize || 18}px Cairo, sans-serif`;
+                        const textWidth = ctx.measureText(stroke.text).width;
+                        if (px >= tx && px <= tx + textWidth && py >= ty && py <= ty + (stroke.fontSize || 18)) {
                             hit = true;
-                            break;
+                        }
+                    } else if (stroke.type === 'shape') {
+                        const sx = stroke.startX * canvas.width;
+                        const sy = stroke.startY * canvas.height;
+                        const ex = stroke.endX * canvas.width;
+                        const ey = stroke.endY * canvas.height;
+                        const minX = Math.min(sx, ex) - 10;
+                        const maxX = Math.max(sx, ex) + 10;
+                        const minY = Math.min(sy, ey) - 10;
+                        const maxY = Math.max(sy, ey) + 10;
+                        if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+                            hit = true;
+                        }
+                    } else {
+                        for (let j = 0; j < stroke.points.length; j++) {
+                            const p = stroke.points[j];
+                            const dist = Math.sqrt(Math.pow(px - p.dx * canvas.width, 2) + Math.pow(py - p.dy * canvas.height, 2));
+                            if (dist < 20) {
+                                hit = true;
+                                break;
+                            }
                         }
                     }
+                    
+                    if (hit) {
+                        db.collection('sessions').doc(sessionId).collection('strokes').doc(stroke.id).delete();
+                        break;
+                    }
                 }
-                
-                if (hit) {
-                    db.collection('sessions').doc(sessionId).collection('strokes').doc(stroke.id).delete();
-                    break;
-                }
-            }
-        }
-
-        function selectColor(color) {
-            selectedColor = color;
-            isEraser = false;
-            isTextMode = false;
-            isPointerMode = false;
-            if (isShapeMode) canvas.style.cursor = "crosshair";
-            else canvas.style.cursor = PEN_CURSOR;
-            document.getElementById('sizePopup').style.display = 'flex';
-        }
-
-        function selectSize(width) {
-            strokeWidth = width;
-            document.getElementById('sizePopup').style.display = 'none';
-        }
-
-        function enableEraser() {
-            isEraser = true;
-            isTextMode = false;
-            isShapeMode = false;
-            isPointerMode = false;
-            canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1.5'><path d='M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z'/><path d='M4.22 15.22l5.65 5.65' /></svg>\") 2 20, cell";
-            document.getElementById('sizePopup').style.display = 'none';
-        }
-
-        function enableText() {
-            isTextMode = true;
-            isEraser = false;
-            isShapeMode = false;
-            isPointerMode = false;
-            canvas.style.cursor = "text";
-            document.getElementById('sizePopup').style.display = 'none';
-        }
-
-        function enablePen() {
-            isEraser = false;
-            isTextMode = false;
-            isShapeMode = false;
-            isPointerMode = false;
-            canvas.style.cursor = PEN_CURSOR;
-            document.getElementById('sizePopup').style.display = 'none';
-        }
-
-        function undoStroke() {
-            if (!isTeacher || strokeDocIds.length === 0) return;
-            const lastId = strokeDocIds.pop();
-            db.collection('sessions').doc(sessionId).collection('strokes').doc(lastId).delete();
-        }
-
-        function clearBoard() {
-            if (!isTeacher) return;
-            db.collection('sessions').doc(sessionId).collection('strokes').get().then((snapshot) => {
-                snapshot.forEach((doc) => doc.ref.delete());
-            });
-        }
-
-        // 📄 حفظ السبورة الحالية كصفحة، ثم مسحها للبدء بصفحة جديدة فارغة
-        function startNewPage() {
-            if (!isTeacher) return;
-            if (!confirm('سيتم حفظ محتوى السبورة الحالية كصفحة ضمن ملف PDF النهائي، ثم البدء بصفحة جديدة فارغة. متابعة؟')) return;
-
-            // نتأكد إنه في محتوى فعلي مرسوم قبل ما نحفظها (تجنب صفحات فاضية)
-            const hasContent = currentStrokes.length > 0;
-            if (hasContent) {
-                const snapshot = canvas.toDataURL('image/png');
-                boardPages.push(snapshot);
             }
 
-            clearBoard();
-            updatePageCounter();
-            showSnackBar(hasContent
-                ? `تم حفظ الصفحة رقم ${boardPages.length} ✅ - ابدأ بالصفحة الجديدة`
-                : 'السبورة فارغة أصلاً، تم المسح دون حفظ صفحة', 'green');
-        }
-
-        // ⚠️ عند الضغط على زر المسح العادي: نعطي المعلم خيار الحفظ أولاً بدل ما نمسح بصمت
-        function confirmClearBoard() {
-            if (!isTeacher) return;
-            if (currentStrokes.length === 0) {
-                clearBoard();
-                return;
+            function selectColor(color) {
+                selectedColor = color;
+                isEraser = false;
+                isTextMode = false;
+                isPointerMode = false;
+                if (isShapeMode) canvas.style.cursor = "crosshair";
+                else canvas.style.cursor = PEN_CURSOR;
+                document.getElementById('sizePopup').style.display = 'flex';
             }
-            const wantsSave = confirm('هل تريد حفظ السبورة الحالية كصفحة قبل المسح؟\n\nاضغط "موافق" للحفظ ثم المسح، أو "إلغاء" لمتابعة خيار المسح بدون حفظ.');
-            if (wantsSave) {
-                startNewPage();
-            } else if (confirm('تأكيد: سيتم مسح السبورة نهائياً بدون حفظها بالملف. متابعة؟')) {
-                clearBoard();
+
+            function selectSize(width) {
+                strokeWidth = width;
+                document.getElementById('sizePopup').style.display = 'none';
             }
-        }
 
-        function updatePageCounter() {
-            const label = document.getElementById('pageCounterLabel');
-            if (label) label.innerText = boardPages.length > 0 ? `صفحة جديدة (${boardPages.length} محفوظة)` : 'صفحة جديدة';
-        }
+            function enableEraser() {
+                isEraser = true;
+                isTextMode = false;
+                isShapeMode = false;
+                isPointerMode = false;
+                canvas.style.cursor = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='1.5'><path d='M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z'/><path d='M4.22 15.22l5.65 5.65' /></svg>\") 2 20, cell";
+                document.getElementById('sizePopup').style.display = 'none';
+            }
 
-        // ==========================================
-        // ⏱️ Timer & Extend (Count Up)
-        // ==========================================
-        function startSessionTimer() {
-            sessionTimer = setInterval(() => {
-                elapsedSeconds++;
-                updateTimerUI();
-            }, 1000);
-        }
+            function enableText() {
+                isTextMode = true;
+                isEraser = false;
+                isShapeMode = false;
+                isPointerMode = false;
+                canvas.style.cursor = "text";
+                document.getElementById('sizePopup').style.display = 'none';
+            }
 
-        function updateTimerUI() {
-            const h = Math.floor(elapsedSeconds / 3600);
-            const m = Math.floor((elapsedSeconds % 3600) / 60);
-            const s = elapsedSeconds % 60;
-            const format = (n) => n.toString().padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${format(h)}:${format(m)}:${format(s)}`;
-        }
+            function enablePen() {
+                isEraser = false;
+                isTextMode = false;
+                isShapeMode = false;
+                isPointerMode = false;
+                canvas.style.cursor = PEN_CURSOR;
+                document.getElementById('sizePopup').style.display = 'none';
+            }
 
+            function undoStroke() {
+                if (!isTeacher || strokeDocIds.length === 0) return;
+                const lastId = strokeDocIds.pop();
+                db.collection('sessions').doc(sessionId).collection('strokes').doc(lastId).delete();
+            }
 
-
-                async function registerSessionJoin() {
-            try {
-                const token = await currentUser.getIdToken();
-                await fetch(`/api/session/join/${sessionId}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
+            function clearBoard() {
+                if (!isTeacher) return;
+                db.collection('sessions').doc(sessionId).collection('strokes').get().then((snapshot) => {
+                    snapshot.forEach((doc) => doc.ref.delete());
                 });
-            } catch (e) {
-                console.error('Failed to register session join:', e);
             }
-        }
 
+            // 📄 حفظ السبورة الحالية كصفحة، ثم مسحها للبدء بصفحة جديدة فارغة
+            function startNewPage() {
+                if (!isTeacher) return;
+                if (!confirm('سيتم حفظ محتوى السبورة الحالية كصفحة ضمن ملف PDF النهائي، ثم البدء بصفحة جديدة فارغة. متابعة؟')) return;
 
-                    let timerSynced = false;
-        let timerUnsub = null;
-
-        function listenToSyncedTimer() {
-            timerUnsub = db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
-                if (!doc.exists) return;
-                const data = doc.data();
-                const timerStartedAt = data.timerStartedAt;
-
-                if (timerStartedAt && !timerSynced) {
-                    timerSynced = true;
-                    const startMs = timerStartedAt.toDate().getTime();
-                    const nowMs = Date.now();
-                    elapsedSeconds = Math.max(0, Math.floor((nowMs - startMs) / 1000));
-                    startSessionTimer();
-                    startPointsDeductionLoop();
-                    listenToLivePoints(data.studentId);
+                // نتأكد إنه في محتوى فعلي مرسوم قبل ما نحفظها (تجنب صفحات فاضية)
+                const hasContent = currentStrokes.length > 0;
+                if (hasContent) {
+                    const snapshot = canvas.toDataURL('image/png');
+                    boardPages.push(snapshot);
                 }
-            });
-        }
 
+                clearBoard();
+                updatePageCounter();
+                showSnackBar(hasContent
+                    ? `تم حفظ الصفحة رقم ${boardPages.length} ✅ - ابدأ بالصفحة الجديدة`
+                    : 'السبورة فارغة أصلاً، تم المسح دون حفظ صفحة', 'green');
+            }
 
-        function listenToLivePoints(studentId) {
-            if (isTeacher) return;
-            db.collection('users').doc(studentId).onSnapshot((doc) => {
-                if (doc.exists) {
-                    const points = doc.data().points || 0;
-                    document.getElementById('pointsDisplay').innerText = `${points} نقطة`;
+            // ⚠️ عند الضغط على زر المسح العادي: نعطي المعلم خيار الحفظ أولاً بدل ما نمسح بصمت
+            function confirmClearBoard() {
+                if (!isTeacher) return;
+                if (currentStrokes.length === 0) {
+                    clearBoard();
+                    return;
                 }
-            });
-        }
+                const wantsSave = confirm('هل تريد حفظ السبورة الحالية كصفحة قبل المسح؟\n\nاضغط "موافق" للحفظ ثم المسح، أو "إلغاء" لمتابعة خيار المسح بدون حفظ.');
+                if (wantsSave) {
+                    startNewPage();
+                } else if (confirm('تأكيد: سيتم مسح السبورة نهائياً بدون حفظها بالملف. متابعة؟')) {
+                    clearBoard();
+                }
+            }
 
-        let deductionInterval = null;
-        function startPointsDeductionLoop() {
-            if (deductionInterval) return;
-            deductionInterval = setInterval(async () => {
+            function updatePageCounter() {
+                const label = document.getElementById('pageCounterLabel');
+                if (label) label.innerText = boardPages.length > 0 ? `صفحة جديدة (${boardPages.length} محفوظة)` : 'صفحة جديدة';
+            }
+
+            // ==========================================
+            // ⏱️ Timer & Extend (Count Up)
+            // ==========================================
+            function startSessionTimer() {
+                sessionTimer = setInterval(() => {
+                    elapsedSeconds++;
+                    updateTimerUI();
+                }, 1000);
+            }
+
+            function updateTimerUI() {
+                const h = Math.floor(elapsedSeconds / 3600);
+                const m = Math.floor((elapsedSeconds % 3600) / 60);
+                const s = elapsedSeconds % 60;
+                const format = (n) => n.toString().padStart(2, '0');
+                document.getElementById('timerDisplay').innerText = `${format(h)}:${format(m)}:${format(s)}`;
+            }
+
+
+
+                    async function registerSessionJoin() {
                 try {
                     const token = await currentUser.getIdToken();
-                    await fetch(`/api/session/deduct/${sessionId}`, {
+                    await fetch(`/api/session/join/${sessionId}`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                 } catch (e) {
-                    console.error('Deduction call failed:', e);
+                    console.error('Failed to register session join:', e);
                 }
-            }, 60000);
-        }
+            }
 
 
-        // ==========================================
-        // 🎙️ Agora Audio & Screen Share
-        // ==========================================
-        async function fetchDynamicToken(channelName, uid) {
-            try {
-                const response = await fetch(`https://agora-server-59qz.onrender.com/rtc-token?channelName=${channelName}&uid=${uid}`);
-                if (response.ok) return (await response.json()).token || '';
-                return '';
-            } catch (e) { return ''; }
-        }
+            let timerSynced = false;
+            let timerUnsub = null;
+            let isFinalizingSession = false;
 
-        async function initAgora() {
-            try {
-                showSnackBar('جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...', '#D97706');
-                const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                const token = await fetchDynamicToken(sessionId, numericUid);
-                if (!token) throw new Error('تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.');
-                agoraEngine = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-                await agoraEngine.setClientRole("host");
-                
-                agoraEngine.on("user-published", async (user, mediaType) => {
-                    await agoraEngine.subscribe(user, mediaType);
-                    if (mediaType === "audio") user.audioTrack.play();
-                    if (mediaType === "video") {
-                        const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                        const myScreenShareUid = numericUid + 1000000;
-                        
-                        if (user.uid !== myScreenShareUid) {
-                            screenShareUid = user.uid;
-                            document.getElementById('screenShareContainer').style.display = 'flex';
-                            const player = document.getElementById('screenSharePlayer');
-                            player.innerHTML = ''; 
-                            user.videoTrack.play('screenSharePlayer');
-                        }
+            function listenToSyncedTimer() {
+                timerUnsub = db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
+                    if (!doc.exists) return;
+                    const data = doc.data();
+                    const timerStartedAt = data.timerStartedAt;
+
+                    if (timerStartedAt && !timerSynced) {
+                        timerSynced = true;
+                        const startMs = timerStartedAt.toDate().getTime();
+                        const nowMs = Date.now();
+                        elapsedSeconds = Math.max(0, Math.floor((nowMs - startMs) / 1000));
+                        startSessionTimer();
+                        startPointsDeductionLoop();
+                        listenToLivePoints(data.studentId);
                     }
                 });
-                
-                agoraEngine.on("user-unpublished", (user, mediaType) => {
-                    if (mediaType === "video") {
-                        document.getElementById('screenShareContainer').style.display = 'none';
-                        document.getElementById('screenSharePlayer').innerHTML = ''; 
+            }
+
+
+            function listenToLivePoints(studentId) {
+                if (isTeacher) return;
+                db.collection('users').doc(studentId).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const points = doc.data().points || 0;
+                        document.getElementById('pointsDisplay').innerText = `${points} نقطة`;
                     }
                 });
+            }
 
-                await agoraEngine.join(AGORA_APP_ID, sessionId, token, numericUid);
-                let micId = undefined;
-                try {
-                    await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const audioInputs = devices.filter(d => d.kind === 'audioinput');
-                    const invalidKeywords = ['stereo', 'mix', 'what u hear', 'wave out', 'loopback', 'system'];
-                    const validMic = audioInputs.find(d => !invalidKeywords.some(kw => d.label.toLowerCase().includes(kw)));
-                    if (validMic) micId = validMic.deviceId;
-                } catch (e) {}
-
-                let attempts = 0;
-                while (attempts < 3) {
+            let deductionInterval = null;
+            function startPointsDeductionLoop() {
+                if (deductionInterval) return;
+                deductionInterval = setInterval(async () => {
                     try {
-                        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack({ microphoneId: micId, AEC: true, ANS: true, AGC: true });
-                        break; 
-                    } catch (micError) { attempts++; await new Promise(r => setTimeout(r, 1000)); }
-                }
-
-                if (localAudioTrack) {
-                    await agoraEngine.publish([localAudioTrack]);
-                    isMuted = false; updateMicUI();
-                    showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
-                    startAudioRecording(localAudioTrack);
-                } else { throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.'); }
-            } catch (e) { showSnackBar('تعذر الاتصال بالصوت: ' + e.message, 'red'); }
-        }
-
-        async function toggleMute() {
-            if (!localAudioTrack) return;
-            isMuted = !isMuted;
-            localAudioTrack.setMuted(isMuted);
-            updateMicUI();
-            document.getElementById('muteBtn').blur();
-        }
-
-        function updateMicUI() {
-            const btn = document.getElementById('muteBtn');
-            const icon = document.getElementById('micStatusIcon');
-            if (isMuted) {
-                btn.style.backgroundColor = '#dc2626'; 
-                icon.classList.replace('text-green-400', 'text-red-400');
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />';
-            } else {
-                btn.style.backgroundColor = '#16a34a'; 
-                icon.classList.replace('text-red-400', 'text-green-400');
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />';
+                        const token = await currentUser.getIdToken();
+                        await fetch(`/api/session/deduct/${sessionId}`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                    } catch (e) {
+                        console.error('Deduction call failed:', e);
+                    }
+                }, 60000);
             }
-        }
 
-        function updateScreenShareUI() {
-            const btn = document.getElementById('screenShareBtn');
-            if (isScreenSharing) {
-                btn.classList.remove('bg-white/10', 'hover:bg-white/20');
-                btn.classList.add('bg-green-600', 'hover:bg-green-700');
-            } else {
-                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
-                btn.classList.add('bg-white/10', 'hover:bg-white/20');
+
+            // ==========================================
+            // 🎙️ Agora Audio & Screen Share
+            // ==========================================
+            async function fetchDynamicToken(channelName, uid) {
+                try {
+                    const response = await fetch(`https://agora-server-59qz.onrender.com/rtc-token?channelName=${channelName}&uid=${uid}`);
+                    if (response.ok) return (await response.json()).token || '';
+                    return '';
+                } catch (e) { return ''; }
             }
-            btn.blur();
-        }
 
-        async function toggleScreenShare() {
-            try {
-                if (!isScreenSharing) {
+            async function initAgora() {
+                try {
+                    showSnackBar('جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...', '#D97706');
                     const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                    const screenShareUidLocal = numericUid + 1000000; 
-                    const token = await fetchDynamicToken(sessionId, screenShareUidLocal);
-                    screenShareClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-                    await screenShareClient.join(AGORA_APP_ID, sessionId, token || null, screenShareUidLocal);
-                    const screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1", optimizationMode: "detail" }, "disable");
-                    await screenShareClient.publish(screenTrack);
-                    isScreenSharing = true;
-                    updateScreenShareUI();
-                    await db.collection('sessions').doc(sessionId).update({ isScreenSharing: true, screenShareUid: currentUser.uid });
-                    document.getElementById('screenShareContainer').style.display = 'none';
-                    showSnackBar('تم بدء مشاركة الشاشة بنجاح', 'green');
+                    const token = await fetchDynamicToken(sessionId, numericUid);
+                    if (!token) throw new Error('تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.');
+                    agoraEngine = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+                    await agoraEngine.setClientRole("host");
+                    
+                    agoraEngine.on("user-published", async (user, mediaType) => {
+                        await agoraEngine.subscribe(user, mediaType);
+                        if (mediaType === "audio") user.audioTrack.play();
+                        if (mediaType === "video") {
+                            const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
+                            const myScreenShareUid = numericUid + 1000000;
+                            
+                            if (user.uid !== myScreenShareUid) {
+                                screenShareUid = user.uid;
+                                document.getElementById('screenShareContainer').style.display = 'flex';
+                                const player = document.getElementById('screenSharePlayer');
+                                player.innerHTML = ''; 
+                                user.videoTrack.play('screenSharePlayer');
+                            }
+                        }
+                    });
+                    
+                    agoraEngine.on("user-unpublished", (user, mediaType) => {
+                        if (mediaType === "video") {
+                            document.getElementById('screenShareContainer').style.display = 'none';
+                            document.getElementById('screenSharePlayer').innerHTML = ''; 
+                        }
+                    });
+
+                    await agoraEngine.join(AGORA_APP_ID, sessionId, token, numericUid);
+                    let micId = undefined;
+                    try {
+                        await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                        const invalidKeywords = ['stereo', 'mix', 'what u hear', 'wave out', 'loopback', 'system'];
+                        const validMic = audioInputs.find(d => !invalidKeywords.some(kw => d.label.toLowerCase().includes(kw)));
+                        if (validMic) micId = validMic.deviceId;
+                    } catch (e) {}
+
+                    let attempts = 0;
+                    while (attempts < 3) {
+                        try {
+                            localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack({ microphoneId: micId, AEC: true, ANS: true, AGC: true });
+                            break; 
+                        } catch (micError) { attempts++; await new Promise(r => setTimeout(r, 1000)); }
+                    }
+
+                    if (localAudioTrack) {
+                        await agoraEngine.publish([localAudioTrack]);
+                        isMuted = false; updateMicUI();
+                        showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
+                        startAudioRecording(localAudioTrack);
+                    } else { throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.'); }
+                } catch (e) { showSnackBar('تعذر الاتصال بالصوت: ' + e.message, 'red'); }
+            }
+
+            async function toggleMute() {
+                if (!localAudioTrack) return;
+                isMuted = !isMuted;
+                localAudioTrack.setMuted(isMuted);
+                updateMicUI();
+                document.getElementById('muteBtn').blur();
+            }
+
+            function updateMicUI() {
+                const btn = document.getElementById('muteBtn');
+                const icon = document.getElementById('micStatusIcon');
+                if (isMuted) {
+                    btn.style.backgroundColor = '#dc2626'; 
+                    icon.classList.replace('text-green-400', 'text-red-400');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />';
                 } else {
-                    await stopMyScreenShare();
-                    await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null });
-                    showSnackBar('تم إيقاف مشاركة الشاشة', 'orange');
+                    btn.style.backgroundColor = '#16a34a'; 
+                    icon.classList.replace('text-red-400', 'text-green-400');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />';
                 }
-            } catch (e) {
+            }
+
+            function updateScreenShareUI() {
+                const btn = document.getElementById('screenShareBtn');
+                if (isScreenSharing) {
+                    btn.classList.remove('bg-white/10', 'hover:bg-white/20');
+                    btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                } else {
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    btn.classList.add('bg-white/10', 'hover:bg-white/20');
+                }
+                btn.blur();
+            }
+
+            async function toggleScreenShare() {
+                try {
+                    if (!isScreenSharing) {
+                        const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
+                        const screenShareUidLocal = numericUid + 1000000; 
+                        const token = await fetchDynamicToken(sessionId, screenShareUidLocal);
+                        screenShareClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+                        await screenShareClient.join(AGORA_APP_ID, sessionId, token || null, screenShareUidLocal);
+                        const screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1", optimizationMode: "detail" }, "disable");
+                        await screenShareClient.publish(screenTrack);
+                        isScreenSharing = true;
+                        updateScreenShareUI();
+                        await db.collection('sessions').doc(sessionId).update({ isScreenSharing: true, screenShareUid: currentUser.uid });
+                        document.getElementById('screenShareContainer').style.display = 'none';
+                        showSnackBar('تم بدء مشاركة الشاشة بنجاح', 'green');
+                    } else {
+                        await stopMyScreenShare();
+                        await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null });
+                        showSnackBar('تم إيقاف مشاركة الشاشة', 'orange');
+                    }
+                } catch (e) {
+                    if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
+                    isScreenSharing = false;
+                    updateScreenShareUI();
+                    showSnackBar('فشل مشاركة الشاشة: ' + e.message, 'red');
+                }
+            }
+
+            async function stopMyScreenShare() {
                 if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
                 isScreenSharing = false;
                 updateScreenShareUI();
-                showSnackBar('فشل مشاركة الشاشة: ' + e.message, 'red');
             }
-        }
 
-        async function stopMyScreenShare() {
-            if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
-            isScreenSharing = false;
-            updateScreenShareUI();
-        }
-
-        let isScreenFullScreen = false;
-        function toggleFullScreenScreenShare() {
-            const container = document.getElementById('screenShareContainer');
-            const icon = document.getElementById('fullscreenIcon');
-            const text = document.getElementById('fullscreenText');
-            
-            isScreenFullScreen = !isScreenFullScreen;
-            
-            if (isScreenFullScreen) {
-                container.style.position = 'fixed';
-                container.style.top = '0';
-                container.style.left = '0';
-                container.style.right = '0';
-                container.style.bottom = '0';
-                container.style.width = '100vw';
-                container.style.height = '100vh';
-                container.style.zIndex = '99999';
-                container.style.margin = '0';
-                container.style.borderRadius = '0';
+            let isScreenFullScreen = false;
+            function toggleFullScreenScreenShare() {
+                const container = document.getElementById('screenShareContainer');
+                const icon = document.getElementById('fullscreenIcon');
+                const text = document.getElementById('fullscreenText');
                 
-                text.innerText = "تصغير";
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />';
-            } else {
-                container.style.position = '';
-                container.style.top = '';
-                container.style.left = '';
-                container.style.right = '';
-                container.style.bottom = '';
-                container.style.width = '';
-                container.style.height = '';
-                container.style.zIndex = '';
-                container.style.margin = '';
-                container.style.borderRadius = '';
+                isScreenFullScreen = !isScreenFullScreen;
                 
-                text.innerText = "تكبير";
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />';
+                if (isScreenFullScreen) {
+                    container.style.position = 'fixed';
+                    container.style.top = '0';
+                    container.style.left = '0';
+                    container.style.right = '0';
+                    container.style.bottom = '0';
+                    container.style.width = '100vw';
+                    container.style.height = '100vh';
+                    container.style.zIndex = '99999';
+                    container.style.margin = '0';
+                    container.style.borderRadius = '0';
+                    
+                    text.innerText = "تصغير";
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />';
+                } else {
+                    container.style.position = '';
+                    container.style.top = '';
+                    container.style.left = '';
+                    container.style.right = '';
+                    container.style.bottom = '';
+                    container.style.width = '';
+                    container.style.height = '';
+                    container.style.zIndex = '';
+                    container.style.margin = '';
+                    container.style.borderRadius = '';
+                    
+                    text.innerText = "تكبير";
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />';
+                }
+                
+                const video = container.querySelector('video');
+                if (video) {
+                    video.style.objectFit = 'contain';
+                }
             }
-            
-            const video = container.querySelector('video');
-            if (video) {
-                video.style.objectFit = 'contain';
-            }
-        }
 
-        function listenToSessionState() {
-            db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    if (data.status === 'completed') {
-                        showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
-                        if (agoraEngine) agoraEngine.leave();
-                        if (screenShareClient) screenShareClient.leave();
-                        clearInterval(sessionTimer);
-                        setTimeout(() => window.location.href = isTeacher ? '/teacher-dashboard' : '/student-dashboard', 2000);
-                        return;
-                    }
-                    if (data.status === 'interrupted') {
-                        if (!isTeacher && data.interruptedBy === 'teacher') {
-                            showSnackBar('❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.', 'red');
+            function listenToSessionState() {
+                db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.status === 'completed') {
+                            if (isFinalizingSession) return; // المعلم نفسه لسه بيرفع الملفات، ما نقطعوش
+                            showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
+                            if (agoraEngine) agoraEngine.leave();
+                            if (screenShareClient) screenShareClient.leave();
                             clearInterval(sessionTimer);
-                            setTimeout(() => window.location.href = '/student-dashboard', 3000);
-                        } else if (isTeacher && data.interruptedBy === 'student') {
-                            showSnackBar('⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.', 'orange');
+                            setTimeout(() => window.location.href = isTeacher ? '/teacher-dashboard' : '/student-dashboard', 2000);
+                            return;
                         }
-                    }
-                    
-                    if (data.isScreenSharing && data.screenShareUid !== currentUser.uid && isScreenSharing) {
-                        stopMyScreenShare();
-                    }
-                    
-                    if (!data.isScreenSharing) {
-                        document.getElementById('screenShareContainer').style.display = 'none';
-                    } else if (data.screenShareUid !== currentUser.uid) {
-                        document.getElementById('screenShareContainer').style.display = 'flex';
-                    } else {
-                        document.getElementById('screenShareContainer').style.display = 'none';
-                    }
-                }
-            });
-        }
-
-        // ==========================================
-        // 💬 Chat
-        // ==========================================
-        function toggleEmojiPicker() {
-            const picker = document.getElementById('emojiPicker');
-            picker.style.display = (picker.style.display === 'none' || picker.style.display === '') ? 'grid' : 'none';
-        }
-
-        function addEmoji(emoji) {
-            const input = document.getElementById('chatInput');
-            input.value += emoji;
-            input.focus();
-        }
-
-        async function uploadChatFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            document.getElementById('uploadStatus').classList.remove('hidden');
-            document.getElementById('uploadStatus').innerText = 'جاري رفع الملف...';
-
-            try {
-                const token = await currentUser.getIdToken();
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('folder', 'chat_files');
-
-                const res = await fetch('/api/cloudinary/upload', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.url) {
-                    await db.collection('sessions').doc(sessionId).collection('messages').add({
-                        sender: isTeacher ? 'teacher' : 'student',
-                        type: 'file',
-                        fileName: file.name,
-                        fileUrl: data.url,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    document.getElementById('uploadStatus').classList.add('hidden');
-                } else {
-                    throw new Error('Upload failed');
-                }
-            } catch (e) {
-                document.getElementById('uploadStatus').innerText = 'فشل رفع الملف';
-                setTimeout(() => document.getElementById('uploadStatus').classList.add('hidden'), 2000);
-            }
-            event.target.value = '';
-        }
-
-        function listenToChat() {
-            db.collection('sessions').doc(sessionId).collection('messages').orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
-                const container = document.getElementById('chatMessages');
-                container.innerHTML = '';
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const isTeacherMsg = data.sender === 'teacher';
-                    const isMine = (isTeacher && isTeacherMsg) || (!isTeacher && !isTeacherMsg);
-                    
-                    const bubble = document.createElement('div');
-                    bubble.className = `p-2 rounded-lg text-xs font-medium flex flex-col gap-1 ${isMine ? 'bg-amber-600/30 border border-amber-500/30 text-amber-200 ml-auto' : 'bg-gray-800 border border-white/10 text-white mr-auto'} max-w-[85%] break-words`;
-                    
-                    if (data.type === 'file' && data.fileUrl) {
-                        const url = data.fileUrl;
-                        const fileName = data.fileName || 'ملف';
-                        const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null || (url.includes('cloudinary') && url.includes('image'));
-
-                        if (isImage) {
-                            const img = document.createElement('img');
-                            img.src = url;
-                            img.className = "rounded-md max-w-full h-auto max-h-40 cursor-pointer object-cover";
-                            img.onclick = () => window.open(url, '_blank');
-                            bubble.appendChild(img);
-                            
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.target = "_blank";
-                            link.innerText = fileName;
-                            link.className = "text-xs underline mt-1";
-                            bubble.appendChild(link);
+                        if (data.status === 'interrupted') {
+                            if (!isTeacher && data.interruptedBy === 'teacher') {
+                                showSnackBar('❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.', 'red');
+                                clearInterval(sessionTimer);
+                                setTimeout(() => window.location.href = '/student-dashboard', 3000);
+                            } else if (isTeacher && data.interruptedBy === 'student') {
+                                showSnackBar('⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.', 'orange');
+                            }
+                        }
+                        
+                        if (data.isScreenSharing && data.screenShareUid !== currentUser.uid && isScreenSharing) {
+                            stopMyScreenShare();
+                        }
+                        
+                        if (!data.isScreenSharing) {
+                            document.getElementById('screenShareContainer').style.display = 'none';
+                        } else if (data.screenShareUid !== currentUser.uid) {
+                            document.getElementById('screenShareContainer').style.display = 'flex';
                         } else {
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.target = "_blank";
-                            link.className = "flex items-center gap-2 text-white hover:underline";
-                            link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> <span>${fileName}</span>`;
-                            bubble.appendChild(link);
+                            document.getElementById('screenShareContainer').style.display = 'none';
                         }
-                    } else {
-                        bubble.innerText = data.text || '';
                     }
-                    container.appendChild(bubble);
-                });
-                container.scrollTop = container.scrollHeight;
-            });
-        }
-
-        function handleChatEnter(event) { if (event.key === "Enter") { event.preventDefault(); sendMessage(); } }
-        
-        async function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-            if (text) {
-                input.value = '';
-                await db.collection('sessions').doc(sessionId).collection('messages').add({
-                    sender: isTeacher ? 'teacher' : 'student',
-                    type: 'text',
-                    text: text,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
-        }
 
-        // ==========================================
-        // 🎉 Animations
-        // ==========================================
-        let isInitialAnimationLoad = true; 
-
-        function triggerAnimation(type) {
-            if (!isTeacher) return;
-            db.collection('sessions').doc(sessionId).collection('animations').add({ type: type, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        }
-
-        function listenToAnimations() {
-            db.collection('sessions').doc(sessionId).collection('animations').orderBy('createdAt', 'desc').limit(1).onSnapshot((snapshot) => {
-                if (isInitialAnimationLoad) {
-                    isInitialAnimationLoad = false;
-                    return;
-                }
-                snapshot.docChanges().forEach((change) => { 
-                    if (change.type === "added") playAnimation(change.doc.data().type); 
-                });
-            });
-        }
-
-        function playAnimation(type) {
-            const overlay = document.getElementById('animationOverlay');
-            const sound = document.getElementById(`sound_${type}`);
-            if (sound) sound.play();
-            
-            if (type === 'fireworks') {
-                for (let i = 0; i < 50; i++) {
-                    const p = document.createElement('div'); p.className = 'firework-particle';
-                    p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%';
-                    p.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                    p.style.transform = `translate(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px)`;
-                    overlay.appendChild(p); setTimeout(() => p.remove(), 1500);
-                }
-           } else if (type === 'balloons' || type === 'trophy') {
-                const video = document.createElement('video');
-                video.src = `/static/videos/${type}.mp4`; 
-                video.style.position = 'absolute';
-                video.style.top = '0';
-                video.style.left = '0';
-                video.style.width = '100%';
-                video.style.height = '100%';
-                video.style.objectFit = 'cover'; // أو 'contain' إذا كنت تريد رؤية أبصار الفيديو كاملة دون قص الأطراف
-                video.style.zIndex = '50';
-                
-                video.style.borderRadius = '0';
-                video.style.boxShadow = 'none';
-                video.style.background = 'transparent';
-                
-                video.autoplay = true;
-                video.playsInline = true;
-                overlay.appendChild(video);
-                
-                video.onended = () => video.remove(); 
-                setTimeout(() => { if(video.parentNode) video.remove(); }, 15000); 
-            } else {
-                const el = document.createElement('div'); el.className = 'anim-object';
-                if (type === 'heart') el.innerText = '❤️';
-                else if (type === 'happy') el.innerText = '😊';
-                else if (type === 'sad') el.innerText = '😢';
-                else if (type === 'question') {
-                    const span = document.createElement('span'); span.innerText = '❓';
-                    span.style.display = 'inline-block'; span.style.transform = 'scaleX(-1)';
-                    el.appendChild(span);
-                }
-                overlay.appendChild(el); setTimeout(() => el.remove(), 2500);
+            // ==========================================
+            // 💬 Chat
+            // ==========================================
+            function toggleEmojiPicker() {
+                const picker = document.getElementById('emojiPicker');
+                picker.style.display = (picker.style.display === 'none' || picker.style.display === '') ? 'grid' : 'none';
             }
-        }
 
-        // ==========================================
-        // 📄 PDF Generation & End Session
-        // ==========================================
-        let mediaRecorder, audioChunks = [];
-        function startAudioRecording(track) {
-            try {
-                const mediaStream = new MediaStream([track.getMediaStreamTrack()]);
-                mediaRecorder = new MediaRecorder(mediaStream, { audioBitsPerSecond: 16000 });
-                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
-                mediaRecorder.start();
-            } catch (e) {}
-        }
-        
-        async function stopAudioRecording() {
-            return new Promise((resolve) => {
-                if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(null); return; }
-                mediaRecorder.onstop = () => { resolve(new File([new Blob(audioChunks, { type: 'audio/mp3' })], `session_${sessionId}_audio.mp3`, { type: 'audio/mp3' })); };
-                mediaRecorder.stop();
-            });
-        }
-        
-        function confirmEndSession() {
-            if (isTeacher) openModal('endSessionModal');
-            else { db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() }); window.location.href = '/student-dashboard'; }
-        }
-        
-        async function startExportProcess() {
-            document.getElementById('endModalContent').classList.add('hidden');
-            document.getElementById('endModalProgress').classList.remove('hidden');
-            updateProgress(0.10, 'جاري تجميع صفحات السبورة...');
-            try {
-                // نلتقط الصفحة الأخيرة (الحالية) إذا فيها محتوى، ونضيفها لكل الصفحات المحفوظة سابقاً
-                const finalHasContent = currentStrokes.length > 0;
-                const allPages = finalHasContent ? [...boardPages, canvas.toDataURL('image/png')] : [...boardPages];
+            function addEmoji(emoji) {
+                const input = document.getElementById('chatInput');
+                input.value += emoji;
+                input.focus();
+            }
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                if (allPages.length === 0) {
-                    // ما في أي محتوى مرسوم إطلاقاً بكل الحصة - نضيف صفحة بيضاء بدل PDF فاضي يسبب خطأ
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
-                } else {
-                    allPages.forEach((imgData, idx) => {
-                        if (idx > 0) pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-                    });
-                }
-                const pdfBlob = pdf.output('blob');
+            async function uploadChatFile(event) {
+                const file = event.target.files[0];
+                if (!file) return;
 
-                updateProgress(0.30, 'جاري إيقاف التسجيل الصوتي...');
-                const audioFile = await stopAudioRecording();
+                document.getElementById('uploadStatus').classList.remove('hidden');
+                document.getElementById('uploadStatus').innerText = 'جاري رفع الملف...';
 
-                updateProgress(0.45, 'جاري رفع الصوت والسبورة معاً... (قد يستغرق وقتاً حسب طول الحصة)');
-                const token = await currentUser.getIdToken();
-                const formData = new FormData();
-                formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
-                if (audioFile) formData.append('audio', audioFile, audioFile.name);
-
-                // ⏱️ حماية من التعليق الأبدي: لو ما رجع رد خلال 90 ثانية، نلغي الطلب ونطلع خطأ واضح
-                const abortController = new AbortController();
-                const timeoutId = setTimeout(() => abortController.abort(), 90000);
-                let res;
                 try {
-                    res = await fetch(`/api/session/complete/${sessionId}`, {
+                    const token = await currentUser.getIdToken();
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('folder', 'chat_files');
+
+                    const res = await fetch('/api/cloudinary/upload', {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData,
-                        signal: abortController.signal
+                        body: formData
                     });
-                } catch (fetchErr) {
-                    if (fetchErr.name === 'AbortError') {
-                        throw new Error('استغرق الرفع وقتاً أطول من المتوقع (أكثر من 90 ثانية). تأكد من اتصال الإنترنت وحاول مجدداً.');
+                    const data = await res.json();
+
+                    if (data.url) {
+                        await db.collection('sessions').doc(sessionId).collection('messages').add({
+                            sender: isTeacher ? 'teacher' : 'student',
+                            type: 'file',
+                            fileName: file.name,
+                            fileUrl: data.url,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        document.getElementById('uploadStatus').classList.add('hidden');
+                    } else {
+                        throw new Error('Upload failed');
                     }
-                    throw fetchErr;
-                } finally {
-                    clearTimeout(timeoutId);
+                } catch (e) {
+                    document.getElementById('uploadStatus').innerText = 'فشل رفع الملف';
+                    setTimeout(() => document.getElementById('uploadStatus').classList.add('hidden'), 2000);
                 }
-                if (!res.ok) throw new Error('فشل حفظ الجلسة في السيرفر');
+                event.target.value = '';
+            }
 
-                updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
-                if (agoraEngine) await agoraEngine.leave();
-                if (screenShareClient) await screenShareClient.leave();
-                updateProgress(1.0, `تم حفظ ${allPages.length || 1} صفحة بنجاح! جاري تحويلك...`);
-                setTimeout(() => window.location.href = '/teacher-dashboard', 500);
-            } catch (e) { showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red'); closeModal('endSessionModal'); }
-        }
-        
-        function updateProgress(val, text) { document.getElementById('progressBar').style.width = `${val * 100}%`; document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`; document.getElementById('progressStatus').innerText = text; }
+            function listenToChat() {
+                db.collection('sessions').doc(sessionId).collection('messages').orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
+                    const container = document.getElementById('chatMessages');
+                    container.innerHTML = '';
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const isTeacherMsg = data.sender === 'teacher';
+                        const isMine = (isTeacher && isTeacherMsg) || (!isTeacher && !isTeacherMsg);
+                        
+                        const bubble = document.createElement('div');
+                        bubble.className = `p-2 rounded-lg text-xs font-medium flex flex-col gap-1 ${isMine ? 'bg-amber-600/30 border border-amber-500/30 text-amber-200 ml-auto' : 'bg-gray-800 border border-white/10 text-white mr-auto'} max-w-[85%] break-words`;
+                        
+                        if (data.type === 'file' && data.fileUrl) {
+                            const url = data.fileUrl;
+                            const fileName = data.fileName || 'ملف';
+                            const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null || (url.includes('cloudinary') && url.includes('image'));
 
-        // ==========================================
-        // 🛠️ Utilities
-        // ==========================================
-        function hashCode(str) { let hash = 0; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash = hash & hash; } return Math.abs(hash); }
-        function openModal(id) { document.getElementById(id).classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        function showSnackBar(text, color) {
-            const colors = { green: '#10b981', red: '#ef4444', orange: '#f59e0b' };
-            const snackbar = document.createElement('div'); snackbar.className = 'snackbar';
-            snackbar.style.backgroundColor = colors[color] || '#333'; snackbar.innerText = text;
-            document.body.appendChild(snackbar); setTimeout(() => snackbar.remove(), 3000);
-        }
-    </script>
-</body>
-</html>
+                            if (isImage) {
+                                const img = document.createElement('img');
+                                img.src = url;
+                                img.className = "rounded-md max-w-full h-auto max-h-40 cursor-pointer object-cover";
+                                img.onclick = () => window.open(url, '_blank');
+                                bubble.appendChild(img);
+                                
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.target = "_blank";
+                                link.innerText = fileName;
+                                link.className = "text-xs underline mt-1";
+                                bubble.appendChild(link);
+                            } else {
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.target = "_blank";
+                                link.className = "flex items-center gap-2 text-white hover:underline";
+                                link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> <span>${fileName}</span>`;
+                                bubble.appendChild(link);
+                            }
+                        } else {
+                            bubble.innerText = data.text || '';
+                        }
+                        container.appendChild(bubble);
+                    });
+                    container.scrollTop = container.scrollHeight;
+                });
+            }
+
+            function handleChatEnter(event) { if (event.key === "Enter") { event.preventDefault(); sendMessage(); } }
+            
+            async function sendMessage() {
+                const input = document.getElementById('chatInput');
+                const text = input.value.trim();
+                if (text) {
+                    input.value = '';
+                    await db.collection('sessions').doc(sessionId).collection('messages').add({
+                        sender: isTeacher ? 'teacher' : 'student',
+                        type: 'text',
+                        text: text,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }
+
+            // ==========================================
+            // 🎉 Animations
+            // ==========================================
+            let isInitialAnimationLoad = true; 
+
+            function triggerAnimation(type) {
+                if (!isTeacher) return;
+                db.collection('sessions').doc(sessionId).collection('animations').add({ type: type, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            }
+
+            function listenToAnimations() {
+                db.collection('sessions').doc(sessionId).collection('animations').orderBy('createdAt', 'desc').limit(1).onSnapshot((snapshot) => {
+                    if (isInitialAnimationLoad) {
+                        isInitialAnimationLoad = false;
+                        return;
+                    }
+                    snapshot.docChanges().forEach((change) => { 
+                        if (change.type === "added") playAnimation(change.doc.data().type); 
+                    });
+                });
+            }
+
+            function playAnimation(type) {
+                const overlay = document.getElementById('animationOverlay');
+                const sound = document.getElementById(`sound_${type}`);
+                if (sound) sound.play();
+                
+                if (type === 'fireworks') {
+                    for (let i = 0; i < 50; i++) {
+                        const p = document.createElement('div'); p.className = 'firework-particle';
+                        p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%';
+                        p.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                        p.style.transform = `translate(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px)`;
+                        overlay.appendChild(p); setTimeout(() => p.remove(), 1500);
+                    }
+            } else if (type === 'balloons' || type === 'trophy') {
+                    const video = document.createElement('video');
+                    video.src = `/static/videos/${type}.mp4`; 
+                    video.style.position = 'absolute';
+                    video.style.top = '0';
+                    video.style.left = '0';
+                    video.style.width = '100%';
+                    video.style.height = '100%';
+                    video.style.objectFit = 'cover'; // أو 'contain' إذا كنت تريد رؤية أبصار الفيديو كاملة دون قص الأطراف
+                    video.style.zIndex = '50';
+                    
+                    video.style.borderRadius = '0';
+                    video.style.boxShadow = 'none';
+                    video.style.background = 'transparent';
+                    
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    overlay.appendChild(video);
+                    
+                    video.onended = () => video.remove(); 
+                    setTimeout(() => { if(video.parentNode) video.remove(); }, 15000); 
+                } else {
+                    const el = document.createElement('div'); el.className = 'anim-object';
+                    if (type === 'heart') el.innerText = '❤️';
+                    else if (type === 'happy') el.innerText = '😊';
+                    else if (type === 'sad') el.innerText = '😢';
+                    else if (type === 'question') {
+                        const span = document.createElement('span'); span.innerText = '❓';
+                        span.style.display = 'inline-block'; span.style.transform = 'scaleX(-1)';
+                        el.appendChild(span);
+                    }
+                    overlay.appendChild(el); setTimeout(() => el.remove(), 2500);
+                }
+            }
+
+            // ==========================================
+            // 📄 PDF Generation & End Session
+            // ==========================================
+            let mediaRecorder, audioChunks = [];
+            function startAudioRecording(track) {
+                try {
+                    const mediaStream = new MediaStream([track.getMediaStreamTrack()]);
+                    mediaRecorder = new MediaRecorder(mediaStream, { audioBitsPerSecond: 16000 });
+                    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                    mediaRecorder.start();
+                } catch (e) {}
+            }
+            
+            async function stopAudioRecording() {
+                return new Promise((resolve) => {
+                    if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(null); return; }
+                    mediaRecorder.onstop = () => { resolve(new File([new Blob(audioChunks, { type: 'audio/mp3' })], `session_${sessionId}_audio.mp3`, { type: 'audio/mp3' })); };
+                    mediaRecorder.stop();
+                });
+            }
+            
+            function confirmEndSession() {
+                if (isTeacher) openModal('endSessionModal');
+                else { db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() }); window.location.href = '/student-dashboard'; }
+            }
+            
+            async function startExportProcess() {
+                document.getElementById('endModalContent').classList.add('hidden');
+                document.getElementById('endModalProgress').classList.remove('hidden');
+                isFinalizingSession = true;
+                try {
+                    // 0️⃣ أول خطوة قبل أي رفع: إنهاء الجلسة رسمياً فوراً حتى يخرج الطالب على طول
+                    // ولا يستمر الخصم عليه بينما المعلم لسه برفع الملفات
+                    updateProgress(0.03, 'جاري إنهاء الجلسة للطرف الآخر...');
+                    const leaveToken = await currentUser.getIdToken();
+                    await fetch(`/api/session/leave/${sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${leaveToken}` }
+                    });
+
+                    // ⛔ إيقاف صريح فوري - لا داعي ننتظر أي طرف تاني يوقفهم
+                    if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
+                    if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
+
+                    updateProgress(0.10, 'جاري تجميع صفحات السبورة...');
+                    // نلتقط الصفحة الأخيرة (الحالية) إذا فيها محتوى، ونضيفها لكل الصفحات المحفوظة سابقاً
+                    const finalHasContent = currentStrokes.length > 0;
+                    const allPages = finalHasContent ? [...boardPages, canvas.toDataURL('image/png')] : [...boardPages];
+
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    if (allPages.length === 0) {
+                        // ما في أي محتوى مرسوم إطلاقاً بكل الحصة - نضيف صفحة بيضاء بدل PDF فاضي يسبب خطأ
+                        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                    } else {
+                        allPages.forEach((imgData, idx) => {
+                            if (idx > 0) pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                        });
+                    }
+                    const pdfBlob = pdf.output('blob');
+
+                    updateProgress(0.30, 'جاري إيقاف التسجيل الصوتي...');
+                    const audioFile = await stopAudioRecording();
+
+                    updateProgress(0.45, 'جاري رفع الصوت والسبورة معاً... (قد يستغرق وقتاً حسب طول الحصة)');
+                    const token = await currentUser.getIdToken();
+                    const formData = new FormData();
+                    formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
+                    if (audioFile) formData.append('audio', audioFile, audioFile.name);
+
+                    // ⏱️ حماية من التعليق الأبدي: لو ما رجع رد خلال 90 ثانية، نلغي الطلب ونطلع خطأ واضح
+                    const abortController = new AbortController();
+                    const timeoutId = setTimeout(() => abortController.abort(), 90000);
+                    let res;
+                    try {
+                        res = await fetch(`/api/session/complete/${sessionId}`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: formData,
+                            signal: abortController.signal
+                        });
+                    } catch (fetchErr) {
+                        if (fetchErr.name === 'AbortError') {
+                            throw new Error('استغرق الرفع وقتاً أطول من المتوقع (أكثر من 90 ثانية). تأكد من اتصال الإنترنت وحاول مجدداً.');
+                        }
+                        throw fetchErr;
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                    if (!res.ok) throw new Error('فشل حفظ الجلسة في السيرفر');
+
+                    updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
+                    if (agoraEngine) await agoraEngine.leave();
+                    if (screenShareClient) await screenShareClient.leave();
+                    updateProgress(1.0, `تم حفظ ${allPages.length || 1} صفحة بنجاح! جاري تحويلك...`);
+                    setTimeout(() => window.location.href = '/teacher-dashboard', 500);
+                } catch (e) { showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red'); closeModal('endSessionModal'); }
+            }
+            
+            function updateProgress(val, text) { document.getElementById('progressBar').style.width = `${val * 100}%`; document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`; document.getElementById('progressStatus').innerText = text; }
+
+            // ==========================================
+            // 🛠️ Utilities
+            // ==========================================
+            function hashCode(str) { let hash = 0; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash = hash & hash; } return Math.abs(hash); }
+            function openModal(id) { document.getElementById(id).classList.add('active'); }
+            function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+            function showSnackBar(text, color) {
+                const colors = { green: '#10b981', red: '#ef4444', orange: '#f59e0b' };
+                const snackbar = document.createElement('div'); snackbar.className = 'snackbar';
+                snackbar.style.backgroundColor = colors[color] || '#333'; snackbar.innerText = text;
+                document.body.appendChild(snackbar); setTimeout(() => snackbar.remove(), 3000);
+            }
+        </script>
+    </body>
+    </html>

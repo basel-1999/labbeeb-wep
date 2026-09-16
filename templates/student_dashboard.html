@@ -456,7 +456,7 @@
 
                         // فرز الجلسات
                         if (status === 'completed') {
-                            lists.completed.push({ id: sessionId, data });
+                            lists.completed.push({ id: sessionId, data, completedMs: data.completedAt?.toDate?.().getTime() || 0 });
                         } else if (status === 'cancelled') {
                             lists.cancelled.push({ id: sessionId, data });
                         } else if (status === 'interrupted' || isExpired) {
@@ -476,6 +476,7 @@
 
                     // رسم القوائم
                     renderActiveSessions(lists.active);
+                    lists.completed.sort((a, b) => b.completedMs - a.completedMs);
                     renderCompletedSessions(lists.completed);
                     renderSimpleSessions('expired', lists.expired, "انتهت صلاحية الدخول");
                     renderSimpleSessions('cancelled', lists.cancelled, "تم إلغاء الطلب");
