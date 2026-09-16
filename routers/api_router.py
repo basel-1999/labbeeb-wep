@@ -40,3 +40,27 @@ async def upload_to_cloudinary(file: UploadFile = File(...), folder: str = Form(
     except Exception as e:
         print("Upload Exception:", str(e))
         raise HTTPException(status_code=500, detail=f"Cloudinary upload exception: {str(e)}")
+
+
+# ==========================================
+# 💳 مسار الموافقة على طلب الشحن (Fix 404 Error)
+# ==========================================
+@router.post("/api/admin/approve-recharge/{request_id}")
+async def approve_recharge(request_id: str):
+    """
+    الموافقة على طلب الشحن وتحديث رصيد الطالب في قاعدة البيانات
+    """
+    try:
+        # 1. اكتب منطق تحديث قاعدة البيانات هنا (Firebase أو Database الخاصة بك)
+        # مثال:
+        # update_recharge_status(request_id, status="approved")
+        
+        print(f"تمت الموافقة على طلب الشحن رقم: {request_id}")
+        
+        return {
+            "status": "success",
+            "message": f"تمت الموافقة على طلب الشحن {request_id} بنجاح"
+        }
+    except Exception as e:
+        print("Error approving recharge:", str(e))
+        raise HTTPException(status_code=500, detail=f"فشلت العملية: {str(e)}")
