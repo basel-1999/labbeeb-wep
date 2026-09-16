@@ -667,7 +667,8 @@ async def complete_session(
         result = cloudinary.uploader.upload(
             data,
             resource_type="video",
-            folder="session_audio"
+            folder="session_audio",
+            timeout=60  # ⏱️ بدون هذا، الرفع ممكن يعلق للأبد بدون أي خطأ لو تعثر الاتصال بـ Cloudinary
             # ✨ تم إزالة filename لأنها تسبب خطأ وانهيار للسيرفر
         )
         print("Audio uploaded successfully:", result.get("secure_url"))
@@ -678,7 +679,8 @@ async def complete_session(
         result = cloudinary.uploader.upload(
             data,
             resource_type="auto",
-            folder="session_pdfs"
+            folder="session_pdfs",
+            timeout=60  # ⏱️ نفس السبب: حماية من تعليق أبدي لو تعثر الاتصال
         )
         print("PDF uploaded successfully:", result.get("secure_url"))
         return result.get("secure_url")

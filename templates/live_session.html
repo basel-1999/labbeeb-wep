@@ -1689,7 +1689,25 @@ function createTextInput(x, y, existingData = null) {
                 formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
                 if (audioFile) formData.append('audio', audioFile, audioFile.name);
 
-                const res = await fetch(`/api/session/complete/${sessionId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+                // ⏱️ حماية من التعليق الأبدي: لو ما رجع رد خلال 90 ثانية، نلغي الطلب ونطلع خطأ واضح
+                const abortController = new AbortController();
+                const timeoutId = setTimeout(() => abortController.abort(), 90000);
+                let res;
+                try {
+                    res = await fetch(`/api/session/complete/${sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData,
+                        signal: abortController.signal
+                    });
+                } catch (fetchErr) {
+                    if (fetchErr.name === 'AbortError') {
+                        throw new Error('استغرق الرفع وقتاً أطول من المتوقع (أكثر من 90 ثانية). تأكد من اتصال الإنترنت وحاول مجدداً.');
+                    }
+                    throw fetchErr;
+                } finally {
+                    clearTimeout(timeoutId);
+                }
                 if (!res.ok) throw new Error('فشل حفظ الجلسة في السيرفر');
 
                 updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
