@@ -3,17 +3,34 @@ from fastapi import FastAPI, Request, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware  # <-- 1. تم إضافة هذا الاستيراد هنا
 
 # استيراد راوترات الـ API
 from routers.api_router import router as api_router
 from routers.session_router import router as session_router
-
 from routers.payment_router import router as payment_router
 
 # ==========================================
 # 🚀 تهيئة تطبيق FastAPI
 # ==========================================
 app = FastAPI(title="منصة لبيب التعليمية")
+
+# ==========================================
+# 🌐 إعدادات CORS (السماح للوحة التحكم الخارجية)
+# ==========================================
+# <-- 2. أضفنا هذا الجزء هنا بعد app = FastAPI مباشرة
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://wondrous-kelpie-f32cff.netlify.app",
+        "http://localhost",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # إعداد المجلدات (للتأكد من وجودها عند أول تشغيل)
 os.makedirs("static", exist_ok=True)
@@ -49,8 +66,6 @@ async def auth_guard(request: Request):
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     
     return None
-
-
 
 # ==========================================
 # 🛣️ المسارات (Routes) - مطابقة لـ GoRouter
