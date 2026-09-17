@@ -94,6 +94,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                 </svg>
                 <span id="pointsBalance" class="text-xs sm:text-sm font-bold text-textDark">0 نقطة</span>
+                <span id="pointsTimeEquivalent" class="text-[10px] sm:text-[11px] text-gray-500">(0 د)</span>
                 <button onclick="openRechargeModal()" class="bg-accentOrange text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md shrink-0">+ شحن</button>
             </div>
 
@@ -395,12 +396,25 @@
         });
 
 
+        function formatPointsAsTime(points) {
+            // كل نقطة = 5 دقائق
+            const totalMinutes = Math.round(points * 5);
+            if (totalMinutes <= 0) return '0 د';
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            if (hours > 0 && minutes > 0) return `${hours} س ${minutes} د`;
+            if (hours > 0) return `${hours} س`;
+            return `${minutes} د`;
+        }
+
         function listenToWallet() {
             if (!currentUser) return;
             db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
                 if (doc.exists) {
                     const points = doc.data().points || 0;
                     document.getElementById('pointsBalance').innerText = `${points} نقطة`;
+                    const timeEl = document.getElementById('pointsTimeEquivalent');
+                    if (timeEl) timeEl.innerText = `(${formatPointsAsTime(points)})`;
                 }
             });
         }
@@ -456,7 +470,7 @@
 
                         // فرز الجلسات
                         if (status === 'completed') {
-                            lists.completed.push({ id: sessionId, data, completedMs: data.completedAt?.toDate?.().getTime() || 0 });
+                            lists.completed.push({ id: sessionId, data });
                         } else if (status === 'cancelled') {
                             lists.cancelled.push({ id: sessionId, data });
                         } else if (status === 'interrupted' || isExpired) {
@@ -476,7 +490,6 @@
 
                     // رسم القوائم
                     renderActiveSessions(lists.active);
-                    lists.completed.sort((a, b) => b.completedMs - a.completedMs);
                     renderCompletedSessions(lists.completed);
                     renderSimpleSessions('expired', lists.expired, "انتهت صلاحية الدخول");
                     renderSimpleSessions('cancelled', lists.cancelled, "تم إلغاء الطلب");
