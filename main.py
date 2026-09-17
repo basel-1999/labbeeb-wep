@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 
 # استيراد راوترات الـ API
 from routers.api_router import router as api_router
@@ -14,6 +15,19 @@ from routers.payment_router import router as payment_router
 # 🚀 تهيئة تطبيق FastAPI
 # ==========================================
 app = FastAPI(title="منصة لبيب التعليمية")
+
+# ==========================================
+# 🌐 CORS: السماح بنداءات من لوحة تحكم الأدمن (Flutter Web على Netlify) وأي واجهة أخرى
+# ==========================================
+# بدون هذا الـ Middleware، أي نداء من نطاق مختلف عن نطاق هذا السيرفر (مثل Netlify)
+# يُحجب من المتصفح برسالة CORS - حتى لو كان المسار نفسه موجود وشغّال بشكل صحيح.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # للسماح لأي واجهة (بما فيها Netlify)؛ يمكن تضييقها لاحقاً لنطاقات محددة فقط
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # إعداد المجلدات (للتأكد من وجودها عند أول تشغيل)
 os.makedirs("static", exist_ok=True)
