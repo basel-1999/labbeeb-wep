@@ -289,6 +289,71 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
             raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة لاحقاً.")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
+
+@router.post("/api/session/leave/{sessionId}")
+async def leave_session(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        session_snap = session_ref.get()
+
+        if not session_snap.exists:
+            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+
+        session_data = session_snap.to_dict()
+
+        if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
+            raise HTTPException(status_code=403, detail="غير مصرح لك بإنهاء هذه الجلسة.")
+
+        if session_data.get('status') not in ('completed', 'cancelled'):
+            session_ref.update({
+                'status': 'completed',
+                'completedAt': firestore.SERVER_TIMESTAMP
+            })
+
+        return {"message": "تم إنهاء الجلسة"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_str = str(e)
+        print(f"❌ ERROR in leave_session: {error_str}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
+
+
+@router.post("/api/session/interrupt/{sessionId}")
+async def interrupt_session(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        session_snap = session_ref.get()
+
+        if not session_snap.exists:
+            return {"message": "الجلسة غير موجودة، تم التجاهل"}
+
+        session_data = session_snap.to_dict()
+
+        is_student = session_data.get('studentId') == uid
+        is_teacher = session_data.get('teacherId') == uid
+
+        if not is_student and not is_teacher:
+            raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
+
+        if session_data.get('status') == 'completed':
+            return {"message": "الجلسة منتهية بالفعل"}
+
+        session_ref.update({
+            'status': 'interrupted',
+            'interruptedBy': 'teacher' if is_teacher else 'student'
+        })
+
+        return {"message": "تم تسجيل الانقطاع"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_str = str(e)
+        print(f"❌ ERROR in interrupt_session: {error_str}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
+
 @router.post("/api/session/cancel/{sessionId}")
 async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_user)):
     try:
