@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+from pydantic import BaseModel
+from pydantic import BaseModel
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import cloudinary
@@ -634,14 +637,22 @@ async def upload_to_cloudinary(
         raise HTTPException(status_code=500, detail=f"Cloudinary upload exception: {str(e)}")
 
 
+
+class SessionCompleteRequest(BaseModel):
+    audioUrl: Optional[str] = None
+    pdfUrl: Optional[str] = None
+
+
 @router.post("/api/session/complete/{sessionId}")
 async def complete_session(
     sessionId: str,
-    audio: Optional[UploadFile] = File(None),
-    pdf: Optional[UploadFile] = File(None),
+    payload: SessionCompleteRequest,
     uid: str = Depends(get_current_user)
 ):
-    """إنهاء الجلسة ورفع التسجيل الصوتي والسبورة PDF باستخدام المفاتيح الآمنة"""
+    """
+    إنهاء الجلسة وحفظ روابط الملفات (التي تم رفعها مباشرة من المتصفح لـ Cloudinary).
+    لا يستقبل ملفات ثقيلة إطلاقاً - فقط روابط نصية - لضمان سرعة الاستجابة.
+    """
     session_ref = db.collection('sessions').document(sessionId)
     session_snap = session_ref.get()
 
@@ -652,77 +663,21 @@ async def complete_session(
     if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
         raise HTTPException(status_code=403, detail="غير مصرح لك بإنهاء هذه الجلسة.")
 
-    audio_url = None
-    pdf_url = None
-
-    # ⚡ قراءة الملفين أولاً (سريعة)، ثم رفعهما لـ Cloudinary بالتوازي بدل التتابع
-    # cloudinary.uploader.upload سينكرونية (blocking)، فبنشغلها بخيط منفصل عبر asyncio.to_thread
-    # عشان الرفعتين يصيرن بنفس الوقت بدل ما توحدة تنتظر التانية
-
-    audio_bytes = await audio.read() if audio else None
-    pdf_bytes = await pdf.read() if pdf else None
-
-    def upload_audio(data: bytes):
-        print("Uploading Audio...")
-        result = cloudinary.uploader.upload(
-            data,
-            resource_type="video",
-            folder="session_audio",
-            timeout=60  # ⏱️ بدون هذا، الرفع ممكن يعلق للأبد بدون أي خطأ لو تعثر الاتصال بـ Cloudinary
-            # ✨ تم إزالة filename لأنها تسبب خطأ وانهيار للسيرفر
-        )
-        print("Audio uploaded successfully:", result.get("secure_url"))
-        return result.get("secure_url")
-
-    def upload_pdf(data: bytes):
-        print("Uploading PDF...")
-        result = cloudinary.uploader.upload(
-            data,
-            resource_type="auto",
-            folder="session_pdfs",
-            timeout=60  # ⏱️ نفس السبب: حماية من تعليق أبدي لو تعثر الاتصال
-        )
-        print("PDF uploaded successfully:", result.get("secure_url"))
-        return result.get("secure_url")
-
-    upload_tasks = []
-    if audio_bytes:
-        upload_tasks.append(asyncio.to_thread(upload_audio, audio_bytes))
-    if pdf_bytes:
-        upload_tasks.append(asyncio.to_thread(upload_pdf, pdf_bytes))
-
-    if upload_tasks:
-        results = await asyncio.gather(*upload_tasks, return_exceptions=True)
-        idx = 0
-        if audio_bytes:
-            r = results[idx]; idx += 1
-            if isinstance(r, Exception):
-                print(f"❌ Audio upload failed: {r}")
-            else:
-                audio_url = r
-        if pdf_bytes:
-            r = results[idx]; idx += 1
-            if isinstance(r, Exception):
-                print(f"❌ PDF upload failed: {r}")
-            else:
-                pdf_url = r
-
-    # تحديث حالة الجلسة
     update_data = {
         'status': 'completed',
         'completedAt': firestore.SERVER_TIMESTAMP
     }
-    if audio_url:
-        update_data['audioRecordingUrl'] = audio_url
-    if pdf_url:
-        update_data['boardPdfUrl'] = pdf_url
+    if payload.audioUrl:
+        update_data['audioRecordingUrl'] = payload.audioUrl
+    if payload.pdfUrl:
+        update_data['boardPdfUrl'] = payload.pdfUrl
 
     session_ref.update(update_data)
     print("Session completed successfully in Firestore!")
 
     # ✨ إرسال إشعار للطالب بتوفر ملف السبورة
     student_id = session_data.get('studentId')
-    if student_id and pdf_url:
+    if student_id and payload.pdfUrl:
         try:
             db.collection('users').document(student_id).collection('notifications').add({
                 'title': 'تمت إضافة ملخص حصة 📄',
@@ -730,8 +685,7 @@ async def complete_session(
                 'read': False,
                 'createdAt': firestore.SERVER_TIMESTAMP
             })
-            print("Notification sent to student.")
         except Exception as e:
             print(f"Failed to send notification: {e}")
 
-    return {"message": "تم إنهاء الجلسة بنجاح", "audioUrl": audio_url, "pdfUrl": pdf_url}
+    return {"message": "تم إنهاء الجلسة بنجاح", "audioUrl": payload.audioUrl, "pdfUrl": payload.pdfUrl}

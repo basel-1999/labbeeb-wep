@@ -321,13 +321,16 @@
                         <button onclick="startExportProcess()" class="bg-red-600 text-white font-bold px-4 py-2 rounded-lg text-sm">إنهاء وحفظ</button>
                     </div>
                 </div>
-                <div id="endModalProgress" class="hidden">
-                    <p id="progressStatus" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
-                    <div class="w-full bg-white/10 rounded-full h-2.5 mb-2">
-                        <div id="progressBar" class="bg-amber-400 h-2.5 rounded-full" style="width: 0%"></div>
-                    </div>
-                    <p id="progressPercent" class="text-white/50 text-xs text-right">0%</p>
+            <div id="endModalProgress" class="hidden">
+                <p id="progressStatus" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
+                <div class="w-full bg-white/10 rounded-full h-2.5 mb-2">
+                    <div id="progressBar" class="bg-amber-400 h-2.5 rounded-full" style="width: 0%"></div>
                 </div>
+                <p id="progressPercent" class="text-white/50 text-xs text-right">0%</p>
+                <div id="endModalRetry" class="hidden mt-4 flex justify-end">
+                    <button onclick="finalizeAndUpload()" class="bg-amber-500 text-black font-bold px-4 py-2 rounded-lg text-sm">إعادة المحاولة 🔁</button>
+                </div>
+            </div>
             </div>
         </div>
 
@@ -376,12 +379,19 @@
             let isMuted = false;
             let isScreenSharing = false;
             let screenShareUid = 0;
-            let elapsedSeconds = 0; 
-            let sessionTimer = null;
-            let agoraEngine = null;
-            let localAudioTrack = null;
-            let screenShareClient = null;
-            const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
+        let elapsedSeconds = 0; 
+        let sessionTimer = null;
+        let agoraEngine = null;
+        let localAudioTrack = null;
+        let screenShareClient = null;
+        const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
+
+        // ☁️ إعدادات الرفع المباشر لـ Cloudinary
+        const CLOUDINARY_CLOUD_NAME = 'f4t8ayoq';
+        const CLOUDINARY_UNSIGNED_PRESET_PDF = 'labeeb_pdf_unsigned';
+        const CLOUDINARY_UNSIGNED_PRESET_AUDIO = 'labeeb_audio_unsigned';
+        let pendingPdfBlob = null;
+        let pendingAudioFile = null;
 
             let draggingTextId = null;
             let dragOffsetX = 0;
@@ -1414,9 +1424,13 @@
                 db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
                     if (doc.exists) {
                         const data = doc.data();
-                        if (data.status === 'completed') {
-                            if (isFinalizingSession) return; // المعلم نفسه لسه بيرفع الملفات، ما نقطعوش
-                            showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
+                                           if (data.status === 'completed') {
+                        if (isFinalizingSession) return; // المعلم نفسه لسه بيرفع الملفات، ما نقطعوش
+                        if (isTeacher && data.teacherId === currentUser.uid && !data.audioRecordingUrl && !data.boardPdfUrl) {
+                            showSnackBar('⚠️ الحصة انتهت لكن حفظ الملفات لم يكتمل. لا تغلق الصفحة، وتواصل مع الدعم الفني إن استمرت المشكلة.', 'orange');
+                            return;
+                        }
+                        showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
                             if (agoraEngine) agoraEngine.leave();
                             if (screenShareClient) screenShareClient.leave();
                             clearInterval(sessionTimer);
@@ -1660,79 +1674,105 @@
                 else { db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() }); window.location.href = '/student-dashboard'; }
             }
             
-            async function startExportProcess() {
-                document.getElementById('endModalContent').classList.add('hidden');
-                document.getElementById('endModalProgress').classList.remove('hidden');
-                isFinalizingSession = true;
-                try {
-                    // 0️⃣ أول خطوة قبل أي رفع: إنهاء الجلسة رسمياً فوراً حتى يخرج الطالب على طول
-                    // ولا يستمر الخصم عليه بينما المعلم لسه برفع الملفات
-                    updateProgress(0.03, 'جاري إنهاء الجلسة للطرف الآخر...');
-                    const leaveToken = await currentUser.getIdToken();
-                    await fetch(`/api/session/leave/${sessionId}`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${leaveToken}` }
-                    });
+        function finalizeBeforeUnloadWarning(e) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
 
-                    // ⛔ إيقاف صريح فوري - لا داعي ننتظر أي طرف تاني يوقفهم
-                    if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
-                    if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
-
-                    updateProgress(0.10, 'جاري تجميع صفحات السبورة...');
-                    // نلتقط الصفحة الأخيرة (الحالية) إذا فيها محتوى، ونضيفها لكل الصفحات المحفوظة سابقاً
-                    const finalHasContent = currentStrokes.length > 0;
-                    const allPages = finalHasContent ? [...boardPages, canvas.toDataURL('image/png')] : [...boardPages];
-
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    if (allPages.length === 0) {
-                        // ما في أي محتوى مرسوم إطلاقاً بكل الحصة - نضيف صفحة بيضاء بدل PDF فاضي يسبب خطأ
-                        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
-                    } else {
-                        allPages.forEach((imgData, idx) => {
-                            if (idx > 0) pdf.addPage();
-                            pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-                        });
-                    }
-                    const pdfBlob = pdf.output('blob');
-
-                    updateProgress(0.30, 'جاري إيقاف التسجيل الصوتي...');
-                    const audioFile = await stopAudioRecording();
-
-                    updateProgress(0.45, 'جاري رفع الصوت والسبورة معاً... (قد يستغرق وقتاً حسب طول الحصة)');
-                    const token = await currentUser.getIdToken();
-                    const formData = new FormData();
-                    formData.append('pdf', pdfBlob, `session_${sessionId}_board.pdf`);
-                    if (audioFile) formData.append('audio', audioFile, audioFile.name);
-
-                    // ⏱️ حماية من التعليق الأبدي: لو ما رجع رد خلال 90 ثانية، نلغي الطلب ونطلع خطأ واضح
-                    const abortController = new AbortController();
-                    const timeoutId = setTimeout(() => abortController.abort(), 90000);
-                    let res;
-                    try {
-                        res = await fetch(`/api/session/complete/${sessionId}`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}` },
-                            body: formData,
-                            signal: abortController.signal
-                        });
-                    } catch (fetchErr) {
-                        if (fetchErr.name === 'AbortError') {
-                            throw new Error('استغرق الرفع وقتاً أطول من المتوقع (أكثر من 90 ثانية). تأكد من اتصال الإنترنت وحاول مجدداً.');
-                        }
-                        throw fetchErr;
-                    } finally {
-                        clearTimeout(timeoutId);
-                    }
-                    if (!res.ok) throw new Error('فشل حفظ الجلسة في السيرفر');
-
-                    updateProgress(0.90, 'تم الرفع بنجاح، جاري إغلاق الاتصال...');
-                    if (agoraEngine) await agoraEngine.leave();
-                    if (screenShareClient) await screenShareClient.leave();
-                    updateProgress(1.0, `تم حفظ ${allPages.length || 1} صفحة بنجاح! جاري تحويلك...`);
-                    setTimeout(() => window.location.href = '/teacher-dashboard', 500);
-                } catch (e) { showSnackBar('حدث خطأ أثناء الإغلاق: ' + e.message, 'red'); closeModal('endSessionModal'); }
+        async function uploadToCloudinaryDirect(file, resourceType, preset) {
+            const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', preset);
+            const res = await fetch(url, { method: 'POST', body: formData });
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                throw new Error(`فشل رفع الملف إلى Cloudinary (${res.status}): ${errText.slice(0, 150)}`);
             }
+            const data = await res.json();
+            return data.secure_url;
+        }
+
+        function showFinalizeError(message) {
+            document.getElementById('progressStatus').innerText = '❌ ' + message;
+            document.getElementById('endModalRetry').classList.remove('hidden');
+            showSnackBar('فشلت عملية الحفظ، اضغط "إعادة المحاولة" 🔁', 'red');
+        }
+
+        async function finalizeAndUpload() {
+            document.getElementById('endModalRetry').classList.add('hidden');
+            try {
+                updateProgress(0.50, 'جاري رفع ملف السبورة (PDF)...');
+                let pdfUrl = null;
+                if (pendingPdfBlob) {
+                    pdfUrl = await uploadToCloudinaryDirect(pendingPdfBlob, 'auto', CLOUDINARY_UNSIGNED_PRESET_PDF);
+                }
+
+                updateProgress(0.70, 'جاري رفع التسجيل الصوتي...');
+                let audioUrl = null;
+                if (pendingAudioFile) {
+                    audioUrl = await uploadToCloudinaryDirect(pendingAudioFile, 'video', CLOUDINARY_UNSIGNED_PRESET_AUDIO);
+                }
+
+                updateProgress(0.90, 'جاري حفظ الروابط في قاعدة البيانات...');
+                const token = await currentUser.getIdToken();
+                const res = await fetch(`/api/session/complete/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audioUrl, pdfUrl })
+                });
+                if (!res.ok) throw new Error('فشل حفظ الروابط في السيرفر');
+
+                updateProgress(1.0, 'تم الحفظ بنجاح! جاري تحويلك...');
+                if (agoraEngine) await agoraEngine.leave();
+                if (screenShareClient) await screenShareClient.leave();
+                window.removeEventListener('beforeunload', finalizeBeforeUnloadWarning);
+                setTimeout(() => window.location.href = '/teacher-dashboard', 500);
+            } catch (e) {
+                showFinalizeError(e.message);
+            }
+        }
+
+        async function startExportProcess() {
+            document.getElementById('endModalContent').classList.add('hidden');
+            document.getElementById('endModalProgress').classList.remove('hidden');
+            isFinalizingSession = true;
+            window.addEventListener('beforeunload', finalizeBeforeUnloadWarning);
+            try {
+                updateProgress(0.10, 'جاري إنهاء الجلسة للطرف الآخر...');
+                const leaveToken = await currentUser.getIdToken();
+                await fetch(`/api/session/leave/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${leaveToken}` }
+                });
+
+                if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
+                if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
+
+                updateProgress(0.25, 'جاري تجميع صفحات السبورة...');
+                const finalHasContent = currentStrokes.length > 0;
+                const allPages = finalHasContent ? [...boardPages, canvas.toDataURL('image/png')] : [...boardPages];
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                if (allPages.length === 0) {
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                } else {
+                    allPages.forEach((imgData, idx) => {
+                        if (idx > 0) pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+                    });
+                }
+                pendingPdfBlob = pdf.output('blob');
+
+                updateProgress(0.40, 'جاري إيقاف التسجيل الصوتي...');
+                pendingAudioFile = await stopAudioRecording();
+
+                await finalizeAndUpload();
+            } catch (e) {
+                showFinalizeError(e.message);
+            }
+        }
             
             function updateProgress(val, text) { document.getElementById('progressBar').style.width = `${val * 100}%`; document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`; document.getElementById('progressStatus').innerText = text; }
 
