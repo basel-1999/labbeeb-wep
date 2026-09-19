@@ -705,7 +705,6 @@ async def upload_to_cloudinary(
 
 class SessionCompleteRequest(BaseModel):
     audioUrl: Optional[str] = None
-    pdfUrl: Optional[str] = None
 
 
 @router.post("/api/session/complete/{sessionId}")
@@ -734,23 +733,21 @@ async def complete_session(
     }
     if payload.audioUrl:
         update_data['audioRecordingUrl'] = payload.audioUrl
-    if payload.pdfUrl:
-        update_data['boardPdfUrl'] = payload.pdfUrl
 
     session_ref.update(update_data)
     print("Session completed successfully in Firestore!")
 
-    # ✨ إرسال إشعار للطالب بتوفر ملف السبورة
+    # ✨ إرسال إشعار للطالب بتوفر ملخص الحصة
     student_id = session_data.get('studentId')
-    if student_id and payload.pdfUrl:
+    if student_id:
         try:
             db.collection('users').document(student_id).collection('notifications').add({
-                'title': 'تمت إضافة ملخص حصة 📄',
-                'body': f'تمت إضافة ملخص حصة {session_data.get("subject", "")} إلى حسابك جاهز للتحميل.',
+                'title': 'انتهت الحصة ✅',
+                'body': f'يمكنك الآن مراجعة ملخص السبورة لحصة {session_data.get("subject", "")}.',
                 'read': False,
                 'createdAt': firestore.SERVER_TIMESTAMP
             })
         except Exception as e:
             print(f"Failed to send notification: {e}")
 
-    return {"message": "تم إنهاء الجلسة بنجاح", "audioUrl": payload.audioUrl, "pdfUrl": payload.pdfUrl}
+    return {"message": "تم إنهاء الجلسة بنجاح", "audioUrl": payload.audioUrl}

@@ -114,6 +114,12 @@ async def live_session(request: Request, sessionId: str = "unknown_session", rol
         "is_teacher": is_teacher
     })
 
+@app.get("/board-viewer", response_class=HTMLResponse, dependencies=[Depends(auth_guard)])
+async def board_viewer(request: Request, sessionId: str = "unknown_session"):
+    """6️⃣ صفحة عرض ملخص السبورة (بديل PDF)"""
+    return templates.TemplateResponse(request=request, name="board_viewer.html", context={
+        "session_id": sessionId
+    })
 
 @app.get("/payment-success", response_class=HTMLResponse)
 async def payment_success(request: Request):

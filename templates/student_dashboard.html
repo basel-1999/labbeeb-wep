@@ -470,7 +470,10 @@
 
                         // فرز الجلسات
                         if (status === 'completed') {
-                            lists.completed.push({ id: sessionId, data });
+                            const completedMs = (data.completedAt && typeof data.completedAt.toDate === 'function')
+                                ? data.completedAt.toDate().getTime()
+                                : 0;
+                            lists.completed.push({ id: sessionId, data, completedMs });
                         } else if (status === 'cancelled') {
                             lists.cancelled.push({ id: sessionId, data });
                         } else if (status === 'interrupted' || isExpired) {
@@ -487,6 +490,9 @@
                     document.getElementById('count_completed').innerText = lists.completed.length;
                     document.getElementById('count_expired').innerText = lists.expired.length;
                     document.getElementById('count_cancelled').innerText = lists.cancelled.length;
+
+                    // ترتيب الحصص المكتملة: الأحدث (آخر حصة انتهت) في الأعلى دائماً
+                    lists.completed.sort((a, b) => b.completedMs - a.completedMs);
 
                     // رسم القوائم
                     renderActiveSessions(lists.active);
@@ -597,10 +603,8 @@
                 const date = data.date || 'سابقاً';
                 const rating = data.rating || '⭐⭐⭐⭐⭐';
                 const audioUrl = data.audioRecordingUrl || '';
-                const pdfUrl = data.boardPdfUrl || '';
-
                 const hasAudio = audioUrl && audioUrl.trim() !== '' && audioUrl !== 'null' && audioUrl !== 'undefined';
-                const hasPdf = pdfUrl && pdfUrl.trim() !== '' && pdfUrl !== 'null' && pdfUrl !== 'undefined';
+                const hasPdf = true; // السبورة دايماً متاحة للعرض (محفوظة كنقاط في قاعدة البيانات، مش كملف)
 
                 const card = `
                     <div class="bg-beigeCard p-4 rounded-2xl border border-gray-200">
@@ -618,9 +622,9 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 ${hasAudio ? 'استماع للدرس 🎙️' : 'لا يوجد تسجيل'}
                             </button>
-                            <button onclick="downloadPdf('${pdfUrl}')" ${hasPdf ? '' : 'disabled'} class="flex-1 ${hasPdf ? 'bg-oliveGreen text-white hover:bg-oliveLight' : 'bg-gray-300 text-white opacity-60'} text-[11px] sm:text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition">
+                            <button onclick="openBoardViewer('${id}')" class="flex-1 bg-oliveGreen text-white hover:bg-oliveLight text-[11px] sm:text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                ${hasPdf ? 'تحميل السبورة PDF 📄' : 'لا يوجد ملف للسبورة'}
+                                عرض ملخص السبورة 📄
                             </button>
                         </div>
                     </div>
@@ -796,27 +800,8 @@
             showSnackBar(`جاري تشغيل تسجيل: ${subject}`, '#4E6B45');
         }
 
-               function downloadPdf(url) {
-            if (!url || url.trim() === '' || url === 'null' || url === 'undefined') {
-                showSnackBar('عذراً، لم يتم رفع ملف السبورة لهذه الجلسة بعد 📄', '#D97706');
-                return;
-            }
-
-            let formattedUrl = url.trim();
-            if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-                formattedUrl = 'https://' + formattedUrl;
-            }
-
-            // ✨ طريقة جديدة لفتح الرابط تحل مشكلة 401
-            const a = document.createElement('a');
-            a.href = formattedUrl;
-            a.target = '_blank';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            showSnackBar('جاري فتح ملف السبورة... 📄', '#4E6B45');
+        function openBoardViewer(sessionId) {
+            window.open(`/board-viewer?sessionId=${sessionId}`, '_blank', 'noopener,noreferrer');
         }
 
         // Modal Logic

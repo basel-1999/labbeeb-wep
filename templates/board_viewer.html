@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض السبورة - منصة لبيب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #1E1E1E; color: white; }
+        #boardCanvas { background-color: white; width: 100%; height: 100%; display: block; }
+        @media print {
+            header, footer { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 shrink-0">
+        <h1 class="font-bold text-sm sm:text-base">📄 عرض ملخص السبورة</h1>
+        <div class="flex items-center gap-3">
+            <button onclick="window.print()" class="bg-amber-500 text-black text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg">طباعة / حفظ PDF 🖨️</button>
+        </div>
+    </header>
+
+    <main class="flex-1 relative bg-[#2A2A2A]">
+        <canvas id="boardCanvas"></canvas>
+        <div id="loadingMsg" class="absolute inset-0 flex items-center justify-center text-white/60 text-sm">جاري تحميل السبورة...</div>
+        <div id="emptyMsg" class="absolute inset-0 hidden flex items-center justify-center text-white/60 text-sm">لا توجد سبورة محفوظة لهذه الحصة.</div>
+    </main>
+
+    <footer class="bg-[#2C2C2C] h-14 flex items-center justify-center gap-4 shrink-0">
+        <button onclick="goToPage(currentPage - 1)" id="prevBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold">◀ السابقة</button>
+        <span id="pageIndicator" class="text-sm font-bold min-w-[80px] text-center">صفحة 1 / 1</span>
+        <button onclick="goToPage(currentPage + 1)" id="nextBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold">التالية ▶</button>
+    </footer>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+            authDomain: "labeeb-app-2026.firebaseapp.com",
+            projectId: "labeeb-app-2026",
+            storageBucket: "labeeb-app-2026.firebasestorage.app",
+            messagingSenderId: "201953565667",
+            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('sessionId') || '';
+
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let pagesData = {}; // { pageIndex: [stroke, stroke, ...] }
+        let pageNumbers = [];
+        let currentPage = 0;
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                loadBoard();
+            } else {
+                window.location.href = '/';
+            }
+        });
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            renderPage(currentPage);
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        async function loadBoard() {
+            if (!sessionId) {
+                document.getElementById('loadingMsg').classList.add('hidden');
+                document.getElementById('emptyMsg').classList.remove('hidden');
+                return;
+            }
+            try {
+                const snapshot = await db.collection('sessions').doc(sessionId).collection('strokes').orderBy('createdAt').get();
+                pagesData = {};
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const page = data.page || 0;
+                    if (!pagesData[page]) pagesData[page] = [];
+                    pagesData[page].push(data);
+                });
+                pageNumbers = Object.keys(pagesData).map(Number).sort((a, b) => a - b);
+
+                document.getElementById('loadingMsg').classList.add('hidden');
+                if (pageNumbers.length === 0) {
+                    document.getElementById('emptyMsg').classList.remove('hidden');
+                    return;
+                }
+                resizeCanvas();
+                goToPage(0);
+            } catch (e) {
+                document.getElementById('loadingMsg').innerText = 'تعذر تحميل السبورة: ' + e.message;
+            }
+        }
+
+        function goToPage(index) {
+            if (index < 0 || index >= pageNumbers.length) return;
+            currentPage = index;
+            renderPage(currentPage);
+            document.getElementById('pageIndicator').innerText = `صفحة ${currentPage + 1} / ${pageNumbers.length}`;
+            document.getElementById('prevBtn').disabled = currentPage === 0;
+            document.getElementById('nextBtn').disabled = currentPage === pageNumbers.length - 1;
+        }
+
+        function renderPage(index) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const pageKey = pageNumbers[index];
+            const strokes = pagesData[pageKey] || [];
+            strokes.forEach((data) => {
+                if (data.type === 'text') {
+                    ctx.font = `${data.fontSize || 18}px Cairo, sans-serif`;
+                    ctx.fillStyle = data.color;
+                    ctx.textBaseline = 'top';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(data.text, data.dx * canvas.width, data.dy * canvas.height);
+                } else if (data.type === 'shape') {
+                    drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
+                } else if (data.points) {
+                    drawStroke(data.points);
+                }
+            });
+        }
+
+        function drawStroke(stroke) {
+            if (stroke.length < 1) return;
+            ctx.beginPath();
+            ctx.lineWidth = stroke[0].strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = stroke[0].color;
+            ctx.moveTo(stroke[0].dx * canvas.width, stroke[0].dy * canvas.height);
+            for (let i = 1; i < stroke.length; i++) {
+                ctx.lineTo(stroke[i].dx * canvas.width, stroke[i].dy * canvas.height);
+            }
+            ctx.stroke();
+        }
+
+        function drawShape(type, x1, y1, x2, y2, color, width) {
+            ctx.beginPath();
+            ctx.lineWidth = width;
+            ctx.strokeStyle = color;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            const startX = x1 * canvas.width, startY = y1 * canvas.height;
+            const endX = x2 * canvas.width, endY = y2 * canvas.height;
+            const w = endX - startX, h = endY - startY;
+            switch (type) {
+                case 'rectangle': ctx.strokeRect(startX, startY, w, h); break;
+                case 'square': { const s = Math.max(Math.abs(w), Math.abs(h)); ctx.strokeRect(startX, startY, w < 0 ? -s : s, h < 0 ? -s : s); break; }
+                case 'circle': { const r = Math.sqrt(w * w + h * h); ctx.arc(startX, startY, r, 0, 2 * Math.PI); ctx.stroke(); break; }
+                case 'ellipse': ctx.ellipse(startX + w / 2, startY + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, 2 * Math.PI); ctx.stroke(); break;
+                case 'line': ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke(); break;
+                case 'triangle': ctx.moveTo(startX + w / 2, startY); ctx.lineTo(startX, startY + h); ctx.lineTo(startX + w, startY + h); ctx.closePath(); ctx.stroke(); break;
+                case 'diamond': ctx.moveTo(startX + w / 2, startY); ctx.lineTo(startX + w, startY + h / 2); ctx.lineTo(startX + w / 2, startY + h); ctx.lineTo(startX, startY + h / 2); ctx.closePath(); ctx.stroke(); break;
+                default: ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
+            }
+        }
+    </script>
+</body>
+</html>
