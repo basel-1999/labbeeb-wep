@@ -194,6 +194,15 @@
                         </div>
                         <span id="idText" class="text-sm text-gray-700">اختر الهوية الشخصية أو جواز السفر لرفعها</span>
                     </div>
+
+                    <!-- Experience Certificate Upload -->
+                    <input type="file" id="expInput" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="uploadFile('exp')">
+                    <div id="expUploadBox" onclick="document.getElementById('expInput').click()" class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
+                        <div id="expIcon" class="text-accentOrange">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                        </div>
+                        <span id="expText" class="text-sm text-gray-700">رفع أقوى شهادة خبرة (اضغط لاختيار ملف شهادة الخبرة)</span>
+                    </div>
                 </div>
             </div>
 
@@ -306,6 +315,9 @@
         let idUrl = null;
         let idName = '';
         let isProcessingIdFile = false;
+        let expCertUrl = null;
+        let expCertName = '';
+        let isProcessingExpFile = false;
 
         const citiesMap = {
             'المملكة العربية السعودية': ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام'],
@@ -315,11 +327,9 @@
 
         // 📚 قائمة المواد الموحدة (للطالب والمعلم)
         const subjects = [
-            'القرآن الكريم والتجويد', 'التربية الإسلامية', 'الفقه وأصوله', 'اللغة العربية', 'النحو والصرف', 'الأدب العربي',
-            'الرياضيات', 'الجبر', 'الهندسة', 'حساب التفاضل والتكامل', 'الإحصاء', 'الفيزياء', 'الكيمياء', 'الأحياء', 'العلوم العامة',
-            'اللغة الإنجليزية', 'اللغة الفرنسية', 'الجغرافيا', 'التاريخ', 'علم الاجتماع', 'الفلسفة والمنطق', 'التربية الوطنية والمدنية',
-            'الحاسب الآلي', 'البرمجة', 'الروبوتات والذكاء الاصطناعي', 'التربية الفنية', 'التربية الموسيقية', 'التربية البدنية',
-            'التربية الخاصة', 'صعوبات التعلم', 'رياض الأطفال', 'علم النفس', 'التوجيه والإرشاد'
+            'طب بشري', 'طب أسنان', 'هندسة', 'رياضيات', 'اللغة الإنجليزية', 'علوم', 'التربية الدينية',
+            'كيمياء', 'فيزياء', 'اللغة العربية', 'اللغة الفرنسية', 'تعليم أساسي (تربية أطفال)',
+            'الإحصاء', 'البرمجة', 'علم نفس', 'إدارة أعمال'
         ];
         let selectedSpecialties = [];
 
@@ -483,7 +493,7 @@
         // ☁️ Cloudinary Upload Logic (Calls FastAPI)
         // ==========================================
         async function uploadFile(type) {
-            const inputId = type === 'cert' ? 'certInput' : 'idInput';
+            const inputId = type === 'cert' ? 'certInput' : (type === 'id' ? 'idInput' : 'expInput');
             const fileInput = document.getElementById(inputId);
             const file = fileInput.files[0];
             if (!file) return;
@@ -495,11 +505,12 @@
             }
 
             if (type === 'cert') { isProcessingFile = true; document.getElementById('certText').innerText = 'جاري رفع الشهادة...'; }
-            else { isProcessingIdFile = true; document.getElementById('idText').innerText = 'جاري رفع الهوية / جواز السفر...'; }
+            else if (type === 'id') { isProcessingIdFile = true; document.getElementById('idText').innerText = 'جاري رفع الهوية / جواز السفر...'; }
+            else { isProcessingExpFile = true; document.getElementById('expText').innerText = 'جاري رفع شهادة الخبرة...'; }
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('folder', type === 'cert' ? 'certificates' : 'identity_documents');
+            formData.append('folder', type === 'cert' ? 'certificates' : (type === 'id' ? 'identity_documents' : 'experience_certificates'));
 
             try {
                 const token = await user.getIdToken();
@@ -518,13 +529,20 @@
                         document.getElementById('certText').classList.add('text-oliveGreen', 'font-bold');
                         document.getElementById('certIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
                         showSnackBar('تم رفع الشهادة بنجاح 📄', '#4E6B45');
-                    } else {
+                    } else if (type === 'id') {
                         idUrl = data.url;
                         idName = file.name;
                         document.getElementById('idText').innerText = `تم رفع الهوية: ${file.name}`;
                         document.getElementById('idText').classList.add('text-oliveGreen', 'font-bold');
                         document.getElementById('idIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
                         showSnackBar('تم رفع الهوية أو جواز السفر بنجاح 🪪', '#4E6B45');
+                    } else {
+                        expCertUrl = data.url;
+                        expCertName = file.name;
+                        document.getElementById('expText').innerText = `تم رفع شهادة الخبرة: ${file.name}`;
+                        document.getElementById('expText').classList.add('text-oliveGreen', 'font-bold');
+                        document.getElementById('expIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
+                        showSnackBar('تم رفع شهادة الخبرة بنجاح 🏅', '#4E6B45');
                     }
                 } else {
                     throw new Error(data.detail || 'Upload failed');
@@ -533,13 +551,17 @@
                 if (type === 'cert') {
                     document.getElementById('certText').innerText = 'فشل رفع الشهادة';
                     showSnackBar(`فشل رفع الملف: ${error.message}`, '#D97706');
-                } else {
+                } else if (type === 'id') {
                     document.getElementById('idText').innerText = 'فشل رفع الهوية';
                     showSnackBar(`فشل رفع ملف الهوية: ${error.message}`, '#D97706');
+                } else {
+                    document.getElementById('expText').innerText = 'فشل رفع شهادة الخبرة';
+                    showSnackBar(`فشل رفع شهادة الخبرة: ${error.message}`, '#D97706');
                 }
             } finally {
                 if (type === 'cert') isProcessingFile = false;
-                else isProcessingIdFile = false;
+                else if (type === 'id') isProcessingIdFile = false;
+                else isProcessingExpFile = false;
             }
         }
 
@@ -705,6 +727,8 @@
                     certificateName: certificateName,
                     identityUrl: idUrl,
                     identityFileName: idName,
+                    experienceCertificateUrl: expCertUrl,
+                    experienceCertificateName: expCertName,
                     status: 'pending_approval',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
@@ -813,8 +837,8 @@
                     !document.getElementById('city').value || 
                     selectedSpecialties.length === 0 || 
                     selectedTargetAges.length === 0 || 
-                    !certificateUrl || !idUrl) {
-                    showSnackBar('الرجاء إدخال كافة الحقول ورفع الشهادة والهوية المطلوبة', '#D97706');
+                    !certificateUrl || !idUrl || !expCertUrl) {
+                    showSnackBar('الرجاء إدخال كافة الحقول ورفع الشهادة والهوية وشهادة الخبرة المطلوبة', '#D97706');
                     return;
                 }
                 isSignUpMode = true;
