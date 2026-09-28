@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة تحكم الطالب - منصة لبيب</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -29,6 +29,7 @@
     </script>
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; color: #1E241B; }
+        html[lang="en"] body { font-family: 'Inter', sans-serif; }
         .modal { display: none; }
         .modal.active { display: flex; }
         .snackbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 14px 24px; border-radius: 12px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
@@ -81,7 +82,7 @@
                  class="h-14 w-18 sm:h-16 sm:w-500 object-contain shrink-0">
             
             <div class="min-w-0">
-                <p class="text-xs sm:text-sm text-gray-500 truncate">أهلاً بك يا طالبي المتميز 👋</p>
+                <p data-i18n="welcome_greeting" class="text-xs sm:text-sm text-gray-500 truncate">أهلاً بك يا طالبي المتميز 👋</p>
                 <p id="studentNameDisplay" class="text-sm sm:text-base font-bold text-textDark truncate">طالب لبيب</p>
             </div>
         </div>
@@ -95,7 +96,7 @@
                 </svg>
                 <span id="pointsBalance" class="text-xs sm:text-sm font-bold text-textDark">0 نقطة</span>
                 <span id="pointsTimeEquivalent" class="text-[10px] sm:text-[11px] text-gray-500">(0 د)</span>
-                <button onclick="openRechargeModal()" class="bg-accentOrange text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md shrink-0">+ شحن</button>
+               <button onclick="openRechargeModal()" data-i18n="recharge_btn" class="bg-accentOrange text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md shrink-0">+ شحن</button>
             </div>
 
             <!-- زر الإشعارات -->
@@ -116,8 +117,8 @@
         <!-- Welcome Card -->
         <div class="bg-oliveGreen rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <div class="text-white text-center sm:text-right">
-                <h2 class="text-base sm:text-lg font-bold mb-2">أهلاً بك في منصة لبيب التعليمية 🎁</h2>
-                <p class="text-xs sm:text-sm text-white/80 leading-relaxed">جاهز لرحلة الفهم الذكي؟ اطلب حصتك وتابع حالة قبول المعلمين بكل إنسيابية.</p>
+                <h2 data-i18n="welcome_title" class="text-base sm:text-lg font-bold mb-2">أهلاً بك في منصة لبيب التعليمية 🎁</h2>
+                <p data-i18n="welcome_desc" class="text-xs sm:text-sm text-white/80 leading-relaxed">جاهز لرحلة الفهم الذكي؟ اطلب حصتك وتابع حالة قبول المعلمين بكل إنسيابية.</p>
             </div>
             <div class="bg-white/15 p-3 rounded-xl shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
@@ -131,30 +132,30 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                    <h3 class="text-xs sm:text-sm font-bold text-textDark">تحتاج إلى شرح درس إضافي؟ 🧠</h3>
-                    <p class="text-[11px] sm:text-xs text-gray-500">اطلب حصة جديدة فوراً أو جدولها لوقت لاحق</p>
+                    <h3 data-i18n="new_class_title" class="text-xs sm:text-sm font-bold text-textDark">تحتاج إلى شرح درس إضافي؟ 🧠</h3>
+                    <p data-i18n="new_class_desc" class="text-[11px] sm:text-xs text-gray-500">اطلب حصة جديدة فوراً أو جدولها لوقت لاحق</p>
                 </div>
             </div>
             <button onclick="openBookingModal()" class="w-full bg-accentOrange text-white text-sm sm:text-base font-bold py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                طلب حصة جديدة الآن 🚀
+                <span data-i18n="new_class_btn">طلب حصة جديدة الآن 🚀</span>
             </button>
         </div>
 
         <!-- Student Sessions Tabs -->
-        <h3 class="text-base sm:text-lg font-bold text-textDark mb-3">🗓️ جلساتي وطلباتي</h3>
+        <h3 data-i18n="sessions_heading" class="text-base sm:text-lg font-bold text-textDark mb-3">🗓️ جلساتي وطلباتي</h3>
         <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
             <button onclick="switchStudentTab('active')" id="tab_btn_active" class="student-tab active">
-                نشطة <span id="count_active" class="student-tab-badge">0</span>
+                <span data-i18n="tab_active">نشطة</span> <span id="count_active" class="student-tab-badge">0</span>
             </button>
             <button onclick="switchStudentTab('completed')" id="tab_btn_completed" class="student-tab">
-                مكتملة <span id="count_completed" class="student-tab-badge">0</span>
+                <span data-i18n="tab_completed">مكتملة</span> <span id="count_completed" class="student-tab-badge">0</span>
             </button>
             <button onclick="switchStudentTab('expired')" id="tab_btn_expired" class="student-tab">
-                منتهية <span id="count_expired" class="student-tab-badge">0</span>
+                <span data-i18n="tab_expired">منتهية</span> <span id="count_expired" class="student-tab-badge">0</span>
             </button>
             <button onclick="switchStudentTab('cancelled')" id="tab_btn_cancelled" class="student-tab">
-                ملغاة <span id="count_cancelled" class="student-tab-badge">0</span>
+                <span data-i18n="tab_cancelled">ملغاة</span> <span id="count_cancelled" class="student-tab-badge">0</span>
             </button>
         </div>
         
@@ -168,7 +169,7 @@
     <!-- Floating Help Button -->
     <button onclick="openHelpModal()" class="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 bg-oliveGreen text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full shadow-lg flex items-center gap-1 sm:gap-2 hover:bg-oliveLight transition z-30">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" /></svg>
-        <span class="font-bold text-xs sm:text-sm">المساعدة</span>
+        <span data-i18n="help_btn" class="font-bold text-xs sm:text-sm">المساعدة</span>
         <span id="supportBadge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-white">0</span>
     </button>
 
@@ -176,9 +177,9 @@
     <!-- 1. Booking New Class Modal -->
     <div id="bookingModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md p-6 relative">
-            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg> حجز حصة تعليمية جديدة</h3>
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg> <span data-i18n="booking_modal_title">حجز حصة تعليمية جديدة</span></h3>
             
-            <label class="text-xs text-gray-500 block mb-2">اختر المادة الدراسية المطلوبة:</label>
+            <label data-i18n="booking_subject_label" class="text-xs text-gray-500 block mb-2">اختر المادة الدراسية المطلوبة:</label>
             <select id="bookingSubject" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                 <option>طب بشري</option><option>طب أسنان</option><option>هندسة</option>
                 <option>رياضيات</option><option>اللغة الإنجليزية</option><option>علوم</option>
@@ -187,7 +188,7 @@
                 <option>الإحصاء</option><option>البرمجة</option><option>علم نفس</option><option>إدارة أعمال</option>
             </select>
 
-            <label class="text-xs text-gray-500 block mb-2">ما هي مرحلتك الدراسية؟</label>
+            <label data-i18n="booking_grade_label" class="text-xs text-gray-500 block mb-2">ما هي مرحلتك الدراسية؟</label>
             <select id="bookingGrade" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                 <option value="">اختر الصف الدراسي</option>
                 <option>روضة الأطفال (تمهيدي)</option>
@@ -198,22 +199,22 @@
                 <option>التعليم الجامعي المستمر</option>
             </select>
 
-            <label class="text-xs text-gray-500 block mb-2">نوع الحجز:</label>
+            <label data-i18n="booking_type_label" class="text-xs text-gray-500 block mb-2">نوع الحجز:</label>
             <div class="flex gap-4 mb-4 text-sm">
-                <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="now" checked> فوراً ⚡</label>
-                <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="schedule"> مجدولة 🗓️</label>
+                <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="now" checked> <span data-i18n="booking_now">فوراً ⚡</span></label>
+                <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="schedule"> <span data-i18n="booking_schedule">مجدولة 🗓️</span></label>
             </div>
 
             <div id="scheduleFields" class="hidden mb-4">
-                <label class="text-xs text-gray-500 block mb-2">حدد موعد الحصة:</label>
+                <label data-i18n="booking_schedule_label" class="text-xs text-gray-500 block mb-2">حدد موعد الحصة:</label>
                 <div class="flex gap-2">
                     <input type="date" id="scheduleDate" class="flex-1 bg-beigeCard rounded-xl p-2 text-xs">
                     <input type="time" id="scheduleTime" class="flex-1 bg-beigeCard rounded-xl p-2 text-xs">
                 </div>
             </div>
             <div class="flex justify-end gap-3 mt-6">
-                <button onclick="closeModal('bookingModal')" class="text-gray-500 text-sm">إلغاء</button>
-                <button onclick="submitBooking()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">تأكيد الطلب 📥</button>
+                <button onclick="closeModal('bookingModal')" data-i18n="cancel_btn" class="text-gray-500 text-sm">إلغاء</button>
+                <button onclick="submitBooking()" data-i18n="confirm_request_btn" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">تأكيد الطلب 📥</button>
             </div>
         </div>
     </div>
@@ -225,15 +226,15 @@
             <button onclick="closeModal('rechargeModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-700 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <h3 class="font-bold text-lg mb-6 text-center">اختر طريقة شحن المحفظة</h3>
+            <h3 data-i18n="recharge_modal_title" class="font-bold text-lg mb-6 text-center">اختر طريقة شحن المحفظة</h3>
             <div class="grid grid-cols-1 gap-4">
                 <button onclick="openCardPaymentModal()" class="bg-oliveGreen text-white p-5 rounded-xl flex items-center justify-center gap-3 hover:bg-oliveLight transition shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                    <span class="text-base font-bold">دفع بالبطاقة (آلي وفوري)</span>
+                    <span data-i18n="pay_card_btn" class="text-base font-bold">دفع بالبطاقة (آلي وفوري)</span>
                 </button>
                 <button onclick="openBankTransferModal()" class="bg-gray-100 text-textDark p-5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-200 transition border border-gray-200">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m4-11v11m8-11v11m4-11v11" /></svg>
-                    <span class="text-base font-bold">تحويل بنكي (يدوي)</span>
+                    <span data-i18n="pay_bank_btn" class="text-base font-bold">تحويل بنكي (يدوي)</span>
                 </button>
             </div>
         </div>
@@ -247,9 +248,9 @@
             </button>
             <h3 class="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                الدفع بالبطاقة
+                <span data-i18n="card_payment_title">الدفع بالبطاقة</span>
             </h3>
-            <p class="text-xs text-gray-500 mb-4 text-center">سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.</p>
+            <p data-i18n="card_payment_desc" class="text-xs text-gray-500 mb-4 text-center">سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.</p>
             <div class="space-y-2 mb-6">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="cardPackage" value="6|50" checked> باقة 6 نقاط (50 ر.س)
@@ -261,9 +262,9 @@
                     <input type="radio" name="cardPackage" value="72|600"> باقة التفوق 72 نقطة (600 ر.س)
                 </label>
             </div>
-            <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
+                       <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                ادفع الآن
+                <span data-i18n="pay_now_btn">ادفع الآن</span>
             </button>
         </div>
     </div>
@@ -274,11 +275,12 @@
             <button onclick="closeModal('bankTransferModal')" class="absolute top-4 left-4 text-gray-400 hover:text-gray-700 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <h3 class="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m4-11v11m8-11v11m4-11v11" /></svg>
-                التحويل البنكي
+                <span data-i18n="bank_transfer_title">التحويل البنكي</span>
             </h3>
-            <p class="text-xs text-gray-500 mb-4">اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:</p>
+            <p data-i18n="bank_transfer_desc" class="text-xs text-gray-500 mb-4">اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:</p>
+          
             <div class="space-y-2 mb-4">
                 <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="bankPackage" value="6|باقة 6 نقاط (50 ر.س)" checked> باقة 6 نقاط (50 ر.س)
@@ -290,14 +292,14 @@
                     <input type="radio" name="bankPackage" value="72|باقة التفوق 72 نقطة (600 ر.س)"> باقة التفوق 72 نقطة (600 ر.س)
                 </label>
             </div>
-            <input type="text" id="referenceNumber" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
-            <label class="text-xs font-bold block mb-2">صورة إشعار التحويل (إجباري):</label>
+            <input type="text" id="referenceNumber" data-i18n-placeholder="reference_placeholder" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+            <label data-i18n="receipt_label" class="text-xs font-bold block mb-2">صورة إشعار التحويل (إجباري):</label>
             <input type="file" id="receiptImage" accept="image/*" class="hidden">
-            <div id="receiptUploadBox" onclick="document.getElementById('receiptImage').click()" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
+            <div id="receiptUploadBox" onclick="document.getElementById('receiptImage').click()" data-i18n="receipt_upload_hint" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
                 اضغط لرفع صورة الإشعار
             </div>
             <div class="flex justify-end gap-3 mt-6">
-                <button id="submitRechargeBtn" onclick="submitRecharge()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">إرسال للإدارة 📤</button>
+                <button id="submitRechargeBtn" onclick="submitRecharge()" data-i18n="submit_to_admin_btn" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg">إرسال للإدارة 📤</button>
             </div>
         </div>
     </div>
@@ -305,20 +307,20 @@
     <!-- 3. Notifications Modal -->
     <div id="notificationsModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6">
-            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> الإشعارات الحية</h3>
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> <span data-i18n="notifications_title">الإشعارات الحية</span></h3>
             <div id="notificationsList" class="space-y-3 text-sm text-gray-700 max-h-60 overflow-y-auto">
                 <p class="text-center text-gray-400">جاري تحميل الإشعارات...</p>
             </div>
-            <button onclick="closeModal('notificationsModal')" class="mt-6 w-full text-oliveGreen font-bold py-2 border border-oliveGreen rounded-xl">إغلاق</button>
+            <button onclick="closeModal('notificationsModal')" data-i18n="close_btn" class="mt-6 w-full text-oliveGreen font-bold py-2 border border-oliveGreen rounded-xl">إغلاق</button>
         </div>
     </div>
 
     <!-- 4. Student Files Modal -->
     <div id="studentFilesModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6">
-            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> ملفات الحصة 📁</h3>
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> <span data-i18n="files_title">ملفات الحصة 📁</span></h3>
             <div id="studentFilesList" class="space-y-3 text-sm text-gray-700 max-h-60 overflow-y-auto"></div>
-            <button onclick="closeModal('studentFilesModal')" class="mt-6 w-full text-oliveGreen font-bold py-2 border border-oliveGreen rounded-xl">إغلاق</button>
+            <button onclick="closeModal('studentFilesModal')" data-i18n="close_btn" class="mt-6 w-full text-oliveGreen font-bold py-2 border border-oliveGreen rounded-xl">إغلاق</button>
         </div>
     </div>
 
@@ -326,7 +328,7 @@
     <div id="helpModal" class="modal fixed inset-0 bg-black/50 z-50 items-end justify-center p-0">
         <div class="bg-white rounded-t-3xl w-full max-w-md h-[80vh] flex flex-col">
             <div class="bg-oliveGreen p-4 flex justify-between items-center rounded-t-3xl">
-                <h3 class="font-bold text-lg text-white">مركز الدعم الفني 🆘</h3>
+                <h3 data-i18n="support_title" class="font-bold text-lg text-white">مركز الدعم الفني 🆘</h3>
                 <button onclick="closeModal('helpModal')" class="text-white/80 hover:text-white">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -335,7 +337,7 @@
                 <p class="text-center text-gray-400 text-xs">جاري تحميل المحادثة...</p>
             </div>
             <div class="p-2 sm:p-3 bg-white border-t flex gap-2 items-center">
-                <input type="text" id="supportInput" onkeydown="handleSupportEnter(event)" placeholder="اكتب رسالتك هنا..." class="flex-1 min-w-0 bg-beigeCard rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                <input type="text" id="supportInput" onkeydown="handleSupportEnter(event)" data-i18n-placeholder="support_input_placeholder" placeholder="اكتب رسالتك هنا..." class="flex-1 min-w-0 bg-beigeCard rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                 <button onclick="sendSupportMessage()" class="bg-oliveGreen text-white p-2 rounded-xl hover:bg-oliveLight shrink-0 flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                 </button>
@@ -357,8 +359,195 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+                // ==========================================
+        // 🌐 نظام الترجمة (i18n)
+        // ==========================================
+        const translations = {
+            ar: {
+                welcome_greeting: "أهلاً بك يا طالبي المتميز 👋",
+                wallet_points_suffix: "نقطة",
+                recharge_btn: "+ شحن",
+                welcome_title: "أهلاً بك في منصة لبيب التعليمية 🎁",
+                welcome_desc: "جاهز لرحلة الفهم الذكي؟ اطلب حصتك وتابع حالة قبول المعلمين بكل إنسيابية.",
+                new_class_title: "تحتاج إلى شرح درس إضافي؟ 🧠",
+                new_class_desc: "اطلب حصة جديدة فوراً أو جدولها لوقت لاحق",
+                new_class_btn: "طلب حصة جديدة الآن 🚀",
+                sessions_heading: "🗓️ جلساتي وطلباتي",
+                tab_active: "نشطة",
+                tab_completed: "مكتملة",
+                tab_expired: "منتهية",
+                tab_cancelled: "ملغاة",
+                help_btn: "المساعدة",
+                booking_modal_title: "حجز حصة تعليمية جديدة",
+                booking_subject_label: "اختر المادة الدراسية المطلوبة:",
+                booking_grade_label: "ما هي مرحلتك الدراسية؟",
+                booking_type_label: "نوع الحجز:",
+                booking_now: "فوراً ⚡",
+                booking_schedule: "مجدولة 🗓️",
+                booking_schedule_label: "حدد موعد الحصة:",
+                cancel_btn: "إلغاء",
+                confirm_request_btn: "تأكيد الطلب 📥",
+                recharge_modal_title: "اختر طريقة شحن المحفظة",
+                pay_card_btn: "دفع بالبطاقة (آلي وفوري)",
+                pay_bank_btn: "تحويل بنكي (يدوي)",
+                card_payment_title: "الدفع بالبطاقة",
+                card_payment_desc: "سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.",
+                pay_now_btn: "ادفع الآن",
+                bank_transfer_title: "التحويل البنكي",
+                bank_transfer_desc: "اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:",
+                reference_placeholder: "رقم الإيصال أو المرجع البنكي",
+                receipt_label: "صورة إشعار التحويل (إجباري):",
+                receipt_upload_hint: "اضغط لرفع صورة الإشعار",
+                submit_to_admin_btn: "إرسال للإدارة 📤",
+                notifications_title: "الإشعارات الحية",
+                close_btn: "إغلاق",
+                files_title: "ملفات الحصة 📁",
+                support_title: "مركز الدعم الفني 🆘",
+                support_input_placeholder: "اكتب رسالتك هنا...",
+                no_active_requests: "لا توجد طلبات نشطة حالياً.",
+                pending_waiting_teacher: "الطلب معلق... بانتظار قبول المعلم ⏳",
+                searching_teacher: "جاري البحث عن معلم...",
+                cancel_request_btn: "إلغاء الطلب",
+                waiting_for_time: "بانتظار الموعد ⏳",
+                teacher_label: "المعلم:",
+                request_accepted: "تم قبول طلبك 🎉",
+                files_count_label: "الملفات",
+                calculating: "جاري الحساب...",
+                no_completed_sessions: "لا توجد حصص مكتملة بعد.",
+                lesson_word: "درس",
+                rating_label: "التقييم:",
+                listen_lesson_btn: "استماع للدرس 🎙️",
+                no_recording: "لا يوجد تسجيل",
+                view_board_summary_btn: "عرض ملخص السبورة 📄",
+                no_sessions_in_section: "لا توجد جلسات في هذا القسم.",
+                subject_word: "مادة",
+                expired_access: "انتهت صلاحية الدخول",
+                request_cancelled_status: "تم إلغاء الطلب",
+                time_up: "انتهى الوقت",
+                join_session_btn: "دخول الجلسة 🎙️",
+                starts_in: "يبدأ بعد:",
+                hour_word: "ساعة",
+                min_word: "د",
+                sec_word: "ث",
+                select_grade_first: "الرجاء اختيار مرحلتك الدراسية",
+                select_date_time: "الرجاء اختيار تاريخ ووقت الحصة",
+                sending_request: "جاري إرسال طلب الحصة...",
+                request_sent_success: "تم إرسال طلب الحصة بنجاح! بانتظار قبول المعلم ⏳",
+                request_failed: "فشل إنشاء الطلب في السيرفر.",
+                confirm_cancel_request: "هل أنت متأكد من إلغاء هذا الطلب؟",
+                cancel_success: "تم إلغاء الطلب بنجاح ✅",
+                preparing_payment: "جاري تجهيز صفحة الدفع الآمنة...",
+                enter_reference: "الرجاء إدخال رقم المرجع أو الإيصال",
+                upload_receipt_first: "الرجاء رفع صورة إشعار التحويل",
+                sending_dots: "جاري الإرسال...",
+                recharge_submitted: "تم إرسال طلب الشحن بنجاح! بانتظار مراجعة الإدارة ⏳",
+                no_valid_audio: "لا يوجد تسجيل صوتي صالح لهذه الجلسة",
+                playing_recording: "جاري تشغيل تسجيل:"
+            },
+            en: {
+                welcome_greeting: "Welcome, our outstanding student 👋",
+                wallet_points_suffix: "points",
+                recharge_btn: "+ Top Up",
+                welcome_title: "Welcome to Labeeb Educational Platform 🎁",
+                welcome_desc: "Ready for a smart learning journey? Request your session and track teacher approvals seamlessly.",
+                new_class_title: "Need extra help with a lesson? 🧠",
+                new_class_desc: "Request a session now or schedule it for later",
+                new_class_btn: "Request a New Session Now 🚀",
+                sessions_heading: "🗓️ My Sessions & Requests",
+                tab_active: "Active",
+                tab_completed: "Completed",
+                tab_expired: "Expired",
+                tab_cancelled: "Cancelled",
+                help_btn: "Help",
+                booking_modal_title: "Book a New Session",
+                booking_subject_label: "Choose the subject:",
+                booking_grade_label: "What is your grade level?",
+                booking_type_label: "Booking type:",
+                booking_now: "Now ⚡",
+                booking_schedule: "Scheduled 🗓️",
+                booking_schedule_label: "Choose the session date:",
+                cancel_btn: "Cancel",
+                confirm_request_btn: "Confirm Request 📥",
+                recharge_modal_title: "Choose a top-up method",
+                pay_card_btn: "Pay by Card (Instant)",
+                pay_bank_btn: "Bank Transfer (Manual)",
+                card_payment_title: "Card Payment",
+                card_payment_desc: "You will be redirected to a secure payment page via Tap Payments.",
+                pay_now_btn: "Pay Now",
+                bank_transfer_title: "Bank Transfer",
+                bank_transfer_desc: "Choose a package, transfer the amount, then attach the receipt and enter the reference number:",
+                reference_placeholder: "Receipt or bank reference number",
+                receipt_label: "Transfer receipt image (required):",
+                receipt_upload_hint: "Tap to upload the receipt image",
+                submit_to_admin_btn: "Submit to Admin 📤",
+                notifications_title: "Live Notifications",
+                close_btn: "Close",
+                files_title: "Session Files 📁",
+                support_title: "Support Center 🆘",
+                support_input_placeholder: "Type your message here...",
+                no_active_requests: "No active requests at the moment.",
+                pending_waiting_teacher: "Request pending... waiting for teacher approval ⏳",
+                searching_teacher: "Searching for a teacher...",
+                cancel_request_btn: "Cancel Request",
+                waiting_for_time: "Waiting for scheduled time ⏳",
+                teacher_label: "Teacher:",
+                request_accepted: "Your request has been accepted 🎉",
+                files_count_label: "Files",
+                calculating: "Calculating...",
+                no_completed_sessions: "No completed sessions yet.",
+                lesson_word: "Lesson",
+                rating_label: "Rating:",
+                listen_lesson_btn: "Listen to Recording 🎙️",
+                no_recording: "No recording available",
+                view_board_summary_btn: "View Board Summary 📄",
+                no_sessions_in_section: "No sessions in this section.",
+                subject_word: "Subject",
+                expired_access: "Access expired",
+                request_cancelled_status: "Request cancelled",
+                time_up: "Time is up",
+                join_session_btn: "Join Session 🎙️",
+                starts_in: "Starts in:",
+                hour_word: "h",
+                min_word: "m",
+                sec_word: "s",
+                select_grade_first: "Please select your grade level",
+                select_date_time: "Please select the session date and time",
+                sending_request: "Sending session request...",
+                request_sent_success: "Session request sent! Waiting for teacher approval ⏳",
+                request_failed: "Failed to create the request on the server.",
+                confirm_cancel_request: "Are you sure you want to cancel this request?",
+                cancel_success: "Request cancelled successfully ✅",
+                preparing_payment: "Preparing secure payment page...",
+                enter_reference: "Please enter the reference or receipt number",
+                upload_receipt_first: "Please upload the transfer receipt image",
+                sending_dots: "Sending...",
+                recharge_submitted: "Top-up request sent! Waiting for admin review ⏳",
+                no_valid_audio: "No valid audio recording for this session",
+                playing_recording: "Playing recording:"
+            }
+        };
+        let currentLang = 'ar';
+
+        function t(key) {
+            return (translations[currentLang] && translations[currentLang][key]) || translations['ar'][key] || key;
+        }
+
+        function applyLanguage(lang) {
+            currentLang = (lang === 'en') ? 'en' : 'ar';
+            document.documentElement.setAttribute('lang', currentLang);
+            document.documentElement.setAttribute('dir', currentLang === 'en' ? 'ltr' : 'rtl');
+            document.querySelectorAll('[data-i18n]').forEach((el) => {
+                el.innerText = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+                el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+            });
+        }
+
+
         let currentUser = null; 
         let displayName = "طالب لبيب";
+        let studentLanguage = 'ar';
         let activeSessionsInterval = null;
         let cancellingSessions = new Set();
 
@@ -376,7 +565,9 @@
                     if (userDoc.exists) {
                         const data = userDoc.data();
                         displayName = data.name || "طالب لبيب";
+                        studentLanguage = data.preferredLanguage || 'ar';
                         document.getElementById('studentNameDisplay').innerText = displayName;
+                        applyLanguage(studentLanguage);
                     }
                 } catch(e) {
                     console.error("Error fetching user profile:", e);
@@ -491,8 +682,8 @@
                     // رسم القوائم
                     renderActiveSessions(lists.active);
                     renderCompletedSessions(lists.completed);
-                    renderSimpleSessions('expired', lists.expired, "انتهت صلاحية الدخول");
-                    renderSimpleSessions('cancelled', lists.cancelled, "تم إلغاء الطلب");
+                    renderSimpleSessions('expired', lists.expired, t('expired_access'));
+                    renderSimpleSessions('cancelled', lists.cancelled, t('request_cancelled_status'));
 
                     // تشغيل العداد اللحظي
                     if (activeSessionsInterval) clearInterval(activeSessionsInterval);
@@ -514,7 +705,7 @@
         function renderActiveSessions(sessions) {
             const container = document.getElementById('tab_content_active');
             if (sessions.length === 0) {
-                container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">لا توجد طلبات نشطة حالياً.</div>`;
+                container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">${t('no_active_requests')}</div>`;
                 return;
             }
             container.innerHTML = '';
@@ -524,7 +715,7 @@
                 const hasTeacher = teacherName !== '' && teacherName !== 'null';
                 
                 let actionHtml = '';
-                let statusText = 'الطلب معلق... بانتظار قبول المعلم ⏳';
+                let statusText = t('pending_waiting_teacher');
                 let statusColor = 'text-gray-500';
                 let borderColor = 'border-accentOrange/30';
                 let bgColor = 'bg-accentOrange/10';
@@ -534,20 +725,20 @@
                     if (data.bookingType === 'now') {
                         actionHtml = `
                             <div class="flex flex-col items-end gap-1 shrink-0" id="waiting_box_${id}">
-                                <span id="wait_timer_${id}" class="bg-orange-50 text-accentOrange text-[11px] font-bold px-3 py-1 rounded-lg border border-orange-200 animate-pulse">جاري البحث عن معلم... 10:00</span>
-                                <button onclick="cancelSession('${id}')" class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-100 transition">إلغاء الطلب</button>
+                                <span id="wait_timer_${id}" class="bg-orange-50 text-accentOrange text-[11px] font-bold px-3 py-1 rounded-lg border border-orange-200 animate-pulse">${t('searching_teacher')} 10:00</span>
+                                <button onclick="cancelSession('${id}')" class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-100 transition">${t('cancel_request_btn')}</button>
                             </div>
                         `;
                     } else {
                         actionHtml = `
                             <div class="flex flex-col items-end gap-1 shrink-0">
-                                <span class="bg-gray-100 text-gray-500 text-[11px] font-bold px-3 py-1 rounded-lg border border-gray-200">بانتظار الموعد ⏳</span>
-                                <button onclick="cancelSession('${id}')" class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-100 transition">إلغاء الطلب</button>
+                                <span class="bg-gray-100 text-gray-500 text-[11px] font-bold px-3 py-1 rounded-lg border border-gray-200">${t('waiting_for_time')}</span>
+                                <button onclick="cancelSession('${id}')" class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-100 transition">${t('cancel_request_btn')}</button>
                             </div>
                         `;
                     }
                 } else {
-                    statusText = hasTeacher ? `المعلم: ${teacherName} 🎉` : 'تم قبول طلبك 🎉';
+                    statusText = hasTeacher ? `${t('teacher_label')} ${teacherName} 🎉` : t('request_accepted');
                     statusColor = 'text-green-700 font-bold';
                     borderColor = 'border-green-500/50';
                     bgColor = 'bg-green-500/10';
@@ -557,14 +748,13 @@
                     let filesBtn = `
                         <button onclick="openStudentFilesModal('${id}')" class="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-2 rounded-xl border border-blue-200 flex items-center gap-1 mb-1 w-full justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                            الملفات (${filesCount})
+                            ${t('files_count_label')} (${filesCount})
                         </button>
                     `;
                     actionHtml = `
                         <div class="flex flex-col items-end gap-1 shrink-0 w-28 sm:w-32">
                             ${filesBtn}
-                            <div id="timer_${id}" class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 w-full text-center">جاري الحساب...</div>
-                        </div>
+                            <div id="timer_${id}" class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 w-full text-center">${t('calculating')}</div>
                     `;
                 }
 
@@ -574,7 +764,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 ${iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h4 class="text-xs sm:text-sm font-bold text-textDark truncate">مادة ${subject}</h4>
+                            <h4 class="text-xs sm:text-sm font-bold text-textDark truncate">${t('subject_word')} ${subject}</h4>
                             <p class="text-[11px] sm:text-xs ${statusColor}">${statusText}</p>
                         </div>
                         ${actionHtml}
@@ -587,7 +777,7 @@
         function renderCompletedSessions(sessions) {
             const container = document.getElementById('tab_content_completed');
             if (sessions.length === 0) {
-                container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">لا توجد حصص مكتملة بعد.</div>`;
+                container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">${t('no_completed_sessions')}</div>`;
                 return;
             }
             container.innerHTML = '';
@@ -605,20 +795,20 @@
                         <div class="flex items-center mb-3 gap-3">
                             <div class="bg-oliveGreen p-2 rounded-full shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /></svg></div>
                             <div class="min-w-0">
-                                <h4 class="text-sm font-bold truncate">درس ${subject}</h4>
-                                <p class="text-xs text-gray-500 truncate">المعلم: ${teacher} • ${date}</p>
-                                <p class="text-xs text-accentOrange">التقييم: ${rating}</p>
+                                <h4 class="text-sm font-bold truncate">${t('lesson_word')} ${subject}</h4>
+                                <p class="text-xs text-gray-500 truncate">${t('teacher_label')} ${teacher} • ${date}</p>
+                                <p class="text-xs text-accentOrange">${t('rating_label')} ${rating}</p>
                             </div>
                         </div>
                         <hr class="my-3">
                         <div class="flex flex-col sm:flex-row gap-2">
                             <button onclick="playAudio('${audioUrl}', '${subject}')" ${hasAudio ? '' : 'disabled'} class="flex-1 border ${hasAudio ? 'border-oliveGreen text-oliveGreen hover:bg-oliveGreen/10' : 'border-gray-400 text-gray-500 opacity-60'} text-[11px] sm:text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                ${hasAudio ? 'استماع للدرس 🎙️' : 'لا يوجد تسجيل'}
+                                ${hasAudio ? t('listen_lesson_btn') : t('no_recording')}
                             </button>
                             <button onclick="openBoardViewer('${id}')" class="flex-1 bg-oliveGreen text-white hover:bg-oliveLight text-[11px] sm:text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                عرض ملخص السبورة 📄
+                                ${t('view_board_summary_btn')}
                             </button>
                         </div>
                     </div>
@@ -630,7 +820,7 @@
         function renderSimpleSessions(tabName, sessions, statusText) {
             const container = document.getElementById(`tab_content_${tabName}`);
             if (sessions.length === 0) {
-                container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">لا توجد جلسات في هذا القسم.</div>`;
+                container.innerHTML = `<div class="bg-white p-5 rounded-2xl border border-gray-300 text-center text-sm text-gray-500">${t('no_sessions_in_section')}</div>`;
                 return;
             }
             container.innerHTML = '';
@@ -642,7 +832,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h4 class="text-xs sm:text-sm font-bold text-textDark truncate">مادة ${subject}</h4>
+                            <h4 class="text-xs sm:text-sm font-bold text-textDark truncate">${t('subject_word')} ${subject}</h4>
                             <p class="text-[11px] sm:text-xs text-gray-500">${statusText}</p>
                         </div>
                     </div>
@@ -656,7 +846,7 @@
             if (!timerDiv) return;
 
             if (!createdAt || typeof createdAt.toDate !== 'function') {
-                timerDiv.innerText = "جاري البحث عن معلم... 10:00";
+                timerDiv.innerText = `${t('searching_teacher')} 10:00`;
                 return;
             }
 
@@ -669,9 +859,9 @@
             const secs = remainingSecs % 60;
             
             if (remainingSecs > 0) {
-                timerDiv.innerText = `جاري البحث عن معلم... ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                timerDiv.innerText = `${t('searching_teacher')} ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
             } else {
-                timerDiv.innerText = "انتهى الوقت";
+                timerDiv.innerText = t('time_up');
                 autoCancelSession(sessionId);
             }
         }
@@ -688,7 +878,7 @@
                 timerDiv.outerHTML = `
                     <button onclick="joinSession('${sessionId}')" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1 w-full justify-center animate-pulse">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        دخول الجلسة 🎙️
+                        ${t('join_session_btn')}
                     </button>
                 `;
             } else if (diffMins > 5) {
@@ -697,11 +887,11 @@
                 const secs = Math.floor((diffMs % 60000) / 1000);
                 
                 let timeStr = '';
-                if (hours > 0) timeStr += `${hours} ساعة `;
-                if (mins > 0 || hours > 0) timeStr += `${mins.toString().padStart(2, '0')} د `;
-                timeStr += `${secs.toString().padStart(2, '0')} ث`;
+                if (hours > 0) timeStr += `${hours} ${t('hour_word')} `;
+                if (mins > 0 || hours > 0) timeStr += `${mins.toString().padStart(2, '0')} ${t('min_word')} `;
+                timeStr += `${secs.toString().padStart(2, '0')} ${t('sec_word')}`;
                 
-                timerDiv.innerText = `يبدأ بعد: ${timeStr}`;
+                timerDiv.innerText = `${t('starts_in')} ${timeStr}`;
                 timerDiv.className = "bg-orange-50 text-accentOrange text-xs font-bold px-3 py-2 rounded-xl border border-orange-200 w-full text-center";
             } else {
                 const card = document.getElementById(`card_${sessionId}`);
@@ -713,8 +903,8 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h4 class="text-xs sm:text-sm font-bold text-textDark truncate">مادة ${subject}</h4>
-                            <p class="text-[11px] sm:text-xs text-gray-500">انتهت صلاحية الدخول</p>
+                            <h4 class="text-xs sm:text-sm font-bold text-textDark truncate">${t('subject_word')} ${subject}</h4>
+                            <p class="text-[11px] sm:text-xs text-gray-500">${t('expired_access')}</p>
                         </div>
                     `;
                     document.getElementById('tab_content_expired').prepend(card);
@@ -750,7 +940,7 @@
         }
 
         async function cancelSession(sessionId) {
-            if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
+            if (!confirm(t('confirm_cancel_request'))) return;
             
             try {
                 const token = await currentUser.getIdToken();
@@ -760,7 +950,7 @@
                 });
 
                 if (res.ok) {
-                    showSnackBar('تم إلغاء الطلب بنجاح ✅', '#4E6B45');
+                    showSnackBar(t('cancel_success'), '#4E6B45');
                 } else {
                     let errorMsg = 'فشل الإلغاء في السيرفر.';
                     try {
@@ -783,7 +973,7 @@
 
         function playAudio(url, subject) {
             if (!url || url.trim() === '' || url === 'null' || url === 'undefined') {
-                showSnackBar('لا يوجد تسجيل صوتي صالح لهذه الجلسة', '#D97706');
+                showSnackBar(t('no_valid_audio'), '#D97706');
                 return;
             }
             let formattedUrl = url.trim();
@@ -791,7 +981,7 @@
                 formattedUrl = 'https://' + formattedUrl;
             }
             window.open(formattedUrl, '_blank', 'noopener,noreferrer');
-            showSnackBar(`جاري تشغيل تسجيل: ${subject}`, '#4E6B45');
+            showSnackBar(`${t('playing_recording')} ${subject}`, '#4E6B45');
         }
 
         function openBoardViewer(sessionId) {
@@ -816,21 +1006,21 @@
             const grade = document.getElementById('bookingGrade').value; 
             const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
             
-            if (!grade) { showSnackBar('الرجاء اختيار مرحلتك الدراسية', '#D97706'); return; } 
+            if (!grade) { showSnackBar(t('select_grade_first'), '#D97706'); return; }
 
             let scheduledDate = null;
             if (bookingType === 'schedule') {
                 const dateVal = document.getElementById('scheduleDate').value;
                 const timeVal = document.getElementById('scheduleTime').value;
                 if (!dateVal || !timeVal) {
-                    showSnackBar('الرجاء اختيار تاريخ ووقت الحصة', '#D97706');
+                    showSnackBar(t('select_date_time'), '#D97706');
                     return;
                 }
                 scheduledDate = new Date(`${dateVal}T${timeVal}`);
             }
 
             closeModal('bookingModal');
-            showSnackBar('جاري إرسال طلب الحصة...', '#4E6B45');
+            showSnackBar(t('sending_request'), '#4E6B45');
 
             try {
                 const token = await currentUser.getIdToken();
@@ -839,6 +1029,7 @@
                 formData.append('subject', subject);
                 formData.append('topic', subject);
                 formData.append('grade', grade); 
+                formData.append('language', studentLanguage);
 
                 const response = await fetch('/api/session/create', {
                     method: 'POST',
@@ -847,7 +1038,7 @@
                 });
 
                 if (!response.ok) {
-                    let errorMsg = 'فشل إنشاء الطلب في السيرفر.';
+                    let errorMsg = t('request_failed');
                     try {
                         const err = await response.json();
                         errorMsg = err.detail || errorMsg;
@@ -872,7 +1063,7 @@
                     });
                 }
 
-                showSnackBar(`تم إرسال طلب الحصة بنجاح! بانتظار قبول المعلم ⏳\nمعرّف الجلسة: ${sessionId.substring(0, 8)}...`, '#4E6B45');
+                showSnackBar(`${t('request_sent_success')}\n${sessionId.substring(0, 8)}...`, '#4E6B45');
 
             } catch (e) {
                 showSnackBar(`❌ فشل الطلب: ${e.message}`, '#ef4444');
@@ -906,7 +1097,7 @@
             const pointsCount = parseInt(pointsCountStr);
             const amount = parseFloat(amountStr);
 
-            showSnackBar('جاري تجهيز صفحة الدفع الآمنة...', '#4E6B45');
+            showSnackBar(t('preparing_payment'), '#4E6B45');
 
             try {
                 const token = await currentUser.getIdToken();
@@ -947,11 +1138,11 @@
             const fileInput = document.getElementById('receiptImage');
             const submitBtn = document.getElementById('submitRechargeBtn');
 
-            if (!refNum) { showSnackBar('الرجاء إدخال رقم المرجع أو الإيصال', '#D97706'); return; }
-            if (!fileInput.files[0]) { showSnackBar('الرجاء رفع صورة إشعار التحويل', '#D97706'); return; }
+            if (!refNum) { showSnackBar(t('enter_reference'), '#D97706'); return; }
+            if (!fileInput.files[0]) { showSnackBar(t('upload_receipt_first'), '#D97706'); return; }
 
             submitBtn.disabled = true;
-            submitBtn.innerText = 'جاري الإرسال...';
+            submitBtn.innerText = t('sending_dots');
 
             try {
                 const token = await currentUser.getIdToken();
@@ -982,7 +1173,7 @@
                 });
                 
                 closeModal('bankTransferModal');
-                showSnackBar('تم إرسال طلب الشحن بنجاح! بانتظار مراجعة الإدارة ⏳', '#4E6B45');
+                showSnackBar(t('recharge_submitted'), '#4E6B45');
                 
                 document.getElementById('referenceNumber').value = '';
                 document.getElementById('receiptImage').value = '';
@@ -992,7 +1183,7 @@
                 showSnackBar(`حدث خطأ: ${e.message}`, '#ef4444');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerText = 'إرسال للإدارة 📤';
+                submitBtn.innerText = t('submit_to_admin_btn');
             }
         }
         

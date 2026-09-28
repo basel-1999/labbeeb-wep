@@ -93,14 +93,15 @@
                 
                 <label class="text-sm font-bold block mb-2">رقم الجوال لتسجيل الدخول</label>
                 <div class="flex items-center bg-beigeCard rounded-xl overflow-hidden">
-                    <select id="countryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
-                        <option value="+966">🇸🇦 +966</option>
-                        <option value="+970">🇵🇸 +970</option>
-                        <option value="+971">🇦🇪 +971</option>
-                        <option value="+965">🇰🇼 +965</option>
-                        <option value="+962">🇯🇴 +962</option>
-                        <option value="+20">🇪🇬 +20</option>
-                    </select>
+                <select id="countryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
+                    <option value="+974">قطر +974</option>
+                    <option value="+966">السعودية +966</option>
+                    <option value="+970">فلسطين +970</option>
+                    <option value="+971">الإمارات +971</option>
+                    <option value="+965">الكويت +965</option>
+                    <option value="+962">الأردن +962</option>
+                    <option value="+20">مصر +20</option>
+                </select>
                     <div class="h-5 w-px bg-gray-300 mx-1"></div>
                     <input type="tel" id="phoneNumber" placeholder="5xxxxxxxx" class="bg-transparent py-3 px-2 flex-1 focus:outline-none text-sm">
                 </div>
@@ -177,6 +178,72 @@
                         <div id="targetAgeList" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
                     </div>
 
+                    <!-- لغة التدريس -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">هل تستطيع التدريس باللغة العربية أم الإنجليزية (انترناشونال)؟</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" id="lang_ar" onclick="selectTeachingLanguage('العربية')"
+                                class="teaching-lang-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🇸🇦</span>
+                                <span>العربية</span>
+                            </button>
+                            <button type="button" id="lang_en" onclick="selectTeachingLanguage('الإنجليزية (انترناشونال)')"
+                                class="teaching-lang-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🌍</span>
+                                <span>English (International)</span>
+                            </button>
+                            <button type="button" id="lang_both" onclick="selectTeachingLanguage('كلاهما')"
+                                class="teaching-lang-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🌐</span>
+                                <span>كلاهما</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- الأجهزة المملوكة -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">هل تمتلك جهاز (هاتف محمول , تابلت , لابتوب)؟ (يمكنك اختيار أكثر من جهاز):</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" id="dev_phone" onclick="toggleDeviceSelection('هاتف محمول')"
+                                class="device-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">📱</span>
+                                <span>هاتف محمول</span>
+                            </button>
+                            <button type="button" id="dev_tablet" onclick="toggleDeviceSelection('تابلت')"
+                                class="device-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">📟</span>
+                                <span>تابلت</span>
+                            </button>
+                            <button type="button" id="dev_laptop" onclick="toggleDeviceSelection('لابتوب')"
+                                class="device-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">💻</span>
+                                <span>لابتوب</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- الدرجة العلمية العليا -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">هل تمتلك درجة علمية عليا (ماجستير، دكتوراه)؟</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" id="deg_none" onclick="selectAcademicDegree('لا أملك')"
+                                class="degree-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🚫</span>
+                                <span>لا أملك</span>
+                            </button>
+                            <button type="button" id="deg_master" onclick="selectAcademicDegree('ماجستير')"
+                                class="degree-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🎓</span>
+                                <span>ماجستير</span>
+                            </button>
+                            <button type="button" id="deg_phd" onclick="selectAcademicDegree('دكتوراه')"
+                                class="degree-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🧑‍🏫</span>
+                                <span>دكتوراه</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Certificate Upload -->
                     <input type="file" id="certInput" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="uploadFile('cert')">
                     <div id="certUploadBox" onclick="document.getElementById('certInput').click()" class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
@@ -184,6 +251,17 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                         </div>
                         <span id="certText" class="text-sm text-gray-700">اختر الشهادة لرفعها مباشرة</span>
+                    </div>
+
+                    <!-- Advanced Degree Certificate Upload (يظهر فقط إذا ماجستير/دكتوراه) -->
+                    <div id="advDegreeUploadContainer" class="hidden">
+                        <input type="file" id="advDegInput" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="uploadFile('advDeg')">
+                        <div id="advDegUploadBox" onclick="document.getElementById('advDegInput').click()" class="flex items-center gap-3 p-3 rounded-xl border border-accentGold/40 cursor-pointer hover:bg-accentGold/5">
+                            <div id="advDegIcon" class="text-accentGold">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>
+                            </div>
+                            <span id="advDegText" class="text-sm text-gray-700">اختر ملف شهادة الماجستير/الدكتوراه لرفعها</span>
+                        </div>
                     </div>
 
                     <!-- ID Upload -->
@@ -216,9 +294,9 @@
                 <button onclick="window.location.href='/'" class="border border-oliveGreen text-oliveGreen font-bold py-2 px-6 rounded-xl hover:bg-oliveGreen hover:text-white transition">العودة للرئيسية</button>
             </div>
 
-            <!-- Step 4: Subject & Timing (Student) -->
+            <!-- Step 4: Student Profile Completion -->
             <div id="step-4" class="step-content hidden-step">
-                <h2 class="text-lg font-bold mb-3">تحديد تفاصيل وموعد الحصة الدراسية</h2>
+                <h2 class="text-lg font-bold mb-3">أكمل بياناتك الأساسية</h2>
                 
                 <div class="mb-4">
                     <label class="text-sm font-bold text-oliveGreen block mb-1">1. ما اسمك؟</label>
@@ -226,12 +304,7 @@
                 </div>
 
                 <div class="mb-4">
-                    <label class="text-sm font-bold text-oliveGreen block mb-1">2. أ. اختر المادة التعليمية:</label>
-                    <div id="subjectList" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="text-sm font-bold text-oliveGreen block mb-1">2. ب. ما هي مرحلتك الدراسية؟</label>
+                    <label class="text-sm font-bold text-oliveGreen block mb-1">2. ما هي مرحلتك الدراسية؟</label>
                     <select id="studentGrade" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                         <option value="">اختر الصف الدراسي</option>
                         <option>روضة الأطفال (تمهيدي)</option>
@@ -251,15 +324,11 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="text-sm font-bold text-oliveGreen block mb-1">3. متى ترغب في بدء الحصة؟</label>
+                <div class="mt-4">
+                    <label class="text-sm font-bold text-oliveGreen block mb-1">3. لغة الدراسة المفضلة:</label>
                     <div class="flex gap-2">
-                        <button id="btnNow" onclick="setBookingType('now')" class="flex-1 py-2 border rounded-xl text-sm font-bold">فوراً الآن</button>
-                        <button id="btnSchedule" onclick="setBookingType('schedule')" class="flex-1 py-2 border rounded-xl text-sm font-bold">جدولة لوقت لاحق</button>
-                    </div>
-                    <div id="scheduleFields" class="hidden mt-3 flex gap-2">
-                        <input type="date" id="scheduleDate" class="flex-1 bg-beigeCard rounded-xl py-2 px-3 text-sm focus:outline-none">
-                        <input type="time" id="scheduleTime" class="flex-1 bg-beigeCard rounded-xl py-2 px-3 text-sm focus:outline-none">
+                        <button type="button" id="langBtnAr" onclick="selectStudentLanguage('ar')" class="flex-1 py-2 border rounded-xl text-sm font-bold bg-oliveGreen text-white border-oliveGreen">العربية</button>
+                        <button type="button" id="langBtnEn" onclick="selectStudentLanguage('en')" class="flex-1 py-2 border rounded-xl text-sm font-bold bg-white text-textDark border-gray-300">English (International)</button>
                     </div>
                 </div>
             </div>
@@ -303,11 +372,21 @@
         let selectedCountryCode = '+966';
         let timerInterval = null;
         let secondsLeft = 59;
-
+        let appVerifier = null;
         let selectedCountry = null;
         let selectedCity = null;
         let selectedSubject = null;
         let bookingType = 'now';
+        let selectedStudentLanguage = 'ar';
+
+        function selectStudentLanguage(lang) {
+            selectedStudentLanguage = lang;
+            const arBtn = document.getElementById('langBtnAr');
+            const enBtn = document.getElementById('langBtnEn');
+            const activate = (btn) => { btn.classList.add('bg-oliveGreen', 'text-white', 'border-oliveGreen'); btn.classList.remove('bg-white', 'text-textDark', 'border-gray-300'); };
+            const deactivate = (btn) => { btn.classList.remove('bg-oliveGreen', 'text-white', 'border-oliveGreen'); btn.classList.add('bg-white', 'text-textDark', 'border-gray-300'); };
+            if (lang === 'ar') { activate(arBtn); deactivate(enBtn); } else { activate(enBtn); deactivate(arBtn); }
+        }
         
         let certificateUrl = null;
         let certificateName = '';
@@ -318,6 +397,9 @@
         let expCertUrl = null;
         let expCertName = '';
         let isProcessingExpFile = false;
+        let advDegUrl = null;
+        let advDegName = '';
+        let isProcessingAdvDegFile = false;
 
         const citiesMap = {
             'المملكة العربية السعودية': ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام'],
@@ -342,6 +424,74 @@
             'التعليم الجامعي المستمر'
         ];
         let selectedTargetAges = [];
+        let selectedTeachingLanguage = null;
+        let selectedDevices = [];
+        let selectedAcademicDegree = null;
+
+        // ==========================================
+        // 🌐 لغة التدريس (اختيار واحد من ثلاثة)
+        // ==========================================
+        function selectTeachingLanguage(lang) {
+            selectedTeachingLanguage = lang;
+            document.querySelectorAll('.teaching-lang-btn').forEach(btn => {
+                btn.classList.remove('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+                btn.classList.add('border-gray-200', 'bg-white', 'text-textDark');
+            });
+            const map = { 'العربية': 'lang_ar', 'الإنجليزية (انترناشونال)': 'lang_en', 'كلاهما': 'lang_both' };
+            const activeBtn = document.getElementById(map[lang]);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-gray-200', 'bg-white', 'text-textDark');
+                activeBtn.classList.add('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+            }
+        }
+
+        // ==========================================
+        // 📱 الأجهزة المملوكة (اختيار متعدد)
+        // ==========================================
+        function toggleDeviceSelection(device) {
+            const map = { 'هاتف محمول': 'dev_phone', 'تابلت': 'dev_tablet', 'لابتوب': 'dev_laptop' };
+            const btnId = map[device];
+            const btn = document.getElementById(btnId);
+
+            if (selectedDevices.includes(device)) {
+                selectedDevices = selectedDevices.filter(d => d !== device);
+                btn.classList.remove('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+                btn.classList.add('border-gray-200', 'bg-white', 'text-textDark');
+            } else {
+                selectedDevices.push(device);
+                btn.classList.remove('border-gray-200', 'bg-white', 'text-textDark');
+                btn.classList.add('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+            }
+        }
+
+        // ==========================================
+        // 🎓 الدرجة العلمية العليا (وإظهار/إخفاء رفع الشهادة)
+        // ==========================================
+        function selectAcademicDegree(degree) {
+            selectedAcademicDegree = degree;
+            document.querySelectorAll('.degree-btn').forEach(btn => {
+                btn.classList.remove('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+                btn.classList.add('border-gray-200', 'bg-white', 'text-textDark');
+            });
+            const map = { 'لا أملك': 'deg_none', 'ماجستير': 'deg_master', 'دكتوراه': 'deg_phd' };
+            const activeBtn = document.getElementById(map[degree]);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-gray-200', 'bg-white', 'text-textDark');
+                activeBtn.classList.add('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+            }
+
+            const uploadContainer = document.getElementById('advDegreeUploadContainer');
+            if (degree === 'ماجستير' || degree === 'دكتوراه') {
+                uploadContainer.classList.remove('hidden');
+            } else {
+                uploadContainer.classList.add('hidden');
+                document.getElementById('advDegInput').value = '';
+                document.getElementById('advDegText').innerText = 'اختر ملف شهادة الماجستير/الدكتوراه لرفعها';
+                document.getElementById('advDegText').classList.remove('text-oliveGreen', 'font-bold');
+                advDegUrl = null;
+                advDegName = '';
+            }
+        }
 
         // دالة رسم أزرار المواد/التخصصات
         function renderList(array, containerId, selectedArray) {
@@ -430,7 +580,7 @@
 
             // Update Button Text
             const btnText = document.getElementById('btnText');
-            if (step === 4) btnText.innerText = 'تأكيد الحصة والدخول الفوري 🚀';
+            if (step === 4) btnText.innerText = 'حفظ بياناتي والمتابعة ✅';
             else if (step === 2) btnText.innerText = 'تقديم طلب الحساب للمراجعة ✨';
             else if (step === 3) btnText.innerText = ''; // Hide button on step 3
             else btnText.innerText = 'استمرار للمرحلة التالية';
@@ -493,8 +643,12 @@
         // ☁️ Cloudinary Upload Logic (Calls FastAPI)
         // ==========================================
         async function uploadFile(type) {
-            const inputId = type === 'cert' ? 'certInput' : (type === 'id' ? 'idInput' : 'expInput');
-            const fileInput = document.getElementById(inputId);
+            const inputMap = { cert: 'certInput', id: 'idInput', exp: 'expInput', advDeg: 'advDegInput' };
+            const textMap = { cert: 'certText', id: 'idText', exp: 'expText', advDeg: 'advDegText' };
+            const iconMap = { cert: 'certIcon', id: 'idIcon', exp: 'expIcon', advDeg: 'advDegIcon' };
+            const folderMap = { cert: 'certificates', id: 'identity_documents', exp: 'experience_certificates', advDeg: 'advanced_degrees' };
+
+            const fileInput = document.getElementById(inputMap[type]);
             const file = fileInput.files[0];
             if (!file) return;
 
@@ -504,13 +658,18 @@
                 return;
             }
 
-            if (type === 'cert') { isProcessingFile = true; document.getElementById('certText').innerText = 'جاري رفع الشهادة...'; }
-            else if (type === 'id') { isProcessingIdFile = true; document.getElementById('idText').innerText = 'جاري رفع الهوية / جواز السفر...'; }
-            else { isProcessingExpFile = true; document.getElementById('expText').innerText = 'جاري رفع شهادة الخبرة...'; }
+            const textEl = document.getElementById(textMap[type]);
+            const loadingLabels = { cert: 'جاري رفع الشهادة...', id: 'جاري رفع الهوية / جواز السفر...', exp: 'جاري رفع شهادة الخبرة...', advDeg: 'جاري رفع شهادة الدرجة العلمية...' };
+            textEl.innerText = loadingLabels[type];
+
+            if (type === 'cert') isProcessingFile = true;
+            else if (type === 'id') isProcessingIdFile = true;
+            else if (type === 'exp') isProcessingExpFile = true;
+            else isProcessingAdvDegFile = true;
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('folder', type === 'cert' ? 'certificates' : (type === 'id' ? 'identity_documents' : 'experience_certificates'));
+            formData.append('folder', folderMap[type]);
 
             try {
                 const token = await user.getIdToken();
@@ -522,46 +681,44 @@
                 const data = await response.json();
                 
                 if (data.url) {
-                    if (type === 'cert') {
-                        certificateUrl = data.url;
-                        certificateName = file.name;
-                        document.getElementById('certText').innerText = `تم رفع الشهادة: ${file.name}`;
-                        document.getElementById('certText').classList.add('text-oliveGreen', 'font-bold');
-                        document.getElementById('certIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
-                        showSnackBar('تم رفع الشهادة بنجاح 📄', '#4E6B45');
-                    } else if (type === 'id') {
-                        idUrl = data.url;
-                        idName = file.name;
-                        document.getElementById('idText').innerText = `تم رفع الهوية: ${file.name}`;
-                        document.getElementById('idText').classList.add('text-oliveGreen', 'font-bold');
-                        document.getElementById('idIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
-                        showSnackBar('تم رفع الهوية أو جواز السفر بنجاح 🪪', '#4E6B45');
-                    } else {
-                        expCertUrl = data.url;
-                        expCertName = file.name;
-                        document.getElementById('expText').innerText = `تم رفع شهادة الخبرة: ${file.name}`;
-                        document.getElementById('expText').classList.add('text-oliveGreen', 'font-bold');
-                        document.getElementById('expIcon').classList.replace('text-accentOrange', 'text-oliveGreen');
-                        showSnackBar('تم رفع شهادة الخبرة بنجاح 🏅', '#4E6B45');
-                    }
+                    if (type === 'cert') { certificateUrl = data.url; certificateName = file.name; }
+                    else if (type === 'id') { idUrl = data.url; idName = file.name; }
+                    else if (type === 'exp') { expCertUrl = data.url; expCertName = file.name; }
+                    else { advDegUrl = data.url; advDegName = file.name; }
+
+                    const successLabels = {
+                        cert: `تم رفع الشهادة: ${file.name}`,
+                        id: `تم رفع الهوية: ${file.name}`,
+                        exp: `تم رفع شهادة الخبرة: ${file.name}`,
+                        advDeg: `تم رفع شهادة الدرجة العلمية: ${file.name}`
+                    };
+                    textEl.innerText = successLabels[type];
+                    textEl.classList.add('text-oliveGreen', 'font-bold');
+                    document.getElementById(iconMap[type]).classList.replace('text-accentOrange', 'text-oliveGreen');
+                    const successMsgs = {
+                        cert: 'تم رفع الشهادة بنجاح 📄',
+                        id: 'تم رفع الهوية أو جواز السفر بنجاح 🪪',
+                        exp: 'تم رفع شهادة الخبرة بنجاح 🏅',
+                        advDeg: 'تم رفع شهادة الدرجة العلمية بنجاح 🎓'
+                    };
+                    showSnackBar(successMsgs[type], '#4E6B45');
                 } else {
                     throw new Error(data.detail || 'Upload failed');
                 }
             } catch (error) {
-                if (type === 'cert') {
-                    document.getElementById('certText').innerText = 'فشل رفع الشهادة';
-                    showSnackBar(`فشل رفع الملف: ${error.message}`, '#D97706');
-                } else if (type === 'id') {
-                    document.getElementById('idText').innerText = 'فشل رفع الهوية';
-                    showSnackBar(`فشل رفع ملف الهوية: ${error.message}`, '#D97706');
-                } else {
-                    document.getElementById('expText').innerText = 'فشل رفع شهادة الخبرة';
-                    showSnackBar(`فشل رفع شهادة الخبرة: ${error.message}`, '#D97706');
-                }
+                const failLabels = {
+                    cert: 'فشل رفع الشهادة',
+                    id: 'فشل رفع الهوية',
+                    exp: 'فشل رفع شهادة الخبرة',
+                    advDeg: 'فشل رفع شهادة الدرجة العلمية'
+                };
+                textEl.innerText = failLabels[type];
+                showSnackBar(`فشل رفع الملف: ${error.message}`, '#D97706');
             } finally {
                 if (type === 'cert') isProcessingFile = false;
                 else if (type === 'id') isProcessingIdFile = false;
-                else isProcessingExpFile = false;
+                else if (type === 'exp') isProcessingExpFile = false;
+                else isProcessingAdvDegFile = false;
             }
         }
 
@@ -590,19 +747,27 @@
             return `${selectedCountryCode}${cleaned}`;
         }
 
-        function sendOtp(rawPhone) {
-            toggleLoading(true);
-            selectedCountryCode = document.getElementById('countryCode').value;
-            const fullPhone = normalizePhone(rawPhone);
+function sendOtp(rawPhone) {
+    toggleLoading(true);
+    selectedCountryCode = document.getElementById('countryCode').value;
+    const fullPhone = normalizePhone(rawPhone);
 
-            const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                'size': 'invisible',
-                'callback': (response) => {
-                    // reCAPTCHA solved
-                }
-            });
+    // ✨ نشيل البوابة القديمة (لو موجودة) قبل ما ننشئ وحدة جديدة
+    if (appVerifier) {
+        appVerifier.clear();
+        appVerifier = null;
+    }
+    const recaptchaContainer = document.getElementById('recaptcha-container');
+    recaptchaContainer.innerHTML = ''; // تنظيف إضافي للتأكد
 
-            auth.signInWithPhoneNumber(fullPhone, appVerifier)
+    appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible',
+        'callback': (response) => {
+            // reCAPTCHA solved
+        }
+    });
+
+    auth.signInWithPhoneNumber(fullPhone, appVerifier)
                 .then((result) => {
                     confirmationResult = result;
                     verificationId = result.verificationId;
@@ -714,7 +879,7 @@
 
         async function registerTeacherDirectly(user, phone) {
             try {
-                await db.collection('users').doc(user.uid).set({
+                const userData = {
                     uid: user.uid,
                     name: document.getElementById('fullName').value.trim(),
                     phone: phone,
@@ -723,15 +888,24 @@
                     city: document.getElementById('city').value,
                     subjects: selectedSpecialties, 
                     targetAge: selectedTargetAges, 
+                    teachingLanguage: selectedTeachingLanguage,
+                    ownedDevices: selectedDevices,
+                    academicDegree: selectedAcademicDegree,
                     certificates: certificateUrl ? [certificateUrl] : [],
-                    certificateName: certificateName,
+                    certificateUrl: certificateUrl,
                     identityUrl: idUrl,
                     identityFileName: idName,
                     experienceCertificateUrl: expCertUrl,
                     experienceCertificateName: expCertName,
                     status: 'pending_approval',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+                };
+
+                if (advDegUrl) {
+                    userData.advancedDegreeCertificateUrl = advDegUrl;
+                }
+
+                await db.collection('users').doc(user.uid).set(userData, { merge: true });
 
                 toggleLoading(false);
                 goToStep(3);
@@ -743,75 +917,32 @@
             }
         }
 
-        async function createSessionRequest() {
+        async function completeStudentProfile() {
             const user = auth.currentUser;
             if (!user) return;
 
             const studentName = document.getElementById('studentName').value.trim();
-            const subject = selectedSubject;
             const studentGrade = document.getElementById('studentGrade').value;
 
             if (!studentName) { showSnackBar('الرجاء إدخال اسمك أولاً للمتابعة', '#D97706'); return; }
-            if (!subject) { showSnackBar('الرجاء اختيار المادة التعليمية أولاً', '#D97706'); return; }
             if (!studentGrade) { showSnackBar('الرجاء اختيار مرحلتك الدراسية', '#D97706'); return; }
-            if (bookingType === 'schedule' && (!document.getElementById('scheduleDate').value || !document.getElementById('scheduleTime').value)) {
-                showSnackBar('الرجاء اختيار تاريخ ووقت الحصة', '#D97706'); return;
-            }
 
             toggleLoading(true);
             try {
                 await db.collection('users').doc(user.uid).set({
                     name: studentName,
                     grade: studentGrade,
+                    preferredLanguage: selectedStudentLanguage,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
-                const token = await user.getIdToken();
-                const formData = new FormData();
-                formData.append('studentName', studentName);
-                formData.append('subject', subject);
-                formData.append('topic', subject);
-                formData.append('grade', studentGrade);
-
-                const response = await fetch('/api/session/create', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'فشل إنشاء الطلب');
-                }
-
-                const result = await response.json();
-                const sessionId = result.sessionId;
-
-                if (bookingType === 'schedule') {
-                    const dateStr = document.getElementById('scheduleDate').value;
-                    const timeStr = document.getElementById('scheduleTime').value;
-                    await db.collection('sessions').doc(sessionId).update({
-                        bookingType: 'schedule',
-                        scheduledAt: firebase.firestore.Timestamp.fromDate(new Date(`${dateStr}T${timeStr}`)),
-                        scheduledTime: timeStr
-                    });
-                }
-
                 const nameEncoded = encodeURIComponent(studentName);
-                const subjectEncoded = encodeURIComponent(subject);
-                window.location.href = `/student-dashboard?uid=${user.uid}&name=${nameEncoded}&subject=${subjectEncoded}&type=${bookingType}`;
+                window.location.href = `/student-dashboard?uid=${user.uid}&name=${nameEncoded}`;
 
             } catch (error) {
-                console.error('Create Session Error:', error);
+                console.error('Complete Profile Error:', error);
                 toggleLoading(false);
-                
-                showSnackBar(`تم تسجيلك بنجاح، ولكن: ${error.message}. سيتم تحويلك للشحن.`, '#D97706');
-                
-                const fallbackName = encodeURIComponent(studentName);
-                const fallbackSubject = encodeURIComponent(subject || 'الرياضيات');
-                setTimeout(() => {
-                    window.location.href = `/student-dashboard?uid=${user.uid}&name=${fallbackName}&subject=${fallbackSubject}&type=${bookingType}`;
-                }, 3000);
+                showSnackBar(`حدث خطأ أثناء حفظ بياناتك: ${error.message}`, '#ef4444');
             }
         }
 
@@ -837,8 +968,15 @@
                     !document.getElementById('city').value || 
                     selectedSpecialties.length === 0 || 
                     selectedTargetAges.length === 0 || 
+                    !selectedTeachingLanguage ||
+                    selectedDevices.length === 0 ||
+                    !selectedAcademicDegree ||
                     !certificateUrl || !idUrl || !expCertUrl) {
-                    showSnackBar('الرجاء إدخال كافة الحقول ورفع الشهادة والهوية وشهادة الخبرة المطلوبة', '#D97706');
+                    showSnackBar('الرجاء إدخال كافة الحقول واختيار لغة التدريس والأجهزة والدرجة العلمية ورفع الشهادة والهوية وشهادة الخبرة المطلوبة', '#D97706');
+                    return;
+                }
+                if ((selectedAcademicDegree === 'ماجستير' || selectedAcademicDegree === 'دكتوراه') && !advDegUrl) {
+                    showSnackBar('يرجى رفع ملف شهادة الدرجة العلمية العليا (الماجستير/الدكتوراه)', '#D97706');
                     return;
                 }
                 isSignUpMode = true;
@@ -851,7 +989,7 @@
                 }
             } 
             else if (currentStep === 4) {
-                createSessionRequest();
+                completeStudentProfile();
             }
         }
     </script>

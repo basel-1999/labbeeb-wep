@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>بوابة المعلم - منصة لبيب</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Firebase Web SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -32,6 +32,7 @@
     </script>
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; color: #1E241B; }
+        html[lang="en"] body { font-family: 'Inter', sans-serif; }
         .modal { display: none; }
         .modal.active { display: flex; }
         .snackbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 14px 24px; border-radius: 12px; color: white; font-weight: bold; z-index: 9999; animation: slideUp 0.3s ease-out; }
@@ -81,8 +82,8 @@
                      class="h-14 w-14 sm:h-16 sm:w-16 object-contain shrink-0">
                 
                 <div class="min-w-0">
-                    <h1 class="text-sm sm:text-base font-bold text-oliveGreen truncate">منصة لبيب</h1>
-                    <p class="text-xs sm:text-sm text-gray-500 truncate">بوابة المعلم</p>
+                    <h1 data-i18n-t="portal_title" class="text-sm sm:text-base font-bold text-oliveGreen truncate">منصة لبيب</h1>
+                    <p data-i18n-t="portal_subtitle" class="text-xs sm:text-sm text-gray-500 truncate">بوابة المعلم</p>
                 </div>
             </div>
 
@@ -126,6 +127,65 @@
                 </div>
 
                 <div>
+                    <label class="text-sm font-bold block mb-2">هل تستطيع التدريس باللغة العربية أم الإنجليزية (انترناشونال)؟</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="langDash_ar" onclick="selectTeachingLanguageDash('العربية')" class="teaching-lang-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">🇸🇦</span>
+                            <span>العربية</span>
+                        </button>
+                        <button type="button" id="langDash_en" onclick="selectTeachingLanguageDash('الإنجليزية (انترناشونال)')" class="teaching-lang-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">🌍</span>
+                            <span>English (International)</span>
+                        </button>
+                        <button type="button" id="langDash_both" onclick="selectTeachingLanguageDash('كلاهما')" class="teaching-lang-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">🌐</span>
+                            <span>كلاهما</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-bold block mb-2">هل تمتلك جهاز (هاتف محمول , تابلت , لابتوب)؟ (يمكنك اختيار أكثر من جهاز):</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="devDash_phone" onclick="toggleDeviceSelectionDash('هاتف محمول')" class="device-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">📱</span>
+                            <span>هاتف محمول</span>
+                        </button>
+                        <button type="button" id="devDash_tablet" onclick="toggleDeviceSelectionDash('تابلت')" class="device-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">📟</span>
+                            <span>تابلت</span>
+                        </button>
+                        <button type="button" id="devDash_laptop" onclick="toggleDeviceSelectionDash('لابتوب')" class="device-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">💻</span>
+                            <span>لابتوب</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-bold block mb-2">هل تمتلك درجة علمية عليا (ماجستير، دكتوراه)؟</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="degDash_none" onclick="selectAcademicDegreeDash('لا أملك')" class="degree-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">🚫</span>
+                            <span>لا أملك</span>
+                        </button>
+                        <button type="button" id="degDash_master" onclick="selectAcademicDegreeDash('ماجستير')" class="degree-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">🎓</span>
+                            <span>ماجستير</span>
+                        </button>
+                        <button type="button" id="degDash_phd" onclick="selectAcademicDegreeDash('دكتوراه')" class="degree-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                            <span class="text-2xl">🧑‍🏫</span>
+                            <span>دكتوراه</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-bold block mb-1">سنوات الخبرة</label>
+                    <input type="number" id="experienceInput" class="w-full bg-beigeCard rounded-lg p-3 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-oliveGreen" placeholder="عدد سنوات الخبرة">
+                </div>
+
+                <div>
                     <label class="text-sm font-bold block mb-1">سنوات الخبرة</label>
                     <input type="number" id="experienceInput" class="w-full bg-beigeCard rounded-lg p-3 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-oliveGreen" placeholder="عدد سنوات الخبرة">
                 </div>
@@ -136,6 +196,15 @@
                         اضغط لاختيار ملف الشهادة (PDF / الصورة)
                     </div>
                 </div>
+
+                <div id="advDegreeUploadContainerDash" class="hidden">
+                    <label class="text-sm font-bold block mb-2">شهادة الدرجة العلمية العليا (إجباري):</label>
+                    <input type="file" id="advDegreeCertificateInput" accept="image/*,.pdf" class="hidden">
+                    <div id="advDegUploadBoxDash" onclick="document.getElementById('advDegreeCertificateInput').click()" class="border-2 border-dashed border-accentGold/50 rounded-lg p-4 text-center text-sm text-accentGold cursor-pointer hover:bg-accentGold/5">
+                        اضغط لاختيار ملف شهادة الماجستير/الدكتوراه
+                    </div>
+                </div>
+                
                 <button id="submitRegBtn" onclick="submitRegistration()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-oliveLight transition">
                     <span id="regBtnText">إرسال الطلب للاعتماد</span>
                     <svg id="regBtnSpinner" class="hidden animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -146,11 +215,11 @@
         <!-- State 3: Pending Approval -->
         <div id="pendingApproval" class="hidden max-w-md mx-auto bg-white rounded-2xl shadow-md p-8 text-center mt-10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-accentOrange mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <h2 class="text-xl font-bold text-textDark mb-2">طلبك قيد المراجعة</h2>
-            <p class="text-sm text-gray-500 mb-6">شكراً لتقديمك! يتم حالياً تدقيق شهاداتك وبياناتك من قبل فريق منصة "لبيب". سنقوم بتفعيل لوحة تحكمك فور الاعتماد.</p>
+            <h2 data-i18n-t="pending_title" class="text-xl font-bold text-textDark mb-2">طلبك قيد المراجعة</h2>
+            <p data-i18n-t="pending_desc" class="text-sm text-gray-500 mb-6">شكراً لتقديمك! يتم حالياً تدقيق شهاداتك وبياناتك من قبل فريق منصة "لبيب". سنقوم بتفعيل لوحة تحكمك فور الاعتماد.</p>
             <button onclick="checkTeacherAccount()" class="border border-oliveGreen text-oliveGreen font-bold py-2 px-4 rounded-lg flex items-center gap-2 mx-auto hover:bg-oliveGreen/10">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                تحديث حالة الطلب
+                <span data-i18n-t="refresh_status_btn">تحديث حالة الطلب</span>
             </button>
         </div>
 
@@ -158,25 +227,24 @@
         <div id="dashboardView" class="hidden">
             <div class="bg-white border border-oliveGreen/30 rounded-2xl p-4 flex items-center mb-8">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-oliveGreen ml-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                <p class="text-sm text-textDark">ملاحظة: لوحة التحكم خالية من النوافذ التلقائية. يمكنك بدء الجلسات المقبولة مباشرة في مواعيدها.</p>
+                <p data-i18n-t="dashboard_note" class="text-sm text-textDark">ملاحظة: لوحة التحكم خالية من النوافذ التلقائية. يمكنك بدء الجلسات المقبولة مباشرة في مواعيدها.</p>
             </div>
 
-                        <h2 class="text-xl font-bold text-textDark mb-4">📋 إدارة الجلسات</h2>
+                        <h2 data-i18n-t="sessions_mgmt_heading" class="text-xl font-bold text-textDark mb-4">📋 إدارة الجلسات</h2>
             <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
                 <button onclick="switchTeacherTab('pending')" id="tab_btn_pending" class="teacher-tab active">
-                    طلبات جديدة <span id="count_pending" class="teacher-tab-badge">0</span>
+                    <span data-i18n-t="tab_pending">طلبات جديدة</span> <span id="count_pending" class="teacher-tab-badge">0</span>
                 </button>
                 <button onclick="switchTeacherTab('ready')" id="tab_btn_ready" class="teacher-tab">
-                    جاهزة للبدء <span id="count_ready" class="teacher-tab-badge">0</span>
+                    <span data-i18n-t="tab_ready_full">جاهزة للبدء</span> <span id="count_ready" class="teacher-tab-badge">0</span>
                 </button>
                 <button onclick="switchTeacherTab('upcoming')" id="tab_btn_upcoming" class="teacher-tab">
-                    مجدولة <span id="count_upcoming" class="teacher-tab-badge">0</span>
+                    <span data-i18n-t="tab_upcoming">مجدولة</span> <span id="count_upcoming" class="teacher-tab-badge">0</span>
                 </button>
                 <button onclick="switchTeacherTab('completed')" id="tab_btn_completed" class="teacher-tab">
-                    منجزة <span id="count_completed" class="teacher-tab-badge">0</span>
+                    <span data-i18n-t="tab_completed_full">منجزة</span> <span id="count_completed" class="teacher-tab-badge">0</span>
                 </button>
             </div>
-            
             <div id="tab_content_pending" class="space-y-4"></div>
             <div id="tab_content_ready" class="space-y-4 hidden"></div>
             <div id="tab_content_upcoming" class="space-y-4 hidden"></div>
@@ -188,19 +256,19 @@
     <!-- Attach Files Modal -->
     <div id="attachFilesModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md p-6 text-right">
-            <h3 class="font-bold text-lg mb-4 text-textDark">إرفاق ملفات الحصة 📁</h3>
-            <p class="text-xs text-gray-500 mb-4">يمكنك رفع ملفات (PDF، صور) ليطلع عليها الطالب قبل الجلسة. سيتم حفظها بشكل آمن.</p>
+            <h3 data-i18n-t="attach_files_title" class="font-bold text-lg mb-4 text-textDark">إرفاق ملفات الحصة 📁</h3>
+            <p data-i18n-t="attach_files_desc" class="text-xs text-gray-500 mb-4">يمكنك رفع ملفات (PDF، صور) ليطلع عليها الطالب قبل الجلسة. سيتم حفظها بشكل آمن.</p>
             
             <input type="file" id="sessionFileInput" accept="image/*,.pdf,.doc,.docx" class="hidden">
-            <div id="fileUploadBox" onclick="document.getElementById('sessionFileInput').click()" class="border-2 border-dashed border-oliveGreen/50 rounded-xl p-4 text-center text-sm text-oliveGreen cursor-pointer hover:bg-oliveGreen/5 mb-4">
+            <div id="fileUploadBox" onclick="document.getElementById('sessionFileInput').click()" data-i18n-t="choose_file_hint" class="border-2 border-dashed border-oliveGreen/50 rounded-xl p-4 text-center text-sm text-oliveGreen cursor-pointer hover:bg-oliveGreen/5 mb-4">
                 اضغط لاختيار ملف من جهازك
             </div>
 
             <div id="currentFilesList" class="space-y-2 mb-4 max-h-40 overflow-y-auto"></div>
 
             <div class="flex justify-end gap-3 mt-6">
-                <button onclick="closeModal('attachFilesModal')" class="text-gray-500 text-sm">إغلاق</button>
-                <button id="uploadFileBtn" onclick="uploadSessionFile()" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg hidden">رفع الملف</button>
+                <button onclick="closeModal('attachFilesModal')" data-i18n-t="close_btn" class="text-gray-500 text-sm">إغلاق</button>
+                <button id="uploadFileBtn" onclick="uploadSessionFile()" data-i18n-t="upload_file_btn" class="bg-oliveGreen text-white text-sm font-bold px-6 py-2 rounded-lg hidden">رفع الملف</button>
             </div>
         </div>
     </div>
@@ -208,7 +276,7 @@
     <!-- Pre-flight Checklist Modal -->
     <div id="preFlightModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md p-6">
-            <h3 class="text-center font-bold text-lg mb-6">الفحص المسبق للجلسة</h3>
+            <h3 data-i18n-t="preflight_title" class="text-center font-bold text-lg mb-6">الفحص المسبق للجلسة</h3>
             
             <div class="space-y-4 mb-6">
                 <div class="flex items-center gap-3">
@@ -216,8 +284,8 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                     </div>
                     <div>
-                        <p class="font-bold text-sm">فحص الميكروفون</p>
-                        <p id="micStatus" class="text-xs text-gray-500">لم يتم اكتشاف ميكروفون</p>
+                        <p data-i18n-t="mic_check_label" class="font-bold text-sm">فحص الميكروفون</p>
+                        <p id="micStatus" data-i18n-t="mic_not_detected" class="text-xs text-gray-500">لم يتم اكتشاف ميكروفون</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -225,23 +293,22 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
                     </div>
                     <div>
-                        <p class="font-bold text-sm">اتصال الإنترنت</p>
-                        <p id="netStatus" class="text-xs text-gray-500">الشبكة غير متصلة أو ضعيفة</p>
-                    </div>
+                        <p data-i18n-t="internet_check_label" class="font-bold text-sm">اتصال الإنترنت</p>
+                        <p id="netStatus" data-i18n-t="net_not_connected" class="text-xs text-gray-500">الشبكة غير متصلة أو ضعيفة</p>
                 </div>
             </div>
 
             <div class="flex justify-center mb-6">
                 <button id="runCheckBtn" onclick="runPreFlightChecks()" class="bg-oliveGreen text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-oliveLight">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                    إجراء الفحص الآن
+                    <span data-i18n-t="run_check_btn">إجراء الفحص الآن</span>
                 </button>
                 <div id="checkSpinner" class="hidden animate-spin h-6 w-6 text-oliveGreen"></div>
             </div>
 
             <div class="flex justify-between gap-3">
-                <button onclick="closeModal('preFlightModal')" class="text-gray-500 font-bold text-sm">إلغاء</button>
-                <button onclick="startSession()" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-green-700">بدء الجلسة الآن 🎓</button>
+                <button onclick="closeModal('preFlightModal')" data-i18n-t="cancel_btn" class="text-gray-500 font-bold text-sm">إلغاء</button>
+                <button onclick="startSession()" data-i18n-t="start_session_now_btn" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-green-700">بدء الجلسة الآن 🎓</button>
             </div>
         </div>
     </div>
@@ -262,7 +329,145 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const teacherName = urlParams.get('name') || 'أ. باسل أبو هدة';
+        // ==========================================
+        // 🌐 نظام الترجمة (i18n)
+        // ==========================================
+        const translationsTeacher = {
+            ar: {
+                portal_title: "منصة لبيب",
+                portal_subtitle: "بوابة المعلم",
+                status_new: "حساب جديد",
+                status_pending: "قيد المراجعة",
+                status_approved: "معلم معتمد",
+                tab_pending: "طلبات جديدة",
+                tab_ready: "جاهزة الآن",
+                tab_upcoming: "مجدولة",
+                tab_completed: "مكتملة",
+                no_sessions_here: "لا توجد جلسات في هذا القسم حالياً.",
+                completed_badge: "مكتملة ✓",
+                accept_request_btn: "قبول الطلب",
+                files_btn: "ملفات",
+                start_session_btn: "بدء الجلسة 🎙️",
+                waiting_time_btn: "في انتظار الموعد",
+                new_request_badge: "🟡 طلب جديد",
+                completed_badge_2: "✅ مكتملة",
+                ready_now_badge: "🔴 جاهزة الآن",
+                request_word: "طلب",
+                student_label: "الطالب:",
+                lesson_topic_label: "موضوع الدرس:",
+                default_student: "طالب",
+                general_subject: "عام",
+                direct_lesson: "درس مباشر",
+                dashboard_note: "ملاحظة: لوحة التحكم خالية من النوافذ التلقائية. يمكنك بدء الجلسات المقبولة مباشرة في مواعيدها.",
+                sessions_mgmt_heading: "📋 إدارة الجلسات",
+                tab_ready_full: "جاهزة للبدء",
+                tab_completed_full: "منجزة",
+                accepted_success: "تم قبول الطلب بنجاح! 🎯",
+                accept_failed: "فشل القبول:",
+                pending_title: "طلبك قيد المراجعة",
+                pending_desc: "شكراً لتقديمك! يتم حالياً تدقيق شهاداتك وبياناتك من قبل فريق منصة \"لبيب\". سنقوم بتفعيل لوحة تحكمك فور الاعتماد.",
+                refresh_status_btn: "تحديث حالة الطلب",
+                attach_files_title: "إرفاق ملفات الحصة 📁",
+                attach_files_desc: "يمكنك رفع ملفات (PDF، صور) ليطلع عليها الطالب قبل الجلسة. سيتم حفظها بشكل آمن.",
+                choose_file_hint: "اضغط لاختيار ملف من جهازك",
+                close_btn: "إغلاق",
+                upload_file_btn: "رفع الملف",
+                preflight_title: "الفحص المسبق للجلسة",
+                mic_check_label: "فحص الميكروفون",
+                mic_not_detected: "لم يتم اكتشاف ميكروفون",
+                mic_working: "الميكروفون يعمل بنجاح",
+                internet_check_label: "اتصال الإنترنت",
+                net_not_connected: "الشبكة غير متصلة أو ضعيفة",
+                net_excellent: "الاتصال ممتاز",
+                run_check_btn: "إجراء الفحص الآن",
+                cancel_btn: "إلغاء",
+                start_session_now_btn: "بدء الجلسة الآن 🎓",
+                no_files_yet: "لا توجد ملفات مرفوعة بعد.",
+                checking_files: "جاري التحقق من الملفات...",
+                files_load_failed: "تعذر تحميل الملفات.",
+                delete_word: "حذف",
+                uploading_dots: "جاري الرفع...",
+                upload_success: "تم رفع الملف بنجاح ✅",
+                upload_failed: "فشل رفع الملف:",
+                file_deleted: "تم حذف الملف",
+                delete_failed: "فشل الحذف",
+                no_mic_warning: "⚠️ تنبيه: لم يتم اكتشاف ميكروفون. يتم الدخول للجلسة والمحاولة بالخلفية..."
+            },
+            en: {
+                portal_title: "Labeeb Platform",
+                portal_subtitle: "Teacher Portal",
+                status_new: "New Account",
+                status_pending: "Under Review",
+                status_approved: "Approved Teacher",
+                tab_pending: "New Requests",
+                tab_ready: "Ready Now",
+                tab_upcoming: "Scheduled",
+                tab_completed: "Completed",
+                no_sessions_here: "No sessions in this section currently.",
+                completed_badge: "Completed ✓",
+                accept_request_btn: "Accept Request",
+                files_btn: "Files",
+                start_session_btn: "Start Session 🎙️",
+                waiting_time_btn: "Waiting for scheduled time",
+                new_request_badge: "🟡 New Request",
+                completed_badge_2: "✅ Completed",
+                ready_now_badge: "🔴 Ready Now",
+                request_word: "Request",
+                student_label: "Student:",
+                lesson_topic_label: "Lesson topic:",
+                default_student: "Student",
+                general_subject: "General",
+                direct_lesson: "Live lesson",
+                dashboard_note: "Note: This dashboard has no automatic popups. You can start accepted sessions directly at their scheduled time.",
+                sessions_mgmt_heading: "📋 Session Management",
+                tab_ready_full: "Ready to Start",
+                tab_completed_full: "Completed",
+                accepted_success: "Request accepted successfully! 🎯",
+                accept_failed: "Failed to accept:",
+                pending_title: "Your Application is Under Review",
+                pending_desc: "Thank you for applying! Our team at Labeeb Platform is currently reviewing your certificates and information. Your dashboard will be activated once approved.",
+                refresh_status_btn: "Refresh Status",
+                attach_files_title: "Attach Session Files 📁",
+                attach_files_desc: "You can upload files (PDF, images) for the student to review before the session. They will be saved securely.",
+                choose_file_hint: "Tap to choose a file from your device",
+                close_btn: "Close",
+                upload_file_btn: "Upload File",
+                preflight_title: "Pre-Session Check",
+                mic_check_label: "Microphone Check",
+                mic_not_detected: "No microphone detected",
+                mic_working: "Microphone is working",
+                internet_check_label: "Internet Connection",
+                net_not_connected: "Network disconnected or weak",
+                net_excellent: "Excellent connection",
+                run_check_btn: "Run Check Now",
+                cancel_btn: "Cancel",
+                start_session_now_btn: "Start Session Now 🎓",
+                no_files_yet: "No files uploaded yet.",
+                checking_files: "Checking files...",
+                files_load_failed: "Failed to load files.",
+                delete_word: "Delete",
+                uploading_dots: "Uploading...",
+                upload_success: "File uploaded successfully ✅",
+                upload_failed: "File upload failed:",
+                file_deleted: "File deleted",
+                delete_failed: "Delete failed",
+                no_mic_warning: "⚠️ Warning: No microphone detected. Joining the session and will keep retrying in the background..."
+            }
+        };
+        let currentLangTeacher = 'ar';
 
+        function tt(key) {
+            return (translationsTeacher[currentLangTeacher] && translationsTeacher[currentLangTeacher][key]) || translationsTeacher['ar'][key] || key;
+        }
+
+        function applyLanguageTeacher(lang) {
+            currentLangTeacher = (lang === 'en') ? 'en' : 'ar';
+            document.documentElement.setAttribute('lang', currentLangTeacher);
+            document.documentElement.setAttribute('dir', currentLangTeacher === 'en' ? 'ltr' : 'rtl');
+            document.querySelectorAll('[data-i18n-t]').forEach((el) => {
+                el.innerText = tt(el.getAttribute('data-i18n-t'));
+            });
+        }
         let currentUser = null;
         let teacherStatus = null;
         let activeSessionsListener = null;
@@ -276,11 +481,9 @@
         // 📚 قائمة التخصصات الدراسية للمعلم
         // ==========================================
         const teachingSpecialtiesDash = [
-            'القرآن الكريم والتجويد', 'التربية الإسلامية', 'الفقه وأصوله', 'اللغة العربية', 'النحو والصرف', 'الأدب العربي',
-            'الرياضيات', 'الجبر', 'الهندسة', 'حساب التفاضل والتكامل', 'الإحصاء', 'الفيزياء', 'الكيمياء', 'الأحياء', 'العلوم العامة',
-            'اللغة الإنجليزية', 'اللغة الفرنسية', 'الجغرافيا', 'التاريخ', 'علم الاجتماع', 'الفلسفة والمنطق', 'التربية الوطنية والمدنية',
-            'الحاسب الآلي', 'البرمجة', 'الروبوتات والذكاء الاصطناعي', 'التربية الفنية', 'التربية الموسيقية', 'التربية البدنية',
-            'التربية الخاصة', 'صعوبات التعلم', 'رياض الأطفال', 'علم النفس', 'التوجيه والإرشاد'
+            'طب بشري', 'طب أسنان', 'هندسة', 'رياضيات', 'اللغة الإنجليزية', 'علوم', 'التربية الدينية',
+            'كيمياء', 'فيزياء', 'اللغة العربية', 'اللغة الفرنسية', 'تعليم أساسي (تربية أطفال)',
+            'الإحصاء', 'البرمجة', 'علم نفس', 'إدارة أعمال'
         ];
         let selectedSpecialtiesDash = [];
 
@@ -317,6 +520,70 @@
             'التعليم الجامعي المستمر'
         ];
         let selectedTargetAgesDash = [];
+               let selectedTeachingLanguageDash = null;
+        let selectedDevicesDash = [];
+        let selectedAcademicDegreeDash = null;
+        let advDegreeCertUrlDash = null;
+
+        function toggleDeviceSelectionDash(device) {
+            const map = { 'هاتف محمول': 'devDash_phone', 'تابلت': 'devDash_tablet', 'لابتوب': 'devDash_laptop' };
+            const btn = document.getElementById(map[device]);
+
+            if (selectedDevicesDash.includes(device)) {
+                selectedDevicesDash = selectedDevicesDash.filter(d => d !== device);
+                btn.classList.remove('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+                btn.classList.add('border-gray-200', 'bg-white', 'text-textDark');
+            } else {
+                selectedDevicesDash.push(device);
+                btn.classList.remove('border-gray-200', 'bg-white', 'text-textDark');
+                btn.classList.add('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+            }
+        }
+
+        function selectAcademicDegreeDash(degree) {
+            selectedAcademicDegreeDash = degree;
+            document.querySelectorAll('.degree-btn-dash').forEach(btn => {
+                btn.classList.remove('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+                btn.classList.add('border-gray-200', 'bg-white', 'text-textDark');
+            });
+            const map = { 'لا أملك': 'degDash_none', 'ماجستير': 'degDash_master', 'دكتوراه': 'degDash_phd' };
+            const activeBtn = document.getElementById(map[degree]);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-gray-200', 'bg-white', 'text-textDark');
+                activeBtn.classList.add('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+            }
+
+            const uploadContainer = document.getElementById('advDegreeUploadContainerDash');
+            if (degree === 'ماجستير' || degree === 'دكتوراه') {
+                uploadContainer.classList.remove('hidden');
+            } else {
+                uploadContainer.classList.add('hidden');
+                document.getElementById('advDegreeCertificateInput').value = '';
+                document.getElementById('advDegUploadBoxDash').innerText = 'اضغط لاختيار ملف شهادة الماجستير/الدكتوراه';
+                document.getElementById('advDegUploadBoxDash').classList.remove('font-bold');
+                advDegreeCertUrlDash = null;
+            }
+        }
+
+        document.getElementById('advDegreeCertificateInput').addEventListener('change', (e) => {
+            const fileName = e.target.files[0]?.name || 'اضغط لاختيار ملف شهادة الماجستير/الدكتوراه';
+            document.getElementById('advDegUploadBoxDash').innerText = fileName;
+            document.getElementById('advDegUploadBoxDash').classList.add('font-bold');
+        });
+
+        function selectTeachingLanguageDash(lang) {
+            selectedTeachingLanguageDash = lang;
+            document.querySelectorAll('.teaching-lang-btn-dash').forEach(btn => {
+                btn.classList.remove('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+                btn.classList.add('border-gray-200', 'bg-white', 'text-textDark');
+            });
+            const map = { 'العربية': 'langDash_ar', 'الإنجليزية (انترناشونال)': 'langDash_en', 'كلاهما': 'langDash_both' };
+            const activeBtn = document.getElementById(map[lang]);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-gray-200', 'bg-white', 'text-textDark');
+                activeBtn.classList.add('border-oliveGreen', 'bg-oliveGreen/10', 'text-oliveGreen', 'shadow-sm');
+            }
+        }
 
         function renderTargetAgeListDash() {
             const list = document.getElementById('targetAgeListDash');
@@ -354,6 +621,20 @@
                 // متغير عام لحفظ تخصصات المعلم
                 let mySpecialties = [];
         let myTargetAges = []; // ✨
+        let myTeachingLanguage = 'العربية';
+
+        // 🌐 تحويل قيمة "لغة التدريس" النصية لكود واجهة (ar/en)
+        function teachingLanguageToUiCode(teachingLanguage) {
+            if (teachingLanguage === 'الإنجليزية (انترناشونال)') return 'en';
+            return 'ar'; // العربية أو كلاهما → الواجهة تعرض بالعربي افتراضياً
+        }
+
+        // 🌐 هل المعلم بلغة التدريس دي يقدر يقبل حصة بلغة معينة؟
+        function teacherSupportsSessionLanguage(teachingLanguage, sessionLang) {
+            if (teachingLanguage === 'كلاهما') return true;
+            if (teachingLanguage === 'الإنجليزية (انترناشونال)') return sessionLang === 'en';
+            return sessionLang === 'ar'; // العربية أو غير معروف
+        }
 
         auth.onAuthStateChanged(async (user) => {
             if (user) {
@@ -362,6 +643,8 @@
                 if (userDoc.exists) {
                     mySpecialties = userDoc.data().subjects || [];
                     myTargetAges = userDoc.data().targetAge || []; // ✨
+                    myTeachingLanguage = userDoc.data().teachingLanguage || 'العربية'; // ✨
+                    applyLanguageTeacher(teachingLanguageToUiCode(myTeachingLanguage));
                 }
                 checkTeacherAccount();
             } else {
@@ -398,17 +681,17 @@
             const statusText = document.getElementById('teacherStatusDisplay');
             
             if (status === 'approved') {
-                statusText.innerText = 'معلم معتمد';
+                statusText.innerText = tt('status_approved');
                 statusText.classList.remove('text-gray-500');
                 statusText.classList.add('text-green-600');
                 document.getElementById('dashboardView').classList.remove('hidden');
             } else if (status === 'pending_approval') {
-                statusText.innerText = 'قيد المراجعة';
+                statusText.innerText = tt('status_pending');
                 statusText.classList.remove('text-gray-500');
                 statusText.classList.add('text-accentOrange');
                 document.getElementById('pendingApproval').classList.remove('hidden');
             } else {
-                statusText.innerText = 'حساب جديد';
+                statusText.innerText = tt('status_new');
                 statusText.classList.add('text-gray-500');
                 document.getElementById('registrationForm').classList.remove('hidden');
             }
@@ -429,8 +712,17 @@
 
             if (selectedSpecialtiesDash.length === 0) { showSnackBar('يرجى اختيار تخصص واحد على الأقل', '#D97706'); return; }
             if (selectedTargetAgesDash.length === 0) { showSnackBar('يرجى اختيار فئة عمرية واحدة على الأقل', '#D97706'); return; }
+            if (!selectedTeachingLanguageDash) { showSnackBar('يرجى اختيار لغة التدريس', '#D97706'); return; }
+            if (selectedDevicesDash.length === 0) { showSnackBar('يرجى اختيار جهاز واحد على الأقل', '#D97706'); return; }
+            if (!selectedAcademicDegreeDash) { showSnackBar('يرجى اختيار الدرجة العلمية', '#D97706'); return; }
             if (!experience) { showSnackBar('يرجى إدخال عدد السنوات', '#D97706'); return; }
             if (!fileInput.files[0]) { showSnackBar('يرجى اختيار ملف الشهادة أولاً', '#ef4444'); return; }
+
+            let advDegFileToUpload = null;
+            if (selectedAcademicDegreeDash === 'ماجستير' || selectedAcademicDegreeDash === 'دكتوراه') {
+                advDegFileToUpload = document.getElementById('advDegreeCertificateInput').files[0];
+                if (!advDegFileToUpload) { showSnackBar('يرجى رفع ملف شهادة الدرجة العلمية العليا', '#D97706'); return; }
+            }
 
             document.getElementById('regBtnText').classList.add('hidden');
             document.getElementById('regBtnSpinner').classList.remove('hidden');
@@ -438,7 +730,7 @@
             try {
                 const token = await currentUser.getIdToken();
                 
-                // 1. Upload to FastAPI
+                // 1. Upload certificate to FastAPI
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
                 formData.append('folder', 'certificates');
@@ -452,13 +744,34 @@
 
                 if (!uploadData.url) throw new Error('فشل رفع الملف إلى Cloudinary.');
 
+                // 1.b رفع شهادة الدرجة العليا (إن وجدت)
+                let advDegUrl = '';
+                if (advDegFileToUpload) {
+                    const advFormData = new FormData();
+                    advFormData.append('file', advDegFileToUpload);
+                    advFormData.append('folder', 'advanced_degrees');
+
+                    const advUploadRes = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: advFormData
+                    });
+                    const advUploadData = await advUploadRes.json();
+                    if (!advUploadData.url) throw new Error('فشل رفع ملف شهادة الدرجة العلمية.');
+                    advDegUrl = advUploadData.url;
+                }
+
                 // 2. Save to Firestore via FastAPI
                 const regFormData = new FormData();
                 regFormData.append('subject', selectedSpecialtiesDash.join('، '));
                 regFormData.append('targetAge', selectedTargetAgesDash.join('، '));
+                regFormData.append('teachingLanguage', selectedTeachingLanguageDash);
+                regFormData.append('ownedDevices', selectedDevicesDash.join('، '));
+                regFormData.append('academicDegree', selectedAcademicDegreeDash);
                 regFormData.append('experience', parseInt(experience) || 0);
                 regFormData.append('certificateUrl', uploadData.url);
                 regFormData.append('certificateName', fileInput.files[0].name);
+                if (advDegUrl) regFormData.append('advancedDegreeCertificateUrl', advDegUrl);
 
                 const regRes = await fetch('/api/teacher/register', {
                     method: 'POST',
@@ -544,8 +857,10 @@ function processSessions() {
         }
         
         // 2. الطلبات المعلقة (تطبق عليها الفلترة الذكية للتخصص والمرحلة)
-        if (status === 'pending') {
-            if (mySpecialties.includes(data.subject) && (!data.grade || myTargetAges.includes(data.grade))) {
+
+                if (status === 'pending') {
+            const sessionLanguage = data.language || 'ar';
+            if (mySpecialties.includes(data.subject) && (!data.grade || myTargetAges.includes(data.grade)) && teacherSupportsSessionLanguage(myTeachingLanguage, sessionLanguage)) {
                 lists.pending.push(req);
             }
             return;
@@ -595,7 +910,7 @@ function processSessions() {
                function renderSessionList(tabName, sessions, isAccepted) {
             const container = document.getElementById(`tab_content_${tabName}`);
             if (sessions.length === 0) {
-                container.innerHTML = `<div class="bg-white p-10 rounded-2xl text-center text-gray-500">لا توجد جلسات في هذا القسم حالياً.</div>`;
+                container.innerHTML = `<div class="bg-white p-10 rounded-2xl text-center text-gray-500">${tt('no_sessions_here')}</div>`;
                 return;
             }
 
@@ -608,33 +923,33 @@ function processSessions() {
                 
                 let actionHtml = '';
                 if (tabName === 'completed') {
-                    actionHtml = `<span class="bg-gray-200 text-gray-600 text-xs font-bold px-4 py-3 rounded-xl">مكتملة ✓</span>`;
+                    actionHtml = `<span class="bg-gray-200 text-gray-600 text-xs font-bold px-4 py-3 rounded-xl">${tt('completed_badge')}</span>`;
                 } else if (tabName === 'pending') {
-                    actionHtml = `<button onclick="acceptSession('${req.id}')" class="bg-oliveGreen text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> قبول الطلب</button>`;
+                    actionHtml = `<button onclick="acceptSession('${req.id}')" class="bg-oliveGreen text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> ${tt('accept_request_btn')}</button>`;
                 } else {
                     // للجلسات الجاهزة والمجدولة
                     const startBtnClass = isStartAllowed ? 'bg-accentOrange text-white' : 'bg-gray-300 text-gray-500';
-                    const startBtnText = isStartAllowed ? 'بدء الجلسة 🎙️' : 'في انتظار الموعد';
+                    const startBtnText = isStartAllowed ? tt('start_session_btn') : tt('waiting_time_btn');
                     actionHtml = `
-                        <button onclick="openAttachFilesModal('${req.id}')" class="border border-oliveGreen text-oliveGreen text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> ملفات</button>
-                        <button onclick="openPreFlightModal('${req.id}', '${data.studentName ?? 'طالب'}')" ${!isStartAllowed ? 'disabled' : ''} class="${startBtnClass} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
+                        <button onclick="openAttachFilesModal('${req.id}')" class="border border-oliveGreen text-oliveGreen text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> ${tt('files_btn')}</button>
+                        <button onclick="openPreFlightModal('${req.id}', '${data.studentName ?? tt('default_student')}')" ${!isStartAllowed ? 'disabled' : ''} class="${startBtnClass} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             ${startBtnText}
                         </button>
                     `;
                 }
 
-                const statusBadge = (tabName === 'pending') ? '🟡 طلب جديد' : (tabName === 'completed' ? '✅ مكتملة' : (isStartAllowed ? '🔴 جاهزة الآن' : `⏳ ${data.scheduledTime ?? 'مجدولة'}`));
+                const statusBadge = (tabName === 'pending') ? tt('new_request_badge') : (tabName === 'completed' ? tt('completed_badge_2') : (isStartAllowed ? tt('ready_now_badge') : `⏳ ${data.scheduledTime ?? tt('tab_upcoming')}`));
 
                 const card = `
                     <div class="bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center gap-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-oliveGreen/10 text-oliveGreen text-xs font-bold px-2 py-1 rounded">طلب #${req.id.substring(0,6)}</span>
+                                <span class="bg-oliveGreen/10 text-oliveGreen text-xs font-bold px-2 py-1 rounded">${tt('request_word')} #${req.id.substring(0,6)}</span>
                                 <span class="text-gray-500 text-xs font-bold">${statusBadge}</span>
                             </div>
-                            <h4 class="text-base font-bold text-textDark">الطالب: ${data.studentName ?? 'طالب'}</h4>
-                            <p class="text-xs text-gray-500">${data.subject ?? 'عام'} • ${data.grade ?? ''} (موضوع الدرس: ${data.topic ?? data.subject ?? 'درس مباشر'})</p>
+                            <h4 class="text-base font-bold text-textDark">${tt('student_label')} ${data.studentName ?? tt('default_student')}</h4>
+                            <p class="text-xs text-gray-500">${data.subject ?? tt('general_subject')} • ${data.grade ?? ''} (${tt('lesson_topic_label')} ${data.topic ?? data.subject ?? tt('direct_lesson')})</p>
                         </div>
                         <div class="flex gap-2 shrink-0">
                             ${actionHtml}
@@ -669,13 +984,13 @@ function processSessions() {
                 });
 
                 if (res.ok) {
-                    showSnackBar('تم قبول الطلب بنجاح! 🎯', '#10b981');
+                    showSnackBar(tt('accepted_success'), '#10b981');
                 } else {
                     const err = await res.json();
                     throw new Error(err.detail || 'فشل القبول');
                 }
             } catch (e) {
-                showSnackBar(`فشل القبول: ${e.message}`, '#ef4444');
+                showSnackBar(`${tt('accept_failed')} ${e.message}`, '#ef4444');
             }
         }
 
@@ -686,8 +1001,8 @@ function processSessions() {
             selectedSessionData = { id: sessionId, student: studentName };
             micReady = false;
             netReady = false;
-            document.getElementById('micStatus').innerText = 'لم يتم اكتشاف ميكروفون';
-            document.getElementById('netStatus').innerText = 'الشبكة غير متصلة أو ضعيفة';
+            document.getElementById('micStatus').innerText = tt('mic_not_detected');
+            document.getElementById('netStatus').innerText = tt('net_not_connected');
             openModal('preFlightModal');
         }
 
@@ -703,7 +1018,7 @@ function processSessions() {
                 micIcon.classList.remove('bg-red-100');
                 micIcon.classList.add('bg-green-100');
                 micIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                micStatus.innerText = 'الميكروفون يعمل بنجاح';
+                micStatus.innerText = tt('mic_working');
                 micStatus.classList.remove('text-gray-500');
                 micStatus.classList.add('text-green-600');
             }
@@ -717,7 +1032,7 @@ function processSessions() {
                 netIcon.classList.remove('bg-red-100');
                 netIcon.classList.add('bg-green-100');
                 netIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                netStatus.innerText = `الاتصال ممتاز (${latency} ms)`;
+                netStatus.innerText = `${tt('net_excellent')} (${latency} ms)`;
                 netStatus.classList.remove('text-gray-500');
                 netStatus.classList.add('text-green-600');
             }
@@ -729,11 +1044,11 @@ function processSessions() {
         function startSession() {
             closeModal('preFlightModal');
             if (!micReady) {
-                showSnackBar('⚠️ تنبيه: لم يتم اكتشاف ميكروفون. يتم الدخول للجلسة والمحاولة بالخلفية...', '#D97706');
+                showSnackBar(tt('no_mic_warning'), '#D97706');
             }
 
             const sessionId = encodeURIComponent(selectedSessionData.id || 'unknown_session');
-            const studentName = encodeURIComponent(selectedSessionData.student || 'طالب');
+            const studentName = encodeURIComponent(selectedSessionData.student || tt('default_student'));
             window.location.href = `/live-session?sessionId=${sessionId}&role=teacher&studentName=${studentName}`;
         }
 
@@ -752,12 +1067,12 @@ function processSessions() {
             currentSessionForFiles = sessionId;
             selectedFile = null;
             document.getElementById('sessionFileInput').value = '';
-            document.getElementById('fileUploadBox').innerText = 'اضغط لاختيار ملف من جهازك';
+            document.getElementById('fileUploadBox').innerText = tt('choose_file_hint');
             document.getElementById('uploadFileBtn').classList.add('hidden');
             
             // جلب وعرض الملفات المرفوعة مسبقاً
             const container = document.getElementById('currentFilesList');
-            container.innerHTML = '<p class="text-xs text-gray-400 text-center">جاري التحقق من الملفات...</p>';
+            container.innerHTML = `<p class="text-xs text-gray-400 text-center">${tt('checking_files')}</p>`;
             openModal('attachFilesModal');
             
             try {
@@ -769,15 +1084,15 @@ function processSessions() {
                         container.innerHTML += `
                             <div class="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-xs">
                                 <a href="${f.fileUrl}" target="_blank" class="text-blue-600 truncate flex-1 ml-2">${f.fileName}</a>
-                                <button onclick="deleteSessionFile('${sessionId}', ${index})" class="text-red-500 font-bold">حذف</button>
+                                <button onclick="deleteSessionFile('${sessionId}', ${index})" class="text-red-500 font-bold">${tt('delete_word')}</button>
                             </div>
                         `;
                     });
                 } else {
-                    container.innerHTML = '<p class="text-xs text-gray-400 text-center">لا توجد ملفات مرفوعة بعد.</p>';
+                    container.innerHTML = `<p class="text-xs text-gray-400 text-center">${tt('no_files_yet')}</p>`;
                 }
             } catch (e) {
-                container.innerHTML = '<p class="text-xs text-red-500 text-center">تعذر تحميل الملفات.</p>';
+                container.innerHTML = `<p class="text-xs text-red-500 text-center">${tt('files_load_failed')}</p>`;
             }
         }
 
@@ -793,7 +1108,7 @@ function processSessions() {
             if (!selectedFile) return;
             const btn = document.getElementById('uploadFileBtn');
             btn.disabled = true;
-            btn.innerText = 'جاري الرفع...';
+            btn.innerText = tt('uploading_dots');
 
             try {
                 const token = await currentUser.getIdToken();
@@ -817,13 +1132,13 @@ function processSessions() {
                     })
                 });
 
-                showSnackBar('تم رفع الملف بنجاح ✅', '#4E6B45');
+                showSnackBar(tt('upload_success'), '#4E6B45');
                 openAttachFilesModal(currentSessionForFiles); // تحديث القائمة
             } catch (e) {
-                showSnackBar('فشل رفع الملف: ' + e.message, '#ef4444');
+                showSnackBar(`${tt('upload_failed')} ${e.message}`, '#ef4444');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'رفع الملف';
+                btn.innerText = tt('upload_file_btn');
             }
         }
 
@@ -836,10 +1151,10 @@ function processSessions() {
                 await db.collection('sessions').doc(sessionId).update({
                     attachedFiles: firebase.firestore.FieldValue.arrayRemove(fileToRemove)
                 });
-                showSnackBar('تم حذف الملف', '#D97706');
+                showSnackBar(tt('file_deleted'), '#D97706');
                 openAttachFilesModal(sessionId);
             } catch (e) {
-                showSnackBar('فشل الحذف', '#ef4444');
+                showSnackBar(tt('delete_failed'), '#ef4444');
             }
         }
 

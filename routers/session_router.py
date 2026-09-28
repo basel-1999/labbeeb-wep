@@ -94,6 +94,7 @@ async def create_session_request(
     subject: str = Form(...),
     topic: str = Form(...),
     grade: str = Form("غير محدد"),  # ✨ تمت إضافة المرحلة الدراسية
+    language: str = Form("ar"),  # ✨ لغة الدراسة المطلوبة (ar أو en)
     uid: str = Depends(get_current_user)
 ):
     try:
@@ -122,6 +123,7 @@ async def create_session_request(
             'subject': subject,
             'topic': topic,
             'grade': grade,
+            'language': language,
             'status': 'pending',
             'studentJoinedAt': None,
             'teacherJoinedAt': None,
@@ -422,12 +424,24 @@ async def accept_session(
             
             session_subject = session_data.get('subject')
             session_grade = session_data.get('grade')
+            session_language = session_data.get('language', 'ar')
+            teacher_teaching_language = teacher_data.get('teachingLanguage', 'العربية')  # افتراضي: عربي فقط للمعلمين القدامى
+
+            def teacher_supports_language(teaching_language: str, target_lang: str) -> bool:
+                if teaching_language == 'كلاهما':
+                    return True
+                if teaching_language == 'الإنجليزية (انترناشونال)':
+                    return target_lang == 'en'
+                return target_lang == 'ar'
             
             if session_subject and session_subject not in teacher_subjects:
                 raise HTTPException(status_code=403, detail="لا يمكنك قبول هذا الطلب لأنه لا يطابق تخصصاتك.")
             
             if session_grade and session_grade not in teacher_ages:
                 raise HTTPException(status_code=403, detail="لا يمكنك قبول هذا الطلب لأنه لا يطابق المراحل الدراسية التي تدرسها.")
+
+            if not teacher_supports_language(teacher_teaching_language, session_language):
+                raise HTTPException(status_code=403, detail="لا يمكنك قبول هذا الطلب لأنه لا يطابق لغة التدريس المتاحة لديك.")
         
         session_ref.update({
             'teacherId': teacherId,
@@ -475,23 +489,35 @@ async def register_teacher(
     subject: str = Form(...),
     experience: int = Form(...),
     targetAge: str = Form(...),
+    teachingLanguage: str = Form("العربية"),
+    ownedDevices: str = Form(""),  # ✨ مفصولة بفاصلة عربية "،" مثل subject/targetAge
+    academicDegree: str = Form("لا أملك"),  # ✨ جديد
     certificateUrl: str = Form(...),
     certificateName: str = Form(...),
+    advancedDegreeCertificateUrl: str = Form(""),  # ✨ اختياري، فقط لو ماجستير/دكتوراه
     uid: str = Depends(get_current_user)
 ):
     try:
-        db.collection('users').document(uid).set({
+        update_data = {
             'subject': subject,
             'subjects': [s.strip() for s in subject.split('،')],
             'role': 'teacher',
             'experienceYears': experience,
             'targetAge': [a.strip() for a in targetAge.split('،')],
+            'teachingLanguage': teachingLanguage,
+            'ownedDevices': [d.strip() for d in ownedDevices.split('،') if d.strip()],
+            'academicDegree': academicDegree,
             'certificates': [certificateUrl],
             'certificateUrl': certificateUrl,
             'certificateName': certificateName,
             'status': 'pending_approval',
             'updatedAt': firestore.SERVER_TIMESTAMP
-        }, merge=True)
+        }
+
+        if advancedDegreeCertificateUrl:
+            update_data['advancedDegreeCertificateUrl'] = advancedDegreeCertificateUrl
+
+        db.collection('users').document(uid).set(update_data, merge=True)
         
         return {"message": "تم إرسال بياناتك وشهادتك للإدارة بنجاح!"}
         

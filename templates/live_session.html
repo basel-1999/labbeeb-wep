@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>غرفة البث المباشر - منصة لبيب</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
         <!-- Firebase -->
         <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -28,6 +28,7 @@
         </script>
         <style>
             body { font-family: 'Cairo', sans-serif; background-color: #1E1E1E; color: white; overflow: hidden; }
+            html[lang="en"] body { font-family: 'Inter', sans-serif; }
             #whiteboard { background-color: white; touch-action: none; width: 100%; height: 100%; display: block; cursor: default; }
             
             .modal { display: none; }
@@ -72,7 +73,7 @@
 
             <div class="flex items-center gap-2">
                 <svg id="micStatusIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                <span id="sessionTitle" class="text-sm font-medium">جلسة مع المعلم</span>
+                <span id="sessionTitle" data-i18n-l="session_with_teacher" class="text-sm font-medium">جلسة مع المعلم</span>
             </div>
 
             <div class="flex items-center gap-2 relative">
@@ -84,7 +85,15 @@
                 </button>
                 <button id="newPageBtn" onclick="startNewPage()" class="p-2 hover:bg-white/10 rounded-lg hidden flex items-center gap-1 text-xs text-white/80" title="حفظ السبورة الحالية والانتقال لصفحة جديدة">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                    <span id="pageCounterLabel">صفحة جديدة</span>
+                    <span id="pageCounterLabel" data-i18n-l="new_page_btn">صفحة جديدة</span>
+                </button>
+                <button id="allowStudentScreenShareBtn" onclick="toggleAllowStudentScreenShare()" class="hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 flex items-center gap-1 text-xs text-white/80" title="السماح للطالب بمشاركة الشاشة">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <span id="allowScreenShareLabel">السماح بمشاركة الشاشة</span>
+                </button>
+                <button id="allowStudentDrawBtn" onclick="toggleAllowStudentDraw()" class="hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 flex items-center gap-1 text-xs text-white/80" title="السماح للطالب بالرسم">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    <span id="allowDrawLabel">السماح بالرسم</span>
                 </button>
             </div>
         </header>
@@ -96,7 +105,7 @@
             <div class="flex-1 flex flex-col">
                 <!-- Toolbar (Teacher Only) -->
                 <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap">
-                    <span class="text-sm text-white/70 ml-2">الألوان:</span>
+                    <span data-i18n-l="colors_label" class="text-sm text-white/70 ml-2">الألوان:</span>
                     
                     <button onclick="selectColor('black')" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
                     <button onclick="selectColor('red')" class="w-7 h-7 rounded-full bg-red-500 border-2 border-white/30 shrink-0"></button>
@@ -117,54 +126,54 @@
 
                     <!-- زر القلم -->
                     <button onclick="enablePen()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg> قلم
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg> <span data-i18n-l="pen_btn">قلم</span>
                     </button>
 
                     <!-- زر الأشكال الهندسية -->
                     <div class="relative inline-block">
                         <button onclick="toggleShapeMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" /></svg>
-                            <span id="currentShapeLabel">أشكال</span>
+                            <span id="currentShapeLabel" data-i18n-l="shapes_btn">أشكال</span>
                         </button>
                         <div id="shapeMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 grid grid-cols-4 gap-2 w-64" style="display: none;">
-                            <button onclick="selectShape('rectangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مستطيل">
-                                <span class="text-lg">▭</span> مستطيل
+                             <button onclick="selectShape('rectangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مستطيل">
+                                <span class="text-lg">▭</span> <span data-i18n-l="rectangle">مستطيل</span>
                             </button>
                             <button onclick="selectShape('square')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مربع">
-                                <span class="text-lg">⏹</span> مربع
+                                <span class="text-lg">⏹</span> <span data-i18n-l="square">مربع</span>
                             </button>
                             <button onclick="selectShape('circle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="دائرة">
-                                <span class="text-lg">◯</span> دائرة
+                                <span class="text-lg">◯</span> <span data-i18n-l="circle">دائرة</span>
                             </button>
                             <button onclick="selectShape('ellipse')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="بيضاوي">
-                                <span class="text-lg">⬏</span> بيضاوي
+                                <span class="text-lg">⬏</span> <span data-i18n-l="ellipse">بيضاوي</span>
                             </button>
                             <button onclick="selectShape('line')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خط مستقيم">
-                                <span class="text-lg">╱</span> خط
+                                <span class="text-lg">╱</span> <span data-i18n-l="line_shape">خط</span>
                             </button>
                             <button onclick="selectShape('arrow')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سهم">
-                                <span class="text-lg">➔</span> سهم
+                                <span class="text-lg">➔</span> <span data-i18n-l="arrow">سهم</span>
                             </button>
                             <button onclick="selectShape('triangle')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="مثلث">
-                                <span class="text-lg">△</span> مثلث
+                                <span class="text-lg">△</span> <span data-i18n-l="triangle">مثلث</span>
                             </button>
                             <button onclick="selectShape('diamond')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="معين">
-                                <span class="text-lg">◇</span> معين
+                                <span class="text-lg">◇</span> <span data-i18n-l="diamond">معين</span>
                             </button>
                             <button onclick="selectShape('pentagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="خماسي">
-                                <span class="text-lg">⬠</span> خماسي
+                                <span class="text-lg">⬠</span> <span data-i18n-l="pentagon">خماسي</span>
                             </button>
                             <button onclick="selectShape('hexagon')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="سداسي">
-                                <span class="text-lg">⬡</span> سداسي
+                                <span class="text-lg">⬡</span> <span data-i18n-l="hexagon">سداسي</span>
                             </button>
                             <button onclick="selectShape('star')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="نجمة">
-                                <span class="text-lg">☆</span> نجمة
+                                <span class="text-lg">☆</span> <span data-i18n-l="star">نجمة</span>
                             </button>
                             <button onclick="selectShape('check')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة صح">
-                                <span class="text-lg text-green-400">✓</span> صح
+                                <span class="text-lg text-green-400">✓</span> <span data-i18n-l="check_mark">صح</span>
                             </button>
                             <button onclick="selectShape('cross')" class="flex flex-col items-center justify-center p-2 hover:bg-white/10 rounded text-xs text-white" title="علامة خطأ">
-                                <span class="text-lg text-red-400">✕</span> خطأ
+                                <span class="text-lg text-red-400">✕</span> <span data-i18n-l="cross_mark">خطأ</span>
                             </button>
                         </div>
                     </div>
@@ -172,7 +181,7 @@
                     <!-- زر المؤشر مع القائمة المنسدلة المحدثة -->
                     <div class="relative inline-block">
                         <button onclick="togglePointerMenu()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                            <span id="currentPointerIcon" class="text-lg">👆</span> مؤشر
+                            <span id="currentPointerIcon" class="text-lg">👆</span> <span data-i18n-l="pointer_btn">مؤشر</span>
                         </button>
                         <!-- القائمة المنسدلة الآن تطفو بوضوح فوق السبورة مع z-50 -->
                         <div id="pointerMenu" class="absolute top-full right-0 mt-1 bg-gray-800 p-2 rounded-lg shadow-xl z-50 border border-white/20 flex flex-col gap-2" style="display: none;">
@@ -191,23 +200,25 @@
                         </div>
                     </div>
 
-                    <button onclick="enableText()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                     <button onclick="enableText()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-                        نص
+                        <span data-i18n-l="text_btn">نص</span>
                     </button>
 
                     <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> ممحاة
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> <span data-i18n-l="eraser_btn">ممحاة</span>
                     </button>
-                    <div class="h-4 w-px bg-white/15 mx-2"></div>
-                    
-                    <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
-                    <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
-                    <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
-                    <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
-                    <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
-                    <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl" style="transform: scaleX(-1); display: inline-block;">❓</button>
-                    <button onclick="triggerAnimation('fireworks')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎆</button>
+                    <div id="animationButtons" class="contents">
+                        <div class="h-4 w-px bg-white/15 mx-2"></div>
+                        
+                        <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
+                        <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
+                        <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
+                        <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
+                        <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
+                        <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl" style="transform: scaleX(-1); display: inline-block;">❓</button>
+                        <button onclick="triggerAnimation('fireworks')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎆</button>
+                    </div>
                 </div>
 
                 <!-- Canvas -->
@@ -220,12 +231,12 @@
             <!-- Screen Share View -->
             <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex-col shrink-0 relative transition-all duration-300" style="display: none;">
                 <div class="bg-amber-400 text-black font-bold py-1 px-3 text-sm flex justify-between items-center z-10">
-                    <span id="screenShareTitle">شاشة الطرف الآخر</span>
+                    <span id="screenShareTitle" data-i18n-l="other_screen">شاشة الطرف الآخر</span>
                     <button onclick="toggleFullScreenScreenShare()" class="text-black hover:bg-black/10 rounded p-1 text-xs font-bold flex items-center gap-1">
                         <svg id="fullscreenIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                         </svg>
-                        <span id="fullscreenText">تكبير</span>
+                        <span id="fullscreenText" data-i18n-l="zoom_in">تكبير</span>
                     </button>
                 </div>
                 <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
@@ -236,11 +247,11 @@
                 <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
                     <div class="flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                        <h3 class="font-bold text-sm">الدردشة الحية</h3>
+                        <h3 data-i18n-l="live_chat" class="font-bold text-sm">الدردشة الحية</h3>
                     </div>
                 </div>
                 <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-3">
-                    <div class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
+                    <div data-i18n-l="session_started" class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
                 </div>
                 
                 <div class="p-3 bg-[#1E1E1E] border-t border-white/10 relative">
@@ -271,7 +282,7 @@
                         <button onclick="addEmoji('🥇')" class="text-xl hover:bg-white/10 p-1 rounded">🥇</button>
                     </div>
 
-                    <div id="uploadStatus" class="hidden text-xs text-amber-400 mb-2 text-center">جاري رفع الملف... يرجى الانتظار.</div>
+                    <div id="uploadStatus" data-i18n-l="uploading_file" class="hidden text-xs text-amber-400 mb-2 text-center">جاري رفع الملف... يرجى الانتظار.</div>
 
                     <div class="flex gap-2 items-center">
                         <button onclick="toggleEmojiPicker()" class="text-amber-400 p-1 hover:bg-white/10 rounded">
@@ -281,8 +292,8 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                         </button>
                         <input type="file" id="fileInput" class="hidden" onchange="uploadChatFile(event)" accept="image/*,.pdf,.doc,.docx,.txt">
-                        <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
-                        <button onclick="sendMessage()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
+                        <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" data-i18n-l-placeholder="type_message" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
+                        <button onclick="sendMessage()" data-i18n-l="send_btn" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
                             إرسال
                         </button>
                     </div>
@@ -311,22 +322,22 @@
 
         <div id="endSessionModal" class="modal fixed inset-0 bg-black/80 z-50 items-center justify-center">
             <div class="bg-[#2C2C2C] rounded-2xl p-6 max-w-md w-full">
-                <h3 id="endModalTitle" class="font-bold text-lg mb-4 text-white">إنهاء الجلسة</h3>
+                <h3 id="endModalTitle" data-i18n-l="end_session_title" class="font-bold text-lg mb-4 text-white">إنهاء الجلسة</h3>
                 <div id="endModalContent">
-                    <p class="text-white/70 text-sm mb-4">هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟</p>
+                    <p data-i18n-l="end_session_confirm" class="text-white/70 text-sm mb-4">هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟</p>
                     <div class="flex justify-end gap-3">
-                        <button onclick="closeModal('endSessionModal')" class="text-white/50 text-sm">إلغاء</button>
-                        <button onclick="startExportProcess()" class="bg-red-600 text-white font-bold px-4 py-2 rounded-lg text-sm">إنهاء وحفظ</button>
+                        <button onclick="closeModal('endSessionModal')" data-i18n-l="cancel_btn" class="text-white/50 text-sm">إلغاء</button>
+                        <button onclick="startExportProcess()" data-i18n-l="end_and_save_btn" class="bg-red-600 text-white font-bold px-4 py-2 rounded-lg text-sm">إنهاء وحفظ</button>
                     </div>
                 </div>
             <div id="endModalProgress" class="hidden">
-                <p id="progressStatus" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
+                <p id="progressStatus" data-i18n-l="preparing" class="text-white/70 text-sm mb-3">جاري التحضير...</p>
                 <div class="w-full bg-white/10 rounded-full h-2.5 mb-2">
                     <div id="progressBar" class="bg-amber-400 h-2.5 rounded-full" style="width: 0%"></div>
                 </div>
                 <p id="progressPercent" class="text-white/50 text-xs text-right">0%</p>
                 <div id="endModalRetry" class="hidden mt-4 flex justify-end">
-                    <button onclick="finalizeAndUpload()" class="bg-amber-500 text-black font-bold px-4 py-2 rounded-lg text-sm">إعادة المحاولة 🔁</button>
+                    <button onclick="finalizeAndUpload()" data-i18n-l="retry_btn" class="bg-amber-500 text-black font-bold px-4 py-2 rounded-lg text-sm">إعادة المحاولة 🔁</button>
                 </div>
             </div>
             </div>
@@ -360,6 +371,137 @@
             const studentName = urlParams.get('studentName') || 'طالب';
             const isTeacher = role === 'teacher';
 
+
+                        // ==========================================
+            // 🌐 نظام الترجمة (i18n)
+            // ==========================================
+            const translationsLive = {
+                ar: {
+                    session_with_teacher: "جلسة مع المعلم",
+                    session_with_student: "جلسة مع الطالب:",
+                    leave_session_btn: "مغادرة الجلسة",
+                    end_session_btn: "إنهاء الجلسة",
+                    new_page_btn: "صفحة جديدة",
+                    page_word: "صفحة",
+                    colors_label: "الألوان:",
+                    pen_btn: "قلم",
+                    shapes_btn: "أشكال",
+                    pointer_btn: "مؤشر",
+                    text_btn: "نص",
+                    eraser_btn: "ممحاة",
+                    other_screen: "شاشة الطرف الآخر",
+                    zoom_in: "تكبير",
+                    zoom_out: "تصغير",
+                    live_chat: "الدردشة الحية",
+                    session_started: "بدأت الجلسة بنجاح.",
+                    uploading_file: "جاري رفع الملف... يرجى الانتظار.",
+                    type_message: "اكتب رسالة...",
+                    send_btn: "إرسال",
+                    end_session_title: "إنهاء الجلسة",
+                    end_session_confirm: "هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟",
+                    cancel_btn: "إلغاء",
+                    end_and_save_btn: "إنهاء وحفظ",
+                    preparing: "جاري التحضير...",
+                    retry_btn: "إعادة المحاولة 🔁",
+                    rectangle: "مستطيل", square: "مربع", circle: "دائرة", ellipse: "بيضاوي",
+                    line_shape: "خط", arrow: "سهم", triangle: "مثلث", diamond: "معين",
+                    pentagon: "خماسي", hexagon: "سداسي", star: "نجمة", check_mark: "صح", cross_mark: "خطأ",
+                    confirm_clear_page: "سيتم مسح محتوى الصفحة الحالية نهائياً. متابعة؟",
+                    moved_to_page: "تم الانتقال للصفحة رقم",
+                    connecting_audio: "جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...",
+                    token_failed: "تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.",
+                    audio_connected: "تم الاتصال بالصوت بنجاح! 🎙️",
+                    audio_connect_failed: "تعذر الاتصال بالصوت:",
+                    mic_access_failed: "تعذر الوصول إلى الميكروفون بعد عدة محاولات.",
+                    screen_share_started: "تم بدء مشاركة الشاشة بنجاح",
+                    screen_share_stopped: "تم إيقاف مشاركة الشاشة",
+                    screen_share_failed: "فشل مشاركة الشاشة:",
+                    files_not_saved_warning: "⚠️ الحصة انتهت لكن حفظ الملفات لم يكتمل. لا تغلق الصفحة، وتواصل مع الدعم الفني إن استمرت المشكلة.",
+                    session_ended_other: "⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.",
+                    teacher_disconnected: "❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.",
+                    student_disconnected: "⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.",
+                    save_failed_retry: "فشلت عملية الحفظ، اضغط \"إعادة المحاولة\" 🔁",
+                    uploading_audio: "جاري رفع التسجيل الصوتي...",
+                    saving_data: "جاري حفظ البيانات...",
+                    saved_redirecting: "تم الحفظ بنجاح! جاري تحويلك...",
+                    ending_for_other: "جاري إنهاء الجلسة للطرف الآخر...",
+                    stopping_recording: "جاري إيقاف التسجيل الصوتي...",
+                    cloudinary_upload_failed: "فشل رفع الملف إلى Cloudinary",
+                    default_file_word: "ملف"
+                },
+                en: {
+                    session_with_teacher: "Session with Teacher",
+                    session_with_student: "Session with Student:",
+                    leave_session_btn: "Leave Session",
+                    end_session_btn: "End Session",
+                    new_page_btn: "New Page",
+                    page_word: "Page",
+                    colors_label: "Colors:",
+                    pen_btn: "Pen",
+                    shapes_btn: "Shapes",
+                    pointer_btn: "Pointer",
+                    text_btn: "Text",
+                    eraser_btn: "Eraser",
+                    other_screen: "Other party's screen",
+                    zoom_in: "Expand",
+                    zoom_out: "Shrink",
+                    live_chat: "Live Chat",
+                    session_started: "Session started successfully.",
+                    uploading_file: "Uploading file... please wait.",
+                    type_message: "Type a message...",
+                    send_btn: "Send",
+                    end_session_title: "End Session",
+                    end_session_confirm: "Are you sure you want to close this session and save the board summary?",
+                    cancel_btn: "Cancel",
+                    end_and_save_btn: "End & Save",
+                    preparing: "Preparing...",
+                    retry_btn: "Retry 🔁",
+                    rectangle: "Rectangle", square: "Square", circle: "Circle", ellipse: "Ellipse",
+                    line_shape: "Line", arrow: "Arrow", triangle: "Triangle", diamond: "Diamond",
+                    pentagon: "Pentagon", hexagon: "Hexagon", star: "Star", check_mark: "Check", cross_mark: "Cross",
+                    confirm_clear_page: "This will permanently clear the current page's content. Continue?",
+                    moved_to_page: "Moved to page",
+                    connecting_audio: "Connecting to audio servers, this may take a few seconds...",
+                    token_failed: "Failed to get connection token. Please refresh the page.",
+                    audio_connected: "Audio connected successfully! 🎙️",
+                    audio_connect_failed: "Failed to connect audio:",
+                    mic_access_failed: "Could not access the microphone after several attempts.",
+                    screen_share_started: "Screen sharing started successfully",
+                    screen_share_stopped: "Screen sharing stopped",
+                    screen_share_failed: "Screen sharing failed:",
+                    files_not_saved_warning: "⚠️ The session has ended but saving files did not complete. Do not close the page, and contact support if the issue persists.",
+                    session_ended_other: "⌛ The session was ended by the other party. You will be redirected now.",
+                    teacher_disconnected: "❌ The teacher's connection was lost. You will be redirected to your dashboard.",
+                    student_disconnected: "⚠️ The student's internet connection was lost. You can save the board and end the session.",
+                    save_failed_retry: "Saving failed, tap \"Retry\" 🔁",
+                    uploading_audio: "Uploading audio recording...",
+                    saving_data: "Saving data...",
+                    saved_redirecting: "Saved successfully! Redirecting...",
+                    ending_for_other: "Ending the session for the other party...",
+                    stopping_recording: "Stopping audio recording...",
+                    cloudinary_upload_failed: "Failed to upload file to Cloudinary",
+                    default_file_word: "File"
+                }
+            };
+            let currentLangLive = 'ar';
+
+            function tl(key) {
+                return (translationsLive[currentLangLive] && translationsLive[currentLangLive][key]) || translationsLive['ar'][key] || key;
+            }
+
+            function applyLanguageLive(lang) {
+                currentLangLive = (lang === 'en') ? 'en' : 'ar';
+                document.documentElement.setAttribute('lang', currentLangLive);
+                document.documentElement.setAttribute('dir', currentLangLive === 'en' ? 'ltr' : 'rtl');
+                document.querySelectorAll('[data-i18n-l]').forEach((el) => {
+                    el.innerText = tl(el.getAttribute('data-i18n-l'));
+                });
+                document.querySelectorAll('[data-i18n-l-placeholder]').forEach((el) => {
+                    el.setAttribute('placeholder', tl(el.getAttribute('data-i18n-l-placeholder')));
+                });
+            }
+
+
             let currentUser = null;
             let selectedColor = 'black';
             let strokeWidth = 4.0;
@@ -384,6 +526,38 @@
         let screenShareClient = null;
         const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
 
+        // 🎙️ نظام مزج الصوت للتسجيل: يجمع صوت المايك المحلي + صوت الطرف الآخر القادم عبر Agora
+        let recordingAudioContext = null;
+        let recordingDestination = null;
+        const remoteAudioSourceNodes = {};
+
+        function initAudioMixGraph(localTrack) {
+            try {
+                recordingAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                recordingDestination = recordingAudioContext.createMediaStreamDestination();
+                recordingAudioContext.resume().catch(() => {});
+
+                const localSource = recordingAudioContext.createMediaStreamSource(
+                    new MediaStream([localTrack.getMediaStreamTrack()])
+                );
+                localSource.connect(recordingDestination);
+            } catch (e) {
+                console.error('Failed to init audio mix graph:', e);
+            }
+        }
+
+        function addRemoteAudioToMix(uid, remoteAudioTrack) {
+            if (!recordingAudioContext || !recordingDestination) return;
+            try {
+                const remoteStream = new MediaStream([remoteAudioTrack.getMediaStreamTrack()]);
+                const remoteSource = recordingAudioContext.createMediaStreamSource(remoteStream);
+                remoteSource.connect(recordingDestination);
+                remoteAudioSourceNodes[uid] = remoteSource;
+            } catch (e) {
+                console.error('Failed to add remote audio to mix:', e);
+            }
+        }
+
         // ☁️ إعدادات الرفع المباشر لـ Cloudinary
         const CLOUDINARY_CLOUD_NAME = 'f4t8ayoq';
         const CLOUDINARY_UNSIGNED_PRESET_AUDIO = 'labeeb_audio_unsigned';
@@ -396,6 +570,19 @@
         // 📄 رقم الصفحة الحالية للسبورة (بدل حفظ صور، كل نقطة بتتسجل تحت رقم صفحتها)
         let currentPageIndex = 0;
         let lastWhiteboardSnapshot = null;
+
+        // 🔐 صلاحيات يتحكم فيها المعلم: مشاركة الشاشة والرسم للطالب
+        let screenShareAllowedForStudent = false;
+        let drawingAllowedForStudent = false;
+        let sessionTeacherId = null;
+        let sessionStudentId = null;
+        let sessionIsScreenSharing = false;
+        let sessionScreenShareUid = null;
+
+        // هل يُسمح للمستخدم الحالي بالرسم الآن؟ (المعلم دايماً، الطالب بس لو المعلم سمح)
+        function canDraw() {
+            return isTeacher || drawingAllowedForStudent;
+        }
             // مؤشر القلم (للرسم)
             const PEN_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='black' stroke='white' stroke-width='1'><path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/></svg>\") 2 22, crosshair";
             
@@ -471,6 +658,12 @@
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
+                    try {
+                        const sessionSnap = await db.collection('sessions').doc(sessionId).get();
+                        applyLanguageLive(sessionSnap.exists ? (sessionSnap.data().language || 'ar') : 'ar');
+                    } catch (e) {
+                        applyLanguageLive('ar');
+                    }
                     initUI();
                     initCanvas();
                     initAgora();
@@ -500,19 +693,87 @@
             });
 
             function initUI() {
-                document.getElementById('sessionTitle').innerText = isTeacher ? `جلسة مع الطالب: ${studentName}` : 'جلسة مع المعلم';
+                document.getElementById('sessionTitle').innerText = isTeacher ? `${tl('session_with_student')} ${studentName}` : tl('session_with_teacher');
                 if (isTeacher) {
                     document.getElementById('teacherToolbar').classList.remove('hidden');
                     document.getElementById('undoBtn').classList.remove('hidden');
                     document.getElementById('clearBtn').classList.remove('hidden');
                     document.getElementById('newPageBtn').classList.remove('hidden');
                 } else {
-                    document.getElementById('endSessionText').innerText = 'مغادرة الجلسة';
+                    // 🚫 المؤثرات (إيموجي/بلالين...) للمعلم فقط، ما بتظهر للطالب أبداً
+                    document.getElementById('animationButtons').style.display = 'none';
+                    document.getElementById('endSessionText').innerText = tl('leave_session_btn');
                     document.getElementById('endSessionBtn').classList.remove('bg-red-600');
                     document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
                     document.getElementById('pointsDisplayContainer').classList.remove('hidden');
                 }
                 document.getElementById('screenShareBtn').classList.remove('hidden');
+
+                if (isTeacher) {
+                    document.getElementById('allowStudentScreenShareBtn').classList.remove('hidden');
+                    document.getElementById('allowStudentDrawBtn').classList.remove('hidden');
+                }
+            }
+
+            // ==========================================
+            // 🔐 التحكم بصلاحيات الطالب (مشاركة الشاشة + الرسم)
+            // ==========================================
+            async function toggleAllowStudentScreenShare() {
+                if (!isTeacher) return;
+                const newValue = !screenShareAllowedForStudent;
+
+                if (newValue && isScreenSharing) {
+                    // المعلم كان يشارك شاشته - لازم نوقفه أول عشان نسمح للطالب
+                    await stopMyScreenShare();
+                    await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null });
+                }
+
+                await db.collection('sessions').doc(sessionId).update({ screenShareAllowedForStudent: newValue });
+            }
+
+            async function toggleAllowStudentDraw() {
+                if (!isTeacher) return;
+                const newValue = !drawingAllowedForStudent;
+                await db.collection('sessions').doc(sessionId).update({ drawingAllowedForStudent: newValue });
+            }
+
+            function updatePermissionButtonsUI() {
+                if (!isTeacher) return;
+                const shareBtn = document.getElementById('allowStudentScreenShareBtn');
+                const drawBtn = document.getElementById('allowStudentDrawBtn');
+
+                if (screenShareAllowedForStudent) {
+                    shareBtn.classList.remove('bg-white/10', 'hover:bg-white/20');
+                    shareBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                } else {
+                    shareBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    shareBtn.classList.add('bg-white/10', 'hover:bg-white/20');
+                }
+
+                if (drawingAllowedForStudent) {
+                    drawBtn.classList.remove('bg-white/10', 'hover:bg-white/20');
+                    drawBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                } else {
+                    drawBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    drawBtn.classList.add('bg-white/10', 'hover:bg-white/20');
+                }
+            }
+
+            function updateStudentDrawingUI() {
+                if (isTeacher) return; // أدوات المعلم دايماً ظاهرة، بتتحكم فيها initUI مش هون
+                const toolbar = document.getElementById('teacherToolbar');
+                const undo = document.getElementById('undoBtn');
+                const clear = document.getElementById('clearBtn');
+
+                if (drawingAllowedForStudent) {
+                    toolbar.classList.remove('hidden');
+                    undo.classList.remove('hidden');
+                    clear.classList.remove('hidden');
+                } else {
+                    toolbar.classList.add('hidden');
+                    undo.classList.add('hidden');
+                    clear.classList.add('hidden');
+                }
             }
 
             // ==========================================
@@ -533,8 +794,7 @@
                 canvas.addEventListener('touchend', handleTouchEnd);
                 canvas.addEventListener('dblclick', handleDoubleClick);
             }
-            function handleDoubleClick(e) {
-        if (!isTeacher) return;
+function handleDoubleClick(e) { if (!canDraw()) return;
         const pos = getMousePos(e);
         const px = pos.x * canvas.width;
         const py = pos.y * canvas.height;
@@ -573,8 +833,7 @@
                 return null;
             }
 
-            function startDraw(e) {
-                if (!isTeacher) return;
+            function startDraw(e) { if (!canDraw()) return;
                 const pos = getMousePos(e);
                 const px = pos.x * canvas.width;
                 const py = pos.y * canvas.height;
@@ -613,8 +872,7 @@
                 drawStroke(currentStroke);
             }
 
-            function draw(e) {
-                if (!isTeacher || !isDrawing) return;
+                function draw(e) { if (!canDraw() || !isDrawing) return;
                 const pos = getMousePos(e);
                 
                 if (draggingTextId) {
@@ -646,8 +904,7 @@
                 }
             }
 
-            function endDraw(e) {
-                if (!isTeacher || !isDrawing) return;
+            function endDraw(e) { if (!canDraw() || !isDrawing) return;
                 isDrawing = false;
                 
                 if (draggingTextId) {
@@ -680,6 +937,7 @@
                     color: selectedColor,
                     strokeWidth: strokeWidth,
                     page: currentPageIndex,
+                    author: currentUser.uid,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(err => console.error("Error saving shape:", err));
                     
@@ -691,6 +949,7 @@
                 db.collection('sessions').doc(sessionId).collection('strokes').add({
                     points: currentStroke,
                     page: currentPageIndex,
+                    author: currentUser.uid,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(err => console.error("Error saving stroke:", err));
                 currentStroke = [];
@@ -922,16 +1181,16 @@
                     ctx.textAlign = 'left';
                     ctx.fillText(data.text, data.dx * canvas.width, data.dy * canvas.height);
                     strokeDocIds.push(doc.id);
-                    currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18 });
+                    currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18, author: data.author });
                 } else if (data.type === 'shape') {
                     drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
                     strokeDocIds.push(doc.id);
-                    currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth });
+                    currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth, author: data.author });
                 } else {
                     const points = data.points || [];
                     drawStroke(points);
                     strokeDocIds.push(doc.id);
-                    currentStrokes.push({ id: doc.id, points: points });
+                    currentStrokes.push({ id: doc.id, points: points, author: data.author });
                 }
             });
         }
@@ -950,7 +1209,7 @@
         const input = document.createElement('input');
         input.id = 'tempTextInput';
         input.type = 'text';
-        input.placeholder = 'اكتب هنا...';
+        input.placeholder = (currentLangLive === 'en') ? 'Type here...' : 'اكتب هنا...';
         input.value = existingData ? existingData.text : '';
         input.style.position = 'absolute';
         input.style.left = (x * canvas.offsetWidth) + 'px';
@@ -993,6 +1252,7 @@
                     color: selectedColor,
                     fontSize: 18,
                     page: currentPageIndex,
+                    author: currentUser.uid,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 }
@@ -1061,6 +1321,10 @@
                     }
                     
                     if (hit) {
+                        // 🔐 الطالب يقدر يمسح بس اللي رسمه هو؛ المعلم يقدر يمسح أي شي
+                        if (!isTeacher && stroke.author !== currentUser.uid) {
+                            continue; // مش ملكه، جرب الطبقة اللي تحتها بدل ما توقف البحث
+                        }
                         db.collection('sessions').doc(sessionId).collection('strokes').doc(stroke.id).delete();
                         break;
                     }
@@ -1110,19 +1374,26 @@
             }
 
             function undoStroke() {
-                if (!isTeacher || strokeDocIds.length === 0) return;
-                const lastId = strokeDocIds.pop();
+                if (!canDraw()) return;
+                // 🔐 المعلم بيتراجع عن آخر عنصر مهما كان صاحبه؛ الطالب بس عن آخر عنصر رسمه هو بنفسه
+                const eligibleStrokes = isTeacher ? currentStrokes : currentStrokes.filter(s => s.author === currentUser.uid);
+                if (eligibleStrokes.length === 0) return;
+                const lastId = eligibleStrokes[eligibleStrokes.length - 1].id;
                 db.collection('sessions').doc(sessionId).collection('strokes').doc(lastId).delete();
             }
 
         // 🗑️ مسح نقاط الصفحة الحالية فقط (باقي الصفحات محفوظة في قاعدة البيانات بدون تأثر)
+        // 🗑️ مسح نقاط الصفحة الحالية: المعلم يمسح كل شي، الطالب يمسح بس اللي رسمه هو
         function clearBoard() {
-            if (!isTeacher) return;
-            db.collection('sessions').doc(sessionId).collection('strokes')
-                .where('page', '==', currentPageIndex)
-                .get().then((snapshot) => {
-                    snapshot.forEach((doc) => doc.ref.delete());
-                });
+            if (!canDraw()) return;
+            let query = db.collection('sessions').doc(sessionId).collection('strokes')
+                .where('page', '==', currentPageIndex);
+            if (!isTeacher) {
+                query = query.where('author', '==', currentUser.uid);
+            }
+            query.get().then((snapshot) => {
+                snapshot.forEach((doc) => doc.ref.delete());
+            });
         }
 
         // 📄 الانتقال لصفحة جديدة فارغة - بيانات الصفحة الحالية تبقى محفوظة كما هي في قاعدة البيانات
@@ -1133,21 +1404,23 @@
             updatePageCounter();
             db.collection('sessions').doc(sessionId).update({ currentBoardPage: currentPageIndex })
                 .catch(err => console.error('Failed to sync board page:', err));
-            showSnackBar(`تم الانتقال للصفحة رقم ${currentPageIndex + 1} ✅`, 'green');
+            showSnackBar(`${tl('moved_to_page')} ${currentPageIndex + 1} ✅`, 'green');
         }
 
         // ⚠️ عند الضغط على زر المسح العادي: تأكيد فقط، بدون خيار "حفظ كصورة" (لأن البيانات محفوظة أصلاً)
+        // ⚠️ عند الضغط على زر المسح العادي: تأكيد فقط، بدون خيار "حفظ كصورة" (لأن البيانات محفوظة أصلاً)
         function confirmClearBoard() {
-            if (!isTeacher) return;
-            if (currentStrokes.length === 0) return;
-            if (confirm('سيتم مسح محتوى الصفحة الحالية نهائياً. متابعة؟')) {
+            if (!canDraw()) return;
+            const eligibleToClear = isTeacher ? currentStrokes : currentStrokes.filter(s => s.author === currentUser.uid);
+            if (eligibleToClear.length === 0) return;
+            if (confirm(tl('confirm_clear_page'))) {
                 clearBoard();
             }
         }
 
         function updatePageCounter() {
             const label = document.getElementById('pageCounterLabel');
-            if (label) label.innerText = `صفحة ${currentPageIndex + 1}`;
+            if (label) label.innerText = `${tl('page_word')} ${currentPageIndex + 1}`;
         }
 
             // ==========================================
@@ -1246,16 +1519,19 @@
 
             async function initAgora() {
                 try {
-                    showSnackBar('جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...', '#D97706');
+                    showSnackBar(tl('connecting_audio'), '#D97706');
                     const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
                     const token = await fetchDynamicToken(sessionId, numericUid);
-                    if (!token) throw new Error('تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.');
+                    if (!token) throw new Error(tl('token_failed'));
                     agoraEngine = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
                     await agoraEngine.setClientRole("host");
                     
                     agoraEngine.on("user-published", async (user, mediaType) => {
                         await agoraEngine.subscribe(user, mediaType);
-                        if (mediaType === "audio") user.audioTrack.play();
+                        if (mediaType === "audio") {
+                            user.audioTrack.play();
+                            addRemoteAudioToMix(user.uid, user.audioTrack);
+                        }
                         if (mediaType === "video") {
                             const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
                             const myScreenShareUid = numericUid + 1000000;
@@ -1299,10 +1575,11 @@
                     if (localAudioTrack) {
                         await agoraEngine.publish([localAudioTrack]);
                         isMuted = false; updateMicUI();
-                        showSnackBar('تم الاتصال بالصوت بنجاح! 🎙️', '#10b981');
-                        startAudioRecording(localAudioTrack);
-                    } else { throw new Error('تعذر الوصول إلى الميكروفون بعد عدة محاولات.'); }
-                } catch (e) { showSnackBar('تعذر الاتصال بالصوت: ' + e.message, 'red'); }
+                        showSnackBar(tl('audio_connected'), '#10b981');
+                        initAudioMixGraph(localAudioTrack);
+                        startAudioRecording();
+                    } else { throw new Error(tl('mic_access_failed')); }
+                } catch (e) { showSnackBar(`${tl('audio_connect_failed')} ${e.message}`, 'red'); }
             }
 
             async function toggleMute() {
@@ -1342,6 +1619,23 @@
             async function toggleScreenShare() {
                 try {
                     if (!isScreenSharing) {
+                        // 🔐 فحص الصلاحية: الطالب ما بيقدر يشارك إلا لو المعلم سمح
+                        if (!isTeacher && !screenShareAllowedForStudent) {
+                            showSnackBar('لم يسمح لك المعلم بمشاركة الشاشة بعد', 'orange');
+                            return;
+                        }
+                        // 🔐 المعلم ما بيقدر يشارك طالما الخيار مفعّل لصالح الطالب
+                        if (isTeacher && screenShareAllowedForStudent) {
+                            showSnackBar('لا يمكنك مشاركة الشاشة الآن، الخيار مفعّل لصالح الطالب. أوقف السماح للطالب أولاً.', 'orange');
+                            return;
+                        }
+                        // 🔐 تعارض: فيه طرف تاني يشارك شاشته حالياً
+                        if (sessionIsScreenSharing && sessionScreenShareUid && sessionScreenShareUid !== currentUser.uid) {
+                            const otherIsTeacher = sessionScreenShareUid === sessionTeacherId;
+                            showSnackBar(otherIsTeacher ? 'عذراً، المعلم يشارك شاشته الآن' : 'عذراً، الطالب يشارك شاشته الآن', 'orange');
+                            return;
+                        }
+
                         const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
                         const screenShareUidLocal = numericUid + 1000000; 
                         const token = await fetchDynamicToken(sessionId, screenShareUidLocal);
@@ -1353,17 +1647,17 @@
                         updateScreenShareUI();
                         await db.collection('sessions').doc(sessionId).update({ isScreenSharing: true, screenShareUid: currentUser.uid });
                         document.getElementById('screenShareContainer').style.display = 'none';
-                        showSnackBar('تم بدء مشاركة الشاشة بنجاح', 'green');
+                        showSnackBar(tl('screen_share_started'), 'green');
                     } else {
                         await stopMyScreenShare();
                         await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null });
-                        showSnackBar('تم إيقاف مشاركة الشاشة', 'orange');
+                        showSnackBar(tl('screen_share_stopped'), 'orange');
                     }
                 } catch (e) {
                     if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
                     isScreenSharing = false;
                     updateScreenShareUI();
-                    showSnackBar('فشل مشاركة الشاشة: ' + e.message, 'red');
+                    showSnackBar(`${tl('screen_share_failed')} ${e.message}`, 'red');
                 }
             }
 
@@ -1393,7 +1687,7 @@
                     container.style.margin = '0';
                     container.style.borderRadius = '0';
                     
-                    text.innerText = "تصغير";
+                    text.innerText = tl('zoom_out');
                     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />';
                 } else {
                     container.style.position = '';
@@ -1407,7 +1701,7 @@
                     container.style.margin = '';
                     container.style.borderRadius = '';
                     
-                    text.innerText = "تكبير";
+                    text.innerText = tl('zoom_in');
                     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />';
                 }
                 
@@ -1422,6 +1716,36 @@
                 if (doc.exists) {
                     const data = doc.data();
 
+                    // 🔐 مزامنة صلاحيات مشاركة الشاشة والرسم + حفظ بيانات الجلسة الأساسية
+                    sessionTeacherId = data.teacherId || null;
+                    sessionStudentId = data.studentId || null;
+                    sessionIsScreenSharing = !!data.isScreenSharing;
+                    sessionScreenShareUid = data.screenShareUid || null;
+
+                    const newScreenShareAllowed = !!data.screenShareAllowedForStudent;
+                    if (newScreenShareAllowed !== screenShareAllowedForStudent) {
+                        screenShareAllowedForStudent = newScreenShareAllowed;
+                        updatePermissionButtonsUI();
+                        if (!isTeacher) {
+                            showSnackBar(
+                                screenShareAllowedForStudent ? 'المعلم سمح لك بمشاركة الشاشة الآن 🎉' : 'تم إيقاف صلاحية مشاركة الشاشة من قبل المعلم',
+                                screenShareAllowedForStudent ? 'green' : 'orange'
+                            );
+                        }
+                    }
+
+                    const newDrawAllowed = !!data.drawingAllowedForStudent;
+                    if (newDrawAllowed !== drawingAllowedForStudent) {
+                        drawingAllowedForStudent = newDrawAllowed;
+                        updateStudentDrawingUI();
+                        if (!isTeacher) {
+                            showSnackBar(
+                                drawingAllowedForStudent ? 'المعلم سمح لك بالرسم على السبورة الآن ✏️' : 'تم إيقاف صلاحية الرسم من قبل المعلم',
+                                drawingAllowedForStudent ? 'green' : 'orange'
+                            );
+                        }
+                    }
+
                     // 📄 متابعة تلقائية لرقم صفحة السبورة الحالية (الطالب يتبع المعلم دائماً)
                     const remotePage = data.currentBoardPage || 0;
                     if (remotePage !== currentPageIndex) {
@@ -1433,10 +1757,10 @@
                     if (data.status === 'completed') {  
                         if (isFinalizingSession) return; // المعلم نفسه لسه بيرفع الملفات، ما نقطعوش
                         if (isTeacher && data.teacherId === currentUser.uid && !data.audioRecordingUrl && !data.boardPdfUrl) {
-                            showSnackBar('⚠️ الحصة انتهت لكن حفظ الملفات لم يكتمل. لا تغلق الصفحة، وتواصل مع الدعم الفني إن استمرت المشكلة.', 'orange');
+                            showSnackBar(tl('files_not_saved_warning'), 'orange');
                             return;
                         }
-                        showSnackBar('⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.', 'red');
+                        showSnackBar(tl('session_ended_other'), 'red');
                             if (agoraEngine) agoraEngine.leave();
                             if (screenShareClient) screenShareClient.leave();
                             clearInterval(sessionTimer);
@@ -1445,11 +1769,11 @@
                         }
                         if (data.status === 'interrupted') {
                             if (!isTeacher && data.interruptedBy === 'teacher') {
-                                showSnackBar('❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.', 'red');
+                                showSnackBar(tl('teacher_disconnected'), 'red');
                                 clearInterval(sessionTimer);
                                 setTimeout(() => window.location.href = '/student-dashboard', 3000);
                             } else if (isTeacher && data.interruptedBy === 'student') {
-                                showSnackBar('⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.', 'orange');
+                                showSnackBar(tl('student_disconnected'), 'orange');
                             }
                         }
                         
@@ -1487,7 +1811,7 @@
                 if (!file) return;
 
                 document.getElementById('uploadStatus').classList.remove('hidden');
-                document.getElementById('uploadStatus').innerText = 'جاري رفع الملف...';
+                document.getElementById('uploadStatus').innerText = tl('uploading_file');
 
                 try {
                     const token = await currentUser.getIdToken();
@@ -1515,7 +1839,7 @@
                         throw new Error('Upload failed');
                     }
                 } catch (e) {
-                    document.getElementById('uploadStatus').innerText = 'فشل رفع الملف';
+                    document.getElementById('uploadStatus').innerText = (currentLangLive === 'en') ? 'File upload failed' : 'فشل رفع الملف';
                     setTimeout(() => document.getElementById('uploadStatus').classList.add('hidden'), 2000);
                 }
                 event.target.value = '';
@@ -1535,7 +1859,7 @@
                         
                         if (data.type === 'file' && data.fileUrl) {
                             const url = data.fileUrl;
-                            const fileName = data.fileName || 'ملف';
+                            const fileName = data.fileName || tl('default_file_word');
                             const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null || (url.includes('cloudinary') && url.includes('image'));
 
                             if (isImage) {
@@ -1658,10 +1982,10 @@
             // 📄 PDF Generation & End Session
             // ==========================================
             let mediaRecorder, audioChunks = [];
-            function startAudioRecording(track) {
+            function startAudioRecording() {
                 try {
-                    const mediaStream = new MediaStream([track.getMediaStreamTrack()]);
-                    mediaRecorder = new MediaRecorder(mediaStream, { audioBitsPerSecond: 16000 });
+                    if (!recordingDestination) return;
+                    mediaRecorder = new MediaRecorder(recordingDestination.stream, { audioBitsPerSecond: 16000 });
                     mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
                     mediaRecorder.start();
                 } catch (e) {}
@@ -1693,7 +2017,7 @@
             const res = await fetch(url, { method: 'POST', body: formData });
             if (!res.ok) {
                 const errText = await res.text().catch(() => '');
-                throw new Error(`فشل رفع الملف إلى Cloudinary (${res.status}): ${errText.slice(0, 150)}`);
+                throw new Error(`${tl('cloudinary_upload_failed')} (${res.status}): ${errText.slice(0, 150)}`);
             }
             const data = await res.json();
             return data.secure_url;
@@ -1702,28 +2026,28 @@
         function showFinalizeError(message) {
             document.getElementById('progressStatus').innerText = '❌ ' + message;
             document.getElementById('endModalRetry').classList.remove('hidden');
-            showSnackBar('فشلت عملية الحفظ، اضغط "إعادة المحاولة" 🔁', 'red');
+            showSnackBar(tl('save_failed_retry'), 'red');
         }
 
         async function finalizeAndUpload() {
             document.getElementById('endModalRetry').classList.add('hidden');
             try {
-                updateProgress(0.60, 'جاري رفع التسجيل الصوتي...');
+                updateProgress(0.60, tl('uploading_audio'));
                 let audioUrl = null;
                 if (pendingAudioFile) {
                     audioUrl = await uploadToCloudinaryDirect(pendingAudioFile, 'video', CLOUDINARY_UNSIGNED_PRESET_AUDIO);
                 }
 
-                updateProgress(0.90, 'جاري حفظ البيانات...');
+                updateProgress(0.90, tl('saving_data'));
                 const token = await currentUser.getIdToken();
                 const res = await fetch(`/api/session/complete/${sessionId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ audioUrl, pdfUrl: null })
                 });
-                if (!res.ok) throw new Error('فشل حفظ البيانات في السيرفر');
+                if (!res.ok) throw new Error(tl('saving_data'));
 
-                updateProgress(1.0, 'تم الحفظ بنجاح! جاري تحويلك...');
+                updateProgress(1.0, tl('saved_redirecting'));
                 if (agoraEngine) await agoraEngine.leave();
                 if (screenShareClient) await screenShareClient.leave();
                 window.removeEventListener('beforeunload', finalizeBeforeUnloadWarning);
@@ -1739,7 +2063,7 @@
             isFinalizingSession = true;
             window.addEventListener('beforeunload', finalizeBeforeUnloadWarning);
             try {
-                updateProgress(0.20, 'جاري إنهاء الجلسة للطرف الآخر...');
+                updateProgress(0.20, tl('ending_for_other'));
                 const leaveToken = await currentUser.getIdToken();
                 await fetch(`/api/session/leave/${sessionId}`, {
                     method: 'POST',
@@ -1749,7 +2073,7 @@
                 if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
                 if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
 
-                updateProgress(0.40, 'جاري إيقاف التسجيل الصوتي...');
+                updateProgress(0.40, tl('stopping_recording'));
                 pendingAudioFile = await stopAudioRecording();
 
                 await finalizeAndUpload();
