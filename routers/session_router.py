@@ -190,6 +190,12 @@ async def join_session(sessionId: str, uid: str = Depends(get_current_user)):
                 'timerStartedAt': firestore.SERVER_TIMESTAMP,
                 'status': 'active'
             })
+        elif session_data.get('status') == 'interrupted' and session_data.get('timerStartedAt') is not None:
+            # رجوع بعد Refresh: استأنف الحصة والخصم
+            session_ref.update({
+                'status': 'active',
+                'interruptedBy': firestore.DELETE_FIELD
+            })
 
         return {"message": "تم تسجيل الدخول"}
 

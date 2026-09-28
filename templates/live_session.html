@@ -503,6 +503,7 @@
 
 
             let currentUser = null;
+            let authToken = null;
             let selectedColor = 'black';
             let strokeWidth = 4.0;
             let isEraser = false;
@@ -674,18 +675,16 @@
                     listenToSessionState();
                     listenToAnimations();
                     
-                    window.addEventListener('beforeunload', async (event) => {
-                        if (agoraEngine) await agoraEngine.leave();
-                        if (screenShareClient) await screenShareClient.leave();
-                        try {
-                            const doc = await db.collection('sessions').doc(sessionId).get();
-                            if (doc.exists && doc.data().status !== 'completed') {
-                                await db.collection('sessions').doc(sessionId).update({
-                                    'status': 'interrupted',
-                                    'interruptedBy': isTeacher ? 'teacher' : 'student'
-                                });
-                            }
-                        } catch (e) {}
+                    window.addEventListener('beforeunload', () => {
+                        if (agoraEngine) agoraEngine.leave();
+                        if (screenShareClient) screenShareClient.leave();
+                        if (authToken) {
+                            fetch(`/api/session/interrupt/${sessionId}`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${authToken}` },
+                                keepalive: true
+                            }).catch(() => {});
+                        }
                     });
                 } else {
                     window.location.href = '/';
@@ -1445,10 +1444,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
                     async function registerSessionJoin() {
                 try {
-                    const token = await currentUser.getIdToken();
+                    authToken = await currentUser.getIdToken();
                     await fetch(`/api/session/join/${sessionId}`, {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        headers: { 'Authorization': `Bearer ${authToken}` }
                     });
                 } catch (e) {
                     console.error('Failed to register session join:', e);
@@ -1494,10 +1493,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 if (deductionInterval) return;
                 deductionInterval = setInterval(async () => {
                     try {
-                        const token = await currentUser.getIdToken();
+                        authToken = await currentUser.getIdToken();
                         await fetch(`/api/session/deduct/${sessionId}`, {
                             method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}` }
+                            headers: { 'Authorization': `Bearer ${authToken}` }
                         });
                     } catch (e) {
                         console.error('Deduction call failed:', e);
@@ -2000,8 +1999,20 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
             
             function confirmEndSession() {
-                if (isTeacher) openModal('endSessionModal');
-                else { db.collection('sessions').doc(sessionId).update({ 'status': 'completed', 'completedAt': firebase.firestore.FieldValue.serverTimestamp() }); window.location.href = '/student-dashboard'; }
+                if (isTeacher) { openModal('endSessionModal'); return; }
+                (async () => {
+                    try {
+                        const token = await currentUser.getIdToken();
+                        await fetch(`/api/session/leave/${sessionId}`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                    } catch (e) {
+                        console.error('Failed to leave session:', e);
+                    } finally {
+                        window.location.href = '/student-dashboard';
+                    }
+                })();
             }
             
         function finalizeBeforeUnloadWarning(e) {
