@@ -199,10 +199,25 @@
                 <option>التعليم الجامعي المستمر</option>
             </select>
 
+            <!-- ✨ إضافة خانة الملاحظات -->
+            <label class="text-xs text-gray-500 block mb-2">ملاحظات للحصة (اختياري):</label>
+            <textarea id="bookingNotes" rows="2" placeholder="اكتب أي تفاصيل تود إخبار المعلم بها..." class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen resize-none"></textarea>
+
             <label data-i18n="booking_type_label" class="text-xs text-gray-500 block mb-2">نوع الحجز:</label>
             <div class="flex gap-4 mb-4 text-sm">
                 <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="now" checked> <span data-i18n="booking_now">فوراً ⚡</span></label>
                 <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="schedule"> <span data-i18n="booking_schedule">مجدولة 🗓️</span></label>
+            </div>
+
+            <!-- ✨ إضافة اختيار معلم معين -->
+            <div class="mb-4">
+                <label class="flex items-center gap-2 cursor-pointer mb-2">
+                    <input type="checkbox" id="requestSpecificTeacher" onchange="toggleTeacherDropdown()">
+                    <span class="text-xs text-gray-500 font-bold">هل تفضل طلب معلم معين؟</span>
+                </label>
+                <select id="preferredTeacherSelect" class="w-full bg-beigeCard rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen hidden">
+                    <option value="">-- اختر المعلم --</option>
+                </select>
             </div>
 
             <div id="scheduleFields" class="hidden mb-4">
@@ -999,7 +1014,84 @@
                     document.getElementById('scheduleFields').classList.toggle('hidden', e.target.value !== 'schedule');
                 };
             });
+            // ✨ إعادة تعيين الحقول الجديدة
+            document.getElementById('bookingNotes').value = '';
+            document.getElementById('requestSpecificTeacher').checked = false;
+            document.getElementById('preferredTeacherSelect').classList.add('hidden');
+            loadPreviousTeachers(); // جلب قائمة المعلمين
         }
+
+        // ✨ دالة إظهار/إخفاء قائمة المعلمين
+        function toggleTeacherDropdown() {
+            const checkbox = document.getElementById('requestSpecificTeacher');
+            const select = document.getElementById('preferredTeacherSelect');
+            if (checkbox.checked) {
+                select.classList.remove('hidden');
+            } else {
+                select.classList.add('hidden');
+                select.value = "";
+            }
+        }
+
+async function loadPreviousTeachers() {
+    const select = document.getElementById('preferredTeacherSelect');
+    
+    // التأكد أولاً من تسجيل الدخول وجلب المستخدم الحالي
+    const user = currentUser || auth.currentUser;
+    if (!user) {
+        select.innerHTML = '<option value="">-- يرجى الانتظار لحين تحميل بيانات الحساب --</option>';
+        return;
+    }
+
+    select.innerHTML = '<option value="">-- جاري تحميل المعلمين... --</option>';
+    
+    try {
+        const snapshot = await db.collection('sessions')
+            .where('studentId', '==', user.uid)
+            .get();
+
+        const teacherIds = new Set();
+        
+        if (snapshot.empty) {
+            select.innerHTML = '<option value="">-- لا يوجد معلمون سابقون --</option>';
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.teacherId && ['completed', 'accepted', 'active'].includes(data.status)) {
+                teacherIds.add(data.teacherId);
+            }
+        });
+
+        if (teacherIds.size === 0) {
+            select.innerHTML = '<option value="">-- لا يوجد معلمون سابقون --</option>';
+            return;
+        }
+
+        select.innerHTML = '<option value="">-- اختر المعلم --</option>';
+        
+        for (const id of teacherIds) {
+            const userDoc = await db.collection('users').doc(id).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                let rawName = userData.fullName || userData.name || userData.displayName || 'معلم لبيب';
+                
+                rawName = rawName.replace(/^أ\.\s*/, '').trim();
+                const formattedName = `أ. ${rawName}`;
+                
+                const option = document.createElement('option');
+                option.value = JSON.stringify({ id: id, name: formattedName });
+                option.innerText = formattedName;
+                select.appendChild(option);
+            }
+        }
+
+    } catch(e) {
+        console.error("Error loading previous teachers:", e);
+        select.innerHTML = '<option value="">-- خطأ في تحميل المعلمين --</option>';
+    }
+}
 
         async function submitBooking() {
             const subject = document.getElementById('bookingSubject').value;
@@ -1051,17 +1143,37 @@
                 const result = await response.json();
                 const sessionId = result.sessionId;
 
-                if (bookingType === 'schedule') {
-                    await db.collection('sessions').doc(sessionId).update({
-                        'bookingType': 'schedule',
-                        'scheduledAt': firebase.firestore.Timestamp.fromDate(scheduledDate),
-                        'scheduledTime': `${scheduledDate.getHours()}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`
-                    });
-                } else {
-                    await db.collection('sessions').doc(sessionId).update({
-                        'bookingType': 'now'
-                    });
+                // ✨ قراءة الملاحظات والمعلم المختار
+                const notes = document.getElementById('bookingNotes').value.trim();
+                let preferredTeacherId = null;
+                let preferredTeacherName = null;
+                
+                if (document.getElementById('requestSpecificTeacher').checked) {
+                    const selectedVal = document.getElementById('preferredTeacherSelect').value;
+                    if (!selectedVal) {
+                        showSnackBar('الرجاء اختيار المعلم من القائمة', '#D97706');
+                        return;
+                    }
+    const teacherData = JSON.parse(selectedVal);
+    preferredTeacherId = teacherData.id;
+    preferredTeacherName = teacherData.name;
                 }
+
+                const updateData = {
+                    'notes': notes,
+                    'preferredTeacherId': preferredTeacherId,
+                    'preferredTeacherName': preferredTeacherName
+                };
+
+                if (bookingType === 'schedule') {
+                    updateData['bookingType'] = 'schedule';
+                    updateData['scheduledAt'] = firebase.firestore.Timestamp.fromDate(scheduledDate);
+                    updateData['scheduledTime'] = `${scheduledDate.getHours()}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`;
+                } else {
+                    updateData['bookingType'] = 'now';
+                }
+
+                await db.collection('sessions').doc(sessionId).update(updateData);
 
                 showSnackBar(`${t('request_sent_success')}\n${sessionId.substring(0, 8)}...`, '#4E6B45');
 

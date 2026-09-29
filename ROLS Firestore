@@ -42,7 +42,8 @@ service cloud.firestore {
 
     // --- 1. مجموعة المستخدمين ---
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      // ✨ السماح للمستخدم بقراءة ملفه الشخصي، أو للإدارة، أو قراءة ملفات المعلمين فقط
+      allow read: if isOwner(userId) || isAdmin() || (isAuthenticated() && resource.data.role == 'teacher');
 
       allow create: if isAdmin() || (
         isOwner(userId) &&
