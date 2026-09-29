@@ -79,13 +79,12 @@
             </div>
 
             <!-- Progress Bar -->
-            <div class="flex gap-1.5 mb-7">
+            <div id="progressBarContainer" class="flex gap-1.5 mb-7 hidden">
                 <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen"></div>
                 <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
                 <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
                 <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
             </div>
-
             <!-- Step 0: Phone Number -->
             <div id="step-0" class="step-content">
                 <h2 class="text-xl font-bold mb-2">أهلاً بك، سجل دخولك برقم الجوال</h2>
@@ -531,6 +530,11 @@
             // Set Role Title
             document.getElementById('roleTitle').innerText = role === 'student' ? 'الطالب الطموح' : 'المعلم لبيب';
             if (role === 'teacher') document.getElementById('teacherSignupLink').classList.remove('hidden');
+            
+            // إظهار شريط التقدم للمعلم فقط وإخفائه للطالب
+            if (role === 'teacher') {
+                document.getElementById('progressBarContainer').classList.remove('hidden');
+            }
 
             // Render Subjects for Student & Teacher
             renderList(subjects, 'subjectList', []);

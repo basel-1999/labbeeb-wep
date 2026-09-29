@@ -55,6 +55,19 @@
 
             /* تنسيق قائمة الإيموجيز */
             #emojiPicker { display: none; }
+
+            /* 👆 مؤشر الطرف الآخر (يظهر عند الطالب لما يحرك المعلم مؤشره) */
+            #remotePointer {
+                position: absolute;
+                display: none;
+                pointer-events: none;
+                z-index: 60;
+                line-height: 1;
+                transform: translate(-50%, -50%);
+                transition: left 0.1s linear, top 0.1s linear;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.35);
+            }
+
         </style>
     </head>
     <body class="h-screen flex flex-col">
@@ -225,6 +238,7 @@
                 <div class="flex-1 relative bg-white">
                     <canvas id="whiteboard"></canvas>
                     <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
+                    <div id="remotePointer"></div>
                 </div>
             </div>
 
@@ -634,6 +648,7 @@
             }
 
             function selectShape(shapeType) {
+                hideMyPointer();
                 selectedShape = shapeType;
                 isShapeMode = true;
                 isEraser = false;
@@ -674,8 +689,10 @@
                     listenToChat();
                     listenToSessionState();
                     listenToAnimations();
+                    listenToRemotePointer();
                     
                     window.addEventListener('beforeunload', () => {
+                        hideMyPointer();
                         if (agoraEngine) agoraEngine.leave();
                         if (screenShareClient) screenShareClient.leave();
                         if (authToken) {
@@ -786,8 +803,10 @@
                 window.addEventListener('resize', resizeCanvas);
                 canvas.addEventListener('mousedown', startDraw);
                 canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mousemove', handlePointerMove);
                 canvas.addEventListener('mouseup', endDraw);
                 canvas.addEventListener('mouseleave', endDraw);
+                canvas.addEventListener('mouseleave', hideMyPointer);
                 canvas.addEventListener('touchstart', handleTouch);
                 canvas.addEventListener('touchmove', handleTouch);
                 canvas.addEventListener('touchend', handleTouchEnd);
@@ -966,12 +985,14 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 const touch = e.touches[0];
                 if (!touch) return;
                 const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                if (isPointerMode && canDraw()) { handlePointerMove(mockEvent); return; }
                 if (e.type === 'touchstart') startDraw(mockEvent);
                 else if (e.type === 'touchmove') draw(mockEvent);
             }
 
             function handleTouchEnd(e) {
                 e.preventDefault();
+                if (isPointerMode) { hideMyPointer(); return; }
                 const touch = e.changedTouches[0];
                 if (!touch) return;
                 const mockEvent = { clientX: touch.clientX, clientY: touch.clientY };
@@ -1331,6 +1352,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             function selectColor(color) {
+                hideMyPointer();
                 selectedColor = color;
                 isEraser = false;
                 isTextMode = false;
@@ -1346,6 +1368,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             function enableEraser() {
+                hideMyPointer();
                 isEraser = true;
                 isTextMode = false;
                 isShapeMode = false;
@@ -1355,6 +1378,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             function enableText() {
+                hideMyPointer();
                 isTextMode = true;
                 isEraser = false;
                 isShapeMode = false;
@@ -1364,6 +1388,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             function enablePen() {
+                hideMyPointer();
                 isEraser = false;
                 isTextMode = false;
                 isShapeMode = false;
@@ -1420,6 +1445,109 @@ function handleDoubleClick(e) { if (!canDraw()) return;
         function updatePageCounter() {
             const label = document.getElementById('pageCounterLabel');
             if (label) label.innerText = `${tl('page_word')} ${currentPageIndex + 1}`;
+        }
+                // ==========================================
+        // 👆 بث حركة المؤشر لحظياً بين المعلم والطالب
+        // ==========================================
+        const POINTER_SEND_INTERVAL_MS = 100000000;   // أقصى معدل إرسال (~10 مرات بالثانية)
+        const POINTER_HEARTBEAT_MS = 4000;      // تجديد الإشارة والمؤشر ثابت مكانه
+        const REMOTE_POINTER_STALE_MS = 10000;  // لو انقطعت الإشارة نخفي المؤشر عند المستقبل
+
+        let pendingPointerPos = null;
+        let pointerFlushTimer = null;
+        let pointerHeartbeat = null;
+        let lastPointerPayload = null;
+        let remotePointerHideTimer = null;
+        let pointerErrorLogged = false;
+
+        function pointerDocRef() {
+            return db.collection('sessions').doc(sessionId).collection('live').doc(currentUser.uid);
+        }
+
+        // نفس معادلة حجم الإيموجي في مؤشر المعلم المحلي، عشان يبان بنفس الحجم عند الطالب
+        function pointerFontPx(size) {
+            return size * size * 0.008;
+        }
+
+        function publishPointer(x, y, visible) {
+            if (!currentUser) return;
+            lastPointerPayload = { x, y, visible };
+            pointerDocRef().set({
+                x, y, visible,
+                emoji: pointerEmoji,
+                size: pointerSize,
+                by: currentUser.uid,
+                seq: Date.now()
+            }).catch((err) => {
+                if (!pointerErrorLogged) {
+                    pointerErrorLogged = true;
+                    console.error('Pointer sync failed:', err);
+                }
+            });
+        }
+
+        function handlePointerMove(e) {
+            if (!isPointerMode || !canDraw()) return;
+            const pos = getMousePos(e);
+            pendingPointerPos = {
+                x: Math.min(1, Math.max(0, pos.x)),
+                y: Math.min(1, Math.max(0, pos.y))
+            };
+            if (pointerFlushTimer) return;
+            pointerFlushTimer = setTimeout(() => {
+                pointerFlushTimer = null;
+                if (pendingPointerPos && isPointerMode) {
+                    publishPointer(pendingPointerPos.x, pendingPointerPos.y, true);
+                    startPointerHeartbeat();
+                }
+            }, POINTER_SEND_INTERVAL_MS);
+        }
+
+        function startPointerHeartbeat() {
+            if (pointerHeartbeat) return;
+            pointerHeartbeat = setInterval(() => {
+                if (lastPointerPayload && lastPointerPayload.visible && isPointerMode) {
+                    publishPointer(lastPointerPayload.x, lastPointerPayload.y, true);
+                }
+            }, POINTER_HEARTBEAT_MS);
+        }
+
+        function stopPointerHeartbeat() {
+            if (pointerHeartbeat) { clearInterval(pointerHeartbeat); pointerHeartbeat = null; }
+        }
+
+        // إخفاء مؤشري عند الطرف الآخر (خروج الماوس من السبورة، تغيير الأداة، إغلاق الصفحة)
+        function hideMyPointer() {
+            if (pointerFlushTimer) { clearTimeout(pointerFlushTimer); pointerFlushTimer = null; }
+            pendingPointerPos = null;
+            stopPointerHeartbeat();
+            if (lastPointerPayload && lastPointerPayload.visible) {
+                publishPointer(lastPointerPayload.x, lastPointerPayload.y, false);
+            }
+        }
+
+        // استقبال مؤشر الطرف الآخر وعرضه على السبورة (نراقب المجموعة كلها، فيها بالأكثر وثيقتين: معلم وطالب)
+        function listenToRemotePointer() {
+            db.collection('sessions').doc(sessionId).collection('live').onSnapshot((snapshot) => {
+                const el = document.getElementById('remotePointer');
+                if (!el) return;
+
+                snapshot.forEach((doc) => {
+                    if (doc.id === currentUser.uid) return; // تجاهل وثيقتي أنا
+                    const d = doc.data();
+                    clearTimeout(remotePointerHideTimer);
+
+                    if (!d.visible) { el.style.display = 'none'; return; }
+
+                    el.innerText = d.emoji || '👆';
+                    el.style.fontSize = pointerFontPx(d.size || 48) + 'px';
+                    el.style.left = (d.x * 100) + '%';
+                    el.style.top = (d.y * 100) + '%';
+                    el.style.display = 'block';
+
+                    remotePointerHideTimer = setTimeout(() => { el.style.display = 'none'; }, REMOTE_POINTER_STALE_MS);
+                });
+            }, (err) => console.error('Pointer listener error:', err));
         }
 
             // ==========================================

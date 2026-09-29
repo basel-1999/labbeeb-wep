@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- 🛠️ دوال مساعدة للأمان ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.admin == true) ||
+        (request.auth.token.role == 'admin') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isSessionParticipant(sessionId) {
+      let sessionPath = /databases/$(database)/documents/sessions/$(sessionId);
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(sessionPath) && (
+          get(sessionPath).data.studentId == request.auth.uid ||
+          get(sessionPath).data.teacherId == request.auth.uid
+        ))
+      );
+    }
+
+    function isSessionTeacher(sessionId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/sessions/$(sessionId)).data.teacherId == request.auth.uid;
+    }
+
+    function isDrawingAllowedForStudent(sessionId) {
+      return get(/databases/$(database)/documents/sessions/$(sessionId)).data.get('drawingAllowedForStudent', false) == true;
+    }
+
+    // --- 1. مجموعة المستخدمين ---
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isAdmin() || (
+        isOwner(userId) &&
+        request.resource.data.role in ['student', 'teacher'] &&
+        request.resource.data.get('points', 0) == 0 &&
+        (
+          (request.resource.data.role == 'student' && request.resource.data.get('status', 'active') == 'active') ||
+          (request.resource.data.role == 'teacher' && request.resource.data.get('status', 'pending_approval') == 'pending_approval')
+        )
+      );
+
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow create, delete: if false;
+      }
+
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'role', 'status', 'isApproved', 'accountStatus', 'isAvailable']) &&
+        (
+          resource.data.get('status', '') != 'approved' ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subjects', 'targetAge', 'teachingLanguage', 'experienceYears'])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // --- 2. الحصص والجلسات ---
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.studentId == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid ||
+        resource.data.status == 'pending'
+      );
+
+      // الإنشاء يتم فقط عبر الباك-إند (Admin SDK) بعد فحص الرصيد
+      allow create: if isAdmin();
+
+      allow update: if isAdmin() || (
+        isSessionParticipant(sessionId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'studentId', 'teacherId', 'assignedTeacherId',
+          'status', 'completedAt', 'endReason',
+          'timerStartedAt', 'pointsDeducted', 'lastDeductionAt',
+          'studentJoinedAt', 'teacherJoinedAt'
+        ]) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['drawingAllowedForStudent', 'screenShareAllowedForStudent']) ||
+          resource.data.teacherId == request.auth.uid
+        )
+      );
+
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read, write: if isSessionParticipant(sessionId);
+      }
+
+      match /strokes/{strokeId} {
+        allow read: if isSessionParticipant(sessionId);
+
+        allow create: if isSessionParticipant(sessionId) && (
+          isSessionTeacher(sessionId) ||
+          (isDrawingAllowedForStudent(sessionId) && request.resource.data.author == request.auth.uid)
+        );
+
+        allow update, delete: if isSessionParticipant(sessionId) && (
+          isSessionTeacher(sessionId) ||
+          (isDrawingAllowedForStudent(sessionId) && resource.data.get('author', '') == request.auth.uid)
+        );
+      }
+
+      match /animations/{animationId} {
+        allow read: if isSessionParticipant(sessionId);
+        allow write: if isSessionTeacher(sessionId);
+      }
+
+      // 👆 المؤشر المباشر: كل طرف يكتب وثيقته هو فقط (الطالب بس لما المعلم يسمحله بالرسم)
+      match /live/{docId} {
+        allow read: if isSessionParticipant(sessionId);
+        allow create, update: if isSessionParticipant(sessionId) &&
+          docId == request.auth.uid &&
+          request.resource.data.by == request.auth.uid &&
+          (
+            isSessionTeacher(sessionId) ||
+            isDrawingAllowedForStudent(sessionId)
+          );
+      }
+    }
+
+    // --- 3. طلبات الشحن ---
+    match /recharge_requests/{requestId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    // --- 4. محادثات الدعم الفني ---
+    match /support_chats/{studentId} {
+      allow read: if isAdmin() || isOwner(studentId);
+      allow create: if isOwner(studentId);
+      allow update: if isOwner(studentId) || isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || isOwner(studentId);
+        allow create: if isAdmin() || (isOwner(studentId) && request.resource.data.sender == 'student');
+      }
+    }
+
+  }
+}
