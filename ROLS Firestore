@@ -63,10 +63,15 @@ service cloud.firestore {
 
       allow update: if isAdmin() || (
         isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'role', 'status', 'isApproved', 'accountStatus', 'isAvailable']) &&
+        // 1. منع المعلم من تعديل هذه الحقول الحساسة نهائياً
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'role', 'isApproved', 'accountStatus', 'isAvailable']) &&
         (
-          resource.data.get('status', '') != 'approved' ||
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subjects', 'targetAge', 'teachingLanguage', 'experienceYears'])
+          // 2. السماح للمعلم بتغيير حالته إلى (pending_profile_update) فقط إذا كان يرسل طلب تعديل
+          (request.resource.data.status == 'pending_profile_update' && request.resource.data.diff(resource.data).affectedKeys().hasAny(['pendingProfileUpdates'])) ||
+          
+          // 3. منع المعلم من تغيير (status) لأي قيمة أخرى، ومنع تعديل التخصصات إذا كان معتمداً
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && 
+           (resource.data.get('status', '') != 'approved' || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subjects', 'targetAge', 'teachingLanguage', 'experienceYears'])))
         )
       );
 

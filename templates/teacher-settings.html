@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعدادات الحساب - معلم لبيب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+            authDomain: "labeeb-app-2026.firebaseapp.com",
+            projectId: "labeeb-app-2026",
+            storageBucket: "labeeb-app-2026.firebasestorage.app",
+            messagingSenderId: "201953565667",
+            appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        oliveGreen: '#4E6B45',
+                        oliveLight: '#708E67',
+                        beigeBg: '#F4EFE6',
+                        beigeCard: '#FAF7F2',
+                        textDark: '#1E241B',
+                        accentGold: '#C79A3B',
+                        accentOrange: '#D97706',
+                    },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #F4EFE6; }
+        .selected-btn { border-color: #4E6B45 !important; background-color: #4E6B4510 !important; color: #4E6B45 !important; }
+        .selected-tag { background-color: #4E6B45 !important; color: white !important; border-color: #4E6B45 !important; }
+    </style>
+</head>
+<body class="text-textDark pb-20">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-40">
+        <button onclick="window.location.href='/teacher-dashboard'" class="text-gray-600 hover:text-gray-900 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            <span class="font-bold text-sm">العودة للوحة التحكم</span>
+        </button>
+        <h1 class="font-bold text-lg text-oliveGreen">⚙️ إعدادات الحساب</h1>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-4 sm:p-6">
+        <div id="settingsContent" class="space-y-6">
+            
+            <!-- حالة الطلب -->
+            <div id="pendingBanner" class="hidden bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded-xl text-sm font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>لديك تعديلات قيد المراجعة من الإدارة. لا يمكن تقديم تعديلات جديدة حتى تتم الموافقة.</span>
+            </div>
+
+            <!-- 1. الصورة الشخصية (تحديث فوري) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm">
+                <h3 class="font-bold mb-4">الصورة الشخصية</h3>
+                <div class="flex items-center gap-6">
+                    <img id="profilePreview" src="https://ui-avatars.com/api/?name=Teacher&background=4E6B45&color=fff" class="w-24 h-24 rounded-full object-cover border-4 border-oliveGreen/20">
+                    <div>
+                        <input type="file" id="profileImageInput" accept="image/*" class="hidden">
+                        <button onclick="document.getElementById('profileImageInput').click()" class="bg-oliveGreen text-white px-4 py-2 rounded-lg text-sm font-bold">تغيير الصورة</button>
+                        <p class="text-xs text-gray-500 mt-2">يتم تحديث الصورة فوراً دون الحاجة لموافقة الإدارة.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. بيانات تحتاج موافقة -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm">
+                <h3 class="font-bold mb-4">البيانات الأكاديمية والمهنية</h3>
+                <p class="text-xs text-gray-500 mb-6 bg-red-50 p-3 rounded-lg border border-red-200">⚠️ أي تعديل هنا سيؤدي إلى وضع حسابك في حالة "قيد المراجعة" حتى توافق الإدارة.</p>
+
+                <div class="space-y-5">
+                    <!-- الاسم والدولة والمدينة -->
+                    <div>
+                        <label class="text-sm font-bold block mb-1">الاسم رباعي بالكامل</label>
+                        <input type="text" id="fullNameInput" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="text-sm font-bold block mb-1">الدولة</label>
+                            <select id="countryInput" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                                <option value="">اختر الدولة</option>
+                                <option>المملكة العربية السعودية</option>
+                                <option>فلسطين</option>
+                                <option>جمهورية مصر العربية</option>
+                                <option>الإمارات العربية المتحدة</option>
+                                <option>الأردن</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-sm font-bold block mb-1">المدينة</label>
+                            <select id="cityInput" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                                <option value="">اختر المدينة</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- التخصصات -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">التخصصات:</label>
+                        <div id="subjectsList" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- الفئات العمرية -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">الفئات العمرية / الصفوف:</label>
+                        <div id="agesList" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- لغة التدريس -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">لغة التدريس:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" id="lang_ar" onclick="selectTeachingLanguage('العربية')" class="lang-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🇸🇦</span><span>العربية</span>
+                            </button>
+                            <button type="button" id="lang_en" onclick="selectTeachingLanguage('الإنجليزية (انترناشونال)')" class="lang-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🌍</span><span>English</span>
+                            </button>
+                            <button type="button" id="lang_both" onclick="selectTeachingLanguage('كلاهما')" class="lang-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🌐</span><span>كلاهما</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- الأجهزة -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">الأجهزة المملوكة:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" id="dev_phone" onclick="toggleDevice('هاتف محمول')" class="dev-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">📱</span><span>هاتف محمول</span>
+                            </button>
+                            <button type="button" id="dev_tablet" onclick="toggleDevice('تابلت')" class="dev-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">📟</span><span>تابلت</span>
+                            </button>
+                            <button type="button" id="dev_laptop" onclick="toggleDevice('لابتوب')" class="dev-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">💻</span><span>لابتوب</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- الدرجة العلمية -->
+                    <div>
+                        <label class="text-sm font-bold block mb-2">الدرجة العلمية العليا:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" id="deg_none" onclick="selectDegree('لا أملك')" class="deg-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🚫</span><span>لا أملك</span>
+                            </button>
+                            <button type="button" id="deg_master" onclick="selectDegree('ماجستير')" class="deg-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🎓</span><span>ماجستير</span>
+                            </button>
+                            <button type="button" id="deg_phd" onclick="selectDegree('دكتوراه')" class="deg-btn flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
+                                <span class="text-2xl">🧑‍🏫</span><span>دكتوراه</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- الشهادات والوثائق -->
+                    <div class="space-y-3 pt-4">
+                        <p class="text-sm font-bold">إعادة رفع الوثائق (في حال تم تحديثها):</p>
+                        
+                        <!-- الشهادة الجامعية -->
+                        <input type="file" id="certInput" accept=".pdf,.jpg,.png" class="hidden">
+                        <button type="button" onclick="uploadDoc('cert')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-right">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            <span id="certText" class="text-sm text-gray-700 flex-1">الشهادة الجامعية</span>
+                        </button>
+
+                        <!-- شهادة الدرجة العليا -->
+                        <div id="advDegContainer" class="hidden">
+                            <input type="file" id="advDegInput" accept=".pdf,.jpg,.png" class="hidden">
+                            <button type="button" onclick="uploadDoc('advDeg')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-accentGold/40 hover:bg-accentGold/5 text-right">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentGold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" /></svg>
+                                <span id="advDegText" class="text-sm text-gray-700 flex-1">شهادة الماجستير/الدكتوراه</span>
+                            </button>
+                        </div>
+
+                        <!-- الهوية الشخصية -->
+                        <input type="file" id="idInput" accept=".pdf,.jpg,.png" class="hidden">
+                        <button type="button" onclick="uploadDoc('id')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-right">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            <span id="idText" class="text-sm text-gray-700 flex-1">الهوية الشخصية أو جواز السفر</span>
+                        </button>
+
+                        <!-- شهادة الخبرة -->
+                        <input type="file" id="expInput" accept=".pdf,.jpg,.png" class="hidden">
+                        <button type="button" onclick="uploadDoc('exp')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-right">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            <span id="expText" class="text-sm text-gray-700 flex-1">أقوى شهادة خبرة</span>
+                        </button>
+                    </div>
+
+                    <button id="saveChangesBtn" onclick="submitProfileUpdates()" class="w-full mt-8 bg-accentOrange text-white py-3 rounded-xl font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        إرسال التعديلات للإدارة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const allSubjects = ['طب بشري', 'طب أسنان', 'هندسة', 'رياضيات', 'اللغة الإنجليزية', 'علوم', 'التربية الدينية', 'كيمياء', 'فيزياء', 'اللغة العربية', 'تعليم أساسي (تربية أطفال)', 'الإحصاء', 'البرمجة', 'علم نفس', 'إدارة أعمال'];
+        const allAges = ['روضة الأطفال (تمهيدي)', 'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي', 'الصف الرابع الابتدائي', 'الصف الخامس الابتدائي', 'الصف السادس الابتدائي', 'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط', 'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'التعليم الجامعي المستمر'];
+        const citiesMap = {
+            'المملكة العربية السعودية': ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام'],
+            'فلسطين': ['غزة', 'خان يونس', 'القدس', 'رام الله', 'الخليل'],
+            'جمهورية مصر العربية': ['القاهرة', 'الإسكندرية', 'المنصورة']
+        };
+
+        let currentUser = null;
+        let currentData = null;
+        let selectedSubjects = [];
+        let selectedAges = [];
+        let selectedTeachingLanguage = null;
+        let selectedDevices = [];
+        let selectedDegree = null;
+
+        let newCertUrl = null;
+        let newAdvDegUrl = null;
+        let newIdUrl = null;
+        let newExpUrl = null;
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    currentData = doc.data();
+                    
+                    if (currentData.pendingProfileUpdates || currentData.status === 'pending_profile_update') {
+                        document.getElementById('pendingBanner').classList.remove('hidden');
+                        document.getElementById('saveChangesBtn').disabled = true;
+                    }
+
+                    document.getElementById('fullNameInput').value = currentData.name || '';
+                    
+                    // تعبئة الدولة والمدينة
+                    if (currentData.country) {
+                        document.getElementById('countryInput').value = currentData.country;
+                        updateCities(currentData.country);
+                        if (currentData.city) document.getElementById('cityInput').value = currentData.city;
+                    }
+
+                    selectedSubjects = currentData.subjects || [];
+                    selectedAges = currentData.targetAge || [];
+                    selectedTeachingLanguage = currentData.teachingLanguage || null;
+                    selectedDevices = currentData.ownedDevices || [];
+                    selectedDegree = currentData.academicDegree || null;
+                    
+                    renderLists();
+                    updateUISelections();
+
+                    if (currentData.photoURL) {
+                        document.getElementById('profilePreview').src = currentData.photoURL;
+                    }
+                }
+            } else {
+                window.location.href = '/';
+            }
+        });
+
+        function updateCities(country) {
+            const citySelect = document.getElementById('cityInput');
+            citySelect.innerHTML = '<option value="">اختر المدينة</option>';
+            if (citiesMap[country]) {
+                citiesMap[country].forEach(c => citySelect.innerHTML += `<option>${c}</option>`);
+            }
+        }
+        document.getElementById('countryInput').addEventListener('change', (e) => updateCities(e.target.value));
+
+        function renderLists() {
+            const subList = document.getElementById('subjectsList');
+            subList.innerHTML = '';
+            allSubjects.forEach(sub => {
+                const isActive = selectedSubjects.includes(sub);
+                subList.innerHTML += `<button type="button" onclick="toggleItem('${sub}', 'subjects')" class="px-3 py-1.5 text-xs rounded-lg border-2 ${isActive ? 'selected-tag' : 'bg-white border-gray-300'}">${sub}</button>`;
+            });
+
+            const ageList = document.getElementById('agesList');
+            ageList.innerHTML = '';
+            allAges.forEach(age => {
+                const isActive = selectedAges.includes(age);
+                ageList.innerHTML += `<button type="button" onclick="toggleItem('${age}', 'ages')" class="px-3 py-1.5 text-xs rounded-lg border-2 ${isActive ? 'selected-tag' : 'bg-white border-gray-300'}">${age}</button>`;
+            });
+        }
+
+        function toggleItem(item, type) {
+            if (type === 'subjects') {
+                if (selectedSubjects.includes(item)) selectedSubjects = selectedSubjects.filter(i => i !== item);
+                else selectedSubjects.push(item);
+            } else {
+                if (selectedAges.includes(item)) selectedAges = selectedAges.filter(i => i !== item);
+                else selectedAges.push(item);
+            }
+            renderLists();
+        }
+
+        function updateUISelections() {
+            // Language
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('selected-btn'));
+            const langMap = { 'العربية': 'lang_ar', 'الإنجليزية (انترناشونال)': 'lang_en', 'كلاهما': 'lang_both' };
+            if (selectedTeachingLanguage && langMap[selectedTeachingLanguage]) {
+                document.getElementById(langMap[selectedTeachingLanguage]).classList.add('selected-btn');
+            }
+
+            // Devices
+            document.querySelectorAll('.dev-btn').forEach(b => b.classList.remove('selected-btn'));
+            const devMap = { 'هاتف محمول': 'dev_phone', 'تابلت': 'dev_tablet', 'لابتوب': 'dev_laptop' };
+            selectedDevices.forEach(d => {
+                if (devMap[d]) document.getElementById(devMap[d]).classList.add('selected-btn');
+            });
+
+            // Degree
+            document.querySelectorAll('.deg-btn').forEach(b => b.classList.remove('selected-btn'));
+            const degMap = { 'لا أملك': 'deg_none', 'ماجستير': 'deg_master', 'دكتوراه': 'deg_phd' };
+            if (selectedDegree && degMap[selectedDegree]) {
+                document.getElementById(degMap[selectedDegree]).classList.add('selected-btn');
+            }
+
+            // Show/hide advanced degree
+            const advContainer = document.getElementById('advDegContainer');
+            if (selectedDegree === 'ماجستير' || selectedDegree === 'دكتوراه') {
+                advContainer.classList.remove('hidden');
+            } else {
+                advContainer.classList.add('hidden');
+            }
+        }
+
+        function selectTeachingLanguage(lang) { selectedTeachingLanguage = lang; updateUISelections(); }
+        function toggleDevice(dev) { 
+            if (selectedDevices.includes(dev)) selectedDevices = selectedDevices.filter(d => d !== dev);
+            else selectedDevices.push(dev);
+            updateUISelections(); 
+        }
+        function selectDegree(deg) { selectedDegree = deg; updateUISelections(); }
+
+        // تحديث الصورة فوراً
+        document.getElementById('profileImageInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const token = await currentUser.getIdToken();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', 'profile_pictures');
+
+            try {
+                const res = await fetch('/api/cloudinary/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.url) {
+                    await db.collection('users').doc(currentUser.uid).update({ photoURL: data.url });
+                    document.getElementById('profilePreview').src = data.url;
+                    alert('تم تحديث الصورة بنجاح!');
+                }
+            } catch (err) { alert('فشل رفع الصورة'); }
+        });
+
+        // رفع الوثائق
+        async function uploadDoc(type) {
+            const inputMap = { cert: 'certInput', advDeg: 'advDegInput', id: 'idInput', exp: 'expInput' };
+            const textMap = { cert: 'certText', advDeg: 'advDegText', id: 'idText', exp: 'expText' };
+            const folderMap = { cert: 'pending_certificates', advDeg: 'pending_adv_degrees', id: 'pending_ids', exp: 'pending_experiences' };
+            
+            const fileInput = document.getElementById(inputMap[type]);
+            fileInput.click();
+            
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                document.getElementById(textMap[type]).innerText = 'جاري الرفع...';
+                const token = await currentUser.getIdToken();
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('folder', folderMap[type]);
+
+                try {
+                    const res = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.url) {
+                        if (type === 'cert') { newCertUrl = data.url; }
+                        else if (type === 'advDeg') { newAdvDegUrl = data.url; }
+                        else if (type === 'id') { newIdUrl = data.url; }
+                        else if (type === 'exp') { newExpUrl = data.url; }
+                        
+                        document.getElementById(textMap[type]).innerText = 'تم الرفع: ' + file.name;
+                        document.getElementById(textMap[type]).classList.add('text-oliveGreen', 'font-bold');
+                    }
+                } catch (err) {
+                    document.getElementById(textMap[type]).innerText = 'فشل الرفع';
+                }
+            };
+        }
+
+        // إرسال التعديلات للإدارة
+        async function submitProfileUpdates() {
+            const fullName = document.getElementById('fullNameInput').value.trim();
+            const country = document.getElementById('countryInput').value;
+            const city = document.getElementById('cityInput').value;
+
+            if (!fullName || !country || !city || selectedSubjects.length === 0 || selectedAges.length === 0 || !selectedTeachingLanguage || selectedDevices.length === 0 || !selectedDegree) {
+                alert('الرجاء تعبئة جميع الحقول الإلزامية.');
+                return;
+            }
+
+            const updates = {
+                name: fullName,
+                country: country,
+                city: city,
+                subjects: selectedSubjects,
+                targetAge: selectedAges,
+                teachingLanguage: selectedTeachingLanguage,
+                ownedDevices: selectedDevices,
+                academicDegree: selectedDegree
+            };
+
+            if (newCertUrl) updates.certificateUrl = newCertUrl;
+            if (newAdvDegUrl) updates.advancedDegreeCertificateUrl = newAdvDegUrl;
+            if (newIdUrl) updates.identityUrl = newIdUrl;
+            if (newExpUrl) updates.experienceCertificateUrl = newExpUrl;
+
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    pendingProfileUpdates: updates,
+                    status: 'pending_profile_update'
+                });
+                
+                alert('تم إرسال طلبك بنجاح. سيتم تجميد حسابك مؤقتاً حتى تراجع الإدارة تعديلاتك.');
+                window.location.href = '/teacher-dashboard';
+            } catch (e) {
+                alert('حدث خطأ: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

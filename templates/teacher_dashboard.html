@@ -89,15 +89,21 @@
 
             <!-- الجزء الأيسر: بيانات المعلم -->
             <div class="flex items-center gap-3 shrink-0">
-                <div class="p-2 bg-oliveGreen/15 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-oliveGreen" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                <div class="p-1 bg-oliveGreen/15 rounded-full">
+                    <img id="teacherProfileImg" src="https://ui-avatars.com/api/?name=Teacher&background=4E6B45&color=fff" class="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover">
                 </div>
                 <div>
                     <p id="teacherNameDisplay" class="text-xs sm:text-sm font-bold text-textDark truncate">أ. باسل أبو هدة</p>
                     <p id="teacherStatusDisplay" class="text-[10px] sm:text-xs text-gray-500 truncate">حساب جديد</p>
                 </div>
+
+                                <!-- زر الإعدادات -->
+                <button onclick="window.location.href='/teacher-settings'" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-full ml-2" title="إعدادات الحساب">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
             </div>
 
         </div>
@@ -645,6 +651,20 @@
                     myTargetAges = userDoc.data().targetAge || []; // ✨
                     myTeachingLanguage = userDoc.data().teachingLanguage || 'العربية'; // ✨
                     applyLanguageTeacher(teachingLanguageToUiCode(myTeachingLanguage));
+                    
+                    // ✨ جلب الصورة الشخصية وعرضها بأمان
+                    const photoURL = userDoc.data().photoURL;
+                    const imgElement = document.getElementById('teacherProfileImg');
+                    
+                    // التأكد من وجود العنصر في HTML قبل محاولة تعديله
+                    if (imgElement) {
+                        if (photoURL) {
+                            imgElement.src = photoURL;
+                        } else {
+                            const firstLetter = (userDoc.data().name || "T").charAt(0);
+                            imgElement.src = `https://ui-avatars.com/api/?name=${firstLetter}&background=4E6B45&color=fff`;
+                        }
+                    }
                 }
                 checkTeacherAccount();
             } else {
@@ -682,14 +702,21 @@
             
             if (status === 'approved') {
                 statusText.innerText = tt('status_approved');
-                statusText.classList.remove('text-gray-500');
+                statusText.classList.remove('text-gray-500', 'text-accentOrange');
                 statusText.classList.add('text-green-600');
                 document.getElementById('dashboardView').classList.remove('hidden');
-            } else if (status === 'pending_approval') {
-                statusText.innerText = tt('status_pending');
-                statusText.classList.remove('text-gray-500');
+            } else if (status === 'pending_approval' || status === 'pending_profile_update') {
+                // ✨ إذا كان قيد المراجعة بسبب التسجيل أو بسبب تعديل البيانات
+                statusText.innerText = status === 'pending_profile_update' ? 'تعديلاتك قيد المراجعة' : tt('status_pending');
+                statusText.classList.remove('text-gray-500', 'text-green-600');
                 statusText.classList.add('text-accentOrange');
                 document.getElementById('pendingApproval').classList.remove('hidden');
+                
+                // تحديث رسالة الانتظار لتوضيح السبب
+                const pendingDesc = document.querySelector('[data-i18n-t="pending_desc"]');
+                if (status === 'pending_profile_update' && pendingDesc) {
+                    pendingDesc.innerText = 'يتم حالياً مراجعة التعديلات التي طلبتها (التخصصات/الشهادات). سيتم تفعيل حسابك فور الموافقة.';
+                }
             } else {
                 statusText.innerText = tt('status_new');
                 statusText.classList.add('text-gray-500');

@@ -85,6 +85,13 @@ async def teacher_dashboard(request: Request, name: str = "أ. باسل أبو �
     """3️⃣ لوحة تحكم المعلم"""
     return templates.TemplateResponse(request=request, name="teacher_dashboard.html", context={"teacher_name": name})
 
+
+@app.get("/teacher-settings", response_class=HTMLResponse, dependencies=[Depends(auth_guard)])
+async def teacher_settings(request: Request):
+    """صفحة إعدادات حساب المعلم"""
+    return templates.TemplateResponse(request=request, name="teacher-settings.html")
+
+
 @app.get("/student-dashboard", response_class=HTMLResponse, dependencies=[Depends(auth_guard)])
 async def student_dashboard(request: Request, name: str = "طالب لبيب", subject: str = "الرياضيات", type: str = "مباشر"):
     """4️⃣ لوحة تحكم الطالب"""
