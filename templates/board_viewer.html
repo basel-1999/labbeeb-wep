@@ -21,22 +21,22 @@
 <body class="h-screen flex flex-col overflow-hidden">
 
     <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 shrink-0">
-        <h1 class="font-bold text-sm sm:text-base">📄 عرض ملخص السبورة</h1>
+        <h1 data-i18n-bv="header_title" class="font-bold text-sm sm:text-base">📄 عرض ملخص السبورة</h1>
         <div class="flex items-center gap-3">
-            <button onclick="window.print()" class="bg-amber-500 text-black text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg">طباعة / حفظ PDF 🖨️</button>
+            <button onclick="window.print()" data-i18n-bv="print_btn" class="bg-amber-500 text-black text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg">طباعة / حفظ PDF 🖨️</button>
         </div>
     </header>
 
     <main class="flex-1 relative bg-[#2A2A2A]">
         <canvas id="boardCanvas"></canvas>
-        <div id="loadingMsg" class="absolute inset-0 flex items-center justify-center text-white/60 text-sm">جاري تحميل السبورة...</div>
-        <div id="emptyMsg" class="absolute inset-0 hidden flex items-center justify-center text-white/60 text-sm">لا توجد سبورة محفوظة لهذه الحصة.</div>
+        <div id="loadingMsg" data-i18n-bv="loading_board" class="absolute inset-0 flex items-center justify-center text-white/60 text-sm">جاري تحميل السبورة...</div>
+        <div id="emptyMsg" data-i18n-bv="empty_board" class="absolute inset-0 hidden flex items-center justify-center text-white/60 text-sm">لا توجد سبورة محفوظة لهذه الحصة.</div>
     </main>
 
     <footer class="bg-[#2C2C2C] h-14 flex items-center justify-center gap-4 shrink-0">
-        <button onclick="goToPage(currentPage - 1)" id="prevBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold">◀ السابقة</button>
+        <button onclick="goToPage(currentPage - 1)" id="prevBtn" data-i18n-bv="prev_btn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold">◀ السابقة</button>
         <span id="pageIndicator" class="text-sm font-bold min-w-[80px] text-center">صفحة 1 / 1</span>
-        <button onclick="goToPage(currentPage + 1)" id="nextBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold">التالية ▶</button>
+        <button onclick="goToPage(currentPage + 1)" id="nextBtn" data-i18n-bv="next_btn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold">التالية ▶</button>
     </footer>
 
     <script>
@@ -55,6 +55,46 @@
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('sessionId') || '';
 
+        // ==========================================
+        // 🌐 نظام الترجمة (i18n)
+        // ==========================================
+        const translationsBoardViewer = {
+            ar: {
+                header_title: "📄 عرض ملخص السبورة",
+                print_btn: "طباعة / حفظ PDF 🖨️",
+                loading_board: "جاري تحميل السبورة...",
+                empty_board: "لا توجد سبورة محفوظة لهذه الحصة.",
+                prev_btn: "◀ السابقة",
+                next_btn: "التالية ▶",
+                page_word: "صفحة",
+                load_failed: "تعذر تحميل السبورة: "
+            },
+            en: {
+                header_title: "📄 Board Summary Viewer",
+                print_btn: "Print / Save PDF 🖨️",
+                loading_board: "Loading board...",
+                empty_board: "No saved board for this session.",
+                prev_btn: "◀ Previous",
+                next_btn: "Next ▶",
+                page_word: "Page",
+                load_failed: "Failed to load board: "
+            }
+        };
+        let currentLangBv = 'ar';
+
+        function tbv(key) {
+            return (translationsBoardViewer[currentLangBv] && translationsBoardViewer[currentLangBv][key]) || translationsBoardViewer['ar'][key] || key;
+        }
+
+        function applyLanguageBoardViewer(lang) {
+            currentLangBv = (lang === 'en') ? 'en' : 'ar';
+            document.documentElement.setAttribute('lang', currentLangBv);
+            document.documentElement.setAttribute('dir', currentLangBv === 'en' ? 'ltr' : 'rtl');
+            document.querySelectorAll('[data-i18n-bv]').forEach((el) => {
+                el.innerText = tbv(el.getAttribute('data-i18n-bv'));
+            });
+        }
+
         const canvas = document.getElementById('boardCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -62,8 +102,19 @@
         let pageNumbers = [];
         let currentPage = 0;
 
-        auth.onAuthStateChanged((user) => {
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
+                // ✨ جلب لغة الطالب وتطبيقها قبل تحميل السبورة
+                try {
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    if (userDoc.exists) {
+                        applyLanguageBoardViewer(userDoc.data().preferredLanguage || 'ar');
+                    } else {
+                        applyLanguageBoardViewer('ar');
+                    }
+                } catch (e) {
+                    applyLanguageBoardViewer('ar');
+                }
                 loadBoard();
             } else {
                 window.location.href = '/';
@@ -102,7 +153,7 @@
                 resizeCanvas();
                 goToPage(0);
             } catch (e) {
-                document.getElementById('loadingMsg').innerText = 'تعذر تحميل السبورة: ' + e.message;
+                document.getElementById('loadingMsg').innerText = tbv('load_failed') + e.message;
             }
         }
 
@@ -110,7 +161,7 @@
             if (index < 0 || index >= pageNumbers.length) return;
             currentPage = index;
             renderPage(currentPage);
-            document.getElementById('pageIndicator').innerText = `صفحة ${currentPage + 1} / ${pageNumbers.length}`;
+            document.getElementById('pageIndicator').innerText = `${tbv('page_word')} ${currentPage + 1} / ${pageNumbers.length}`;
             document.getElementById('prevBtn').disabled = currentPage === 0;
             document.getElementById('nextBtn').disabled = currentPage === pageNumbers.length - 1;
         }

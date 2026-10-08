@@ -68,6 +68,25 @@
                 text-shadow: 0 1px 3px rgba(0,0,0,0.35);
             }
 
+            /* ✨ أنميشن مضيء للحصة التجريبية */
+            @keyframes blinkTrial {
+                0% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.3; transform: scale(0.95); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+            .trial-live-badge {
+                animation: blinkTrial 1.2s infinite;
+                background-color: #059669;
+                color: #FFFFFF;
+                font-weight: 900;
+                padding: 6px 14px;
+                border-radius: 8px;
+                font-size: 14px;
+                box-shadow: 0 0 15px rgba(5, 150, 105, 0.7);
+                border: 1px solid #10b981;
+                display: none; /* مخفي افتراضياً */
+            }
+
         </style>
     </head>
     <body class="h-screen flex flex-col">
@@ -87,6 +106,8 @@
             <div class="flex items-center gap-2">
                 <svg id="micStatusIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                 <span id="sessionTitle" data-i18n-l="session_with_teacher" class="text-sm font-medium">جلسة مع المعلم</span>
+                <!-- ✨ شارة الحصة التجريبية المضيئة -->
+                <div id="freeTrialLiveBadge" class="trial-live-badge" data-i18n-l="trial_badge_text">🚀 حصة تجريبية مجانية</div>
             </div>
 
             <div class="flex items-center gap-2 relative">
@@ -102,11 +123,11 @@
                 </button>
                 <button id="allowStudentScreenShareBtn" onclick="toggleAllowStudentScreenShare()" class="hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 flex items-center gap-1 text-xs text-white/80" title="السماح للطالب بمشاركة الشاشة">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                    <span id="allowScreenShareLabel">السماح بمشاركة الشاشة</span>
+                    <span id="allowScreenShareLabel" data-i18n-l="allow_screen_share_label">السماح بمشاركة الشاشة</span>
                 </button>
                 <button id="allowStudentDrawBtn" onclick="toggleAllowStudentDraw()" class="hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 flex items-center gap-1 text-xs text-white/80" title="السماح للطالب بالرسم">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    <span id="allowDrawLabel">السماح بالرسم</span>
+                    <span id="allowDrawLabel" data-i18n-l="allow_draw_label">السماح بالرسم</span>
                 </button>
             </div>
         </header>
@@ -327,7 +348,7 @@
 
             <button id="endSessionBtn" onclick="confirmEndSession()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1m0 0V6m0-1h1m3 0h2m-3 0h1m6 0h2m-6 0H6m12 0h1m-1 0h1m-1 0h1" /></svg>
-                <span id="endSessionText">إنهاء الجلسة</span>
+                <span id="endSessionText" data-i18n-l="end_session_text">إنهاء الجلسة</span>
             </button>
         </footer>
 
@@ -441,6 +462,43 @@
                     ending_for_other: "جاري إنهاء الجلسة للطرف الآخر...",
                     stopping_recording: "جاري إيقاف التسجيل الصوتي...",
                     cloudinary_upload_failed: "فشل رفع الملف إلى Cloudinary",
+                    default_file_word: "ملف",
+                    points_suffix: "نقطة",
+                    allow_screen_share_label: "السماح بمشاركة الشاشة",
+                    allow_draw_label: "السماح بالرسم",
+                    end_session_text: "إنهاء الجلسة",
+                    file_upload_failed: "فشل رفع الملف",
+                    trial_badge_text: "🚀 حصة تجريبية مجانية",
+                    trial_ended_msg: "انتهت مدة الحصة التجريبية (20 دقيقة)، يتم إغلاق الجلسة الآن.",
+                    screen_share_not_allowed: "لم يسمح لك المعلم بمشاركة الشاشة بعد",
+                    screen_share_teacher_active: "لا يمكنك مشاركة الشاشة الآن، الخيار مفعّل لصالح الطالب. أوقف السماح للطالب أولاً.",
+                    screen_share_other_teacher: "عذراً، المعلم يشارك شاشته الآن",
+                    screen_share_other_student: "عذراً، الطالب يشارك شاشته الآن",
+                    screen_share_allowed_by_teacher: "المعلم سمح لك بمشاركة الشاشة الآن 🎉",
+                    screen_share_revoked_by_teacher: "تم إيقاف صلاحية مشاركة الشاشة من قبل المعلم",
+                    draw_allowed_by_teacher: "المعلم سمح لك بالرسم على السبورة الآن ✏️",
+                    draw_revoked_by_teacher: "تم إيقاف صلاحية الرسم من قبل المعلم",
+                                        confirm_clear_page: "سيتم مسح محتوى الصفحة الحالية نهائياً. متابعة؟",
+                    moved_to_page: "تم الانتقال للصفحة رقم",
+                    connecting_audio: "جاري الاتصال بخوادم الصوت، قد يستغرق ذلك بضع ثوانٍ...",
+                    token_failed: "تعذر الحصول على توكن الاتصال. يرجى تحديث الصفحة.",
+                    audio_connected: "تم الاتصال بالصوت بنجاح! 🎙️",
+                    audio_connect_failed: "تعذر الاتصال بالصوت:",
+                    mic_access_failed: "تعذر الوصول إلى الميكروفون بعد عدة محاولات.",
+                    screen_share_started: "تم بدء مشاركة الشاشة بنجاح",
+                    screen_share_stopped: "تم إيقاف مشاركة الشاشة",
+                    screen_share_failed: "فشل مشاركة الشاشة:",
+                    files_not_saved_warning: "⚠️ الحصة انتهت لكن حفظ الملفات لم يكتمل. لا تغلق الصفحة، وتواصل مع الدعم الفني إن استمرت المشكلة.",
+                    session_ended_other: "⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.",
+                    teacher_disconnected: "❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.",
+                    student_disconnected: "⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.",
+                    save_failed_retry: "فشلت عملية الحفظ، اضغط \"إعادة المحاولة\" 🔁",
+                    uploading_audio: "جاري رفع التسجيل الصوتي...",
+                    saving_data: "جاري حفظ البيانات...",
+                    saved_redirecting: "تم الحفظ بنجاح! جاري تحويلك...",
+                    ending_for_other: "جاري إنهاء الجلسة للطرف الآخر...",
+                    stopping_recording: "جاري إيقاف التسجيل الصوتي...",
+                    cloudinary_upload_failed: "فشل رفع الملف إلى Cloudinary",
                     default_file_word: "ملف"
                 },
                 en: {
@@ -474,6 +532,43 @@
                     line_shape: "Line", arrow: "Arrow", triangle: "Triangle", diamond: "Diamond",
                     pentagon: "Pentagon", hexagon: "Hexagon", star: "Star", check_mark: "Check", cross_mark: "Cross",
                     confirm_clear_page: "This will permanently clear the current page's content. Continue?",
+                    moved_to_page: "Moved to page",
+                    connecting_audio: "Connecting to audio servers, this may take a few seconds...",
+                    token_failed: "Failed to get connection token. Please refresh the page.",
+                    audio_connected: "Audio connected successfully! 🎙️",
+                    audio_connect_failed: "Failed to connect audio:",
+                    mic_access_failed: "Could not access the microphone after several attempts.",
+                    screen_share_started: "Screen sharing started successfully",
+                    screen_share_stopped: "Screen sharing stopped",
+                    screen_share_failed: "Screen sharing failed:",
+                    files_not_saved_warning: "⚠️ The session has ended but saving files did not complete. Do not close the page, and contact support if the issue persists.",
+                    session_ended_other: "⌛ The session was ended by the other party. You will be redirected now.",
+                    teacher_disconnected: "❌ The teacher's connection was lost. You will be redirected to your dashboard.",
+                    student_disconnected: "⚠️ The student's internet connection was lost. You can save the board and end the session.",
+                    save_failed_retry: "Saving failed, tap \"Retry\" 🔁",
+                    uploading_audio: "Uploading audio recording...",
+                    saving_data: "Saving data...",
+                    saved_redirecting: "Saved successfully! Redirecting...",
+                    ending_for_other: "Ending the session for the other party...",
+                    stopping_recording: "Stopping audio recording...",
+                    cloudinary_upload_failed: "Failed to upload file to Cloudinary",
+                    default_file_word: "File" ,
+                    points_suffix: "points",
+                    allow_screen_share_label: "Allow Screen Share",
+                    allow_draw_label: "Allow Drawing",
+                    end_session_text: "End Session",
+                    file_upload_failed: "File upload failed",
+                    trial_badge_text: "🚀 Free Trial Session",
+                    trial_ended_msg: "The free trial duration (20 minutes) has ended, closing the session now.",
+                    screen_share_not_allowed: "The teacher has not allowed you to share screen yet",
+                    screen_share_teacher_active: "You cannot share screen now, the option is enabled for the student. Disable student permission first.",
+                    screen_share_other_teacher: "Sorry, the teacher is sharing their screen now",
+                    screen_share_other_student: "Sorry, the student is sharing their screen now",
+                    screen_share_allowed_by_teacher: "The teacher allowed you to share screen now 🎉",
+                    screen_share_revoked_by_teacher: "Screen share permission has been revoked by the teacher",
+                    draw_allowed_by_teacher: "The teacher allowed you to draw on the board now ✏️",
+                    draw_revoked_by_teacher: "Drawing permission has been revoked by the teacher",
+                                        confirm_clear_page: "This will permanently clear the current page's content. Continue?",
                     moved_to_page: "Moved to page",
                     connecting_audio: "Connecting to audio servers, this may take a few seconds...",
                     token_failed: "Failed to get connection token. Please refresh the page.",
@@ -535,6 +630,7 @@
             let isScreenSharing = false;
             let screenShareUid = 0;
         let elapsedSeconds = 0; 
+        let isFreeTrialSession = false; // ✨ متغير لتعقب الحصة التجريبية
         let sessionTimer = null;
         let agoraEngine = null;
         let localAudioTrack = null;
@@ -1557,6 +1653,12 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 sessionTimer = setInterval(() => {
                     elapsedSeconds++;
                     updateTimerUI();
+
+                    // ✨ إنهاء الحصة التجريبية تلقائياً بعد 20 دقيقة (1200 ثانية)
+                    if (isFreeTrialSession && elapsedSeconds >= 1200) {
+                        clearInterval(sessionTimer);
+                        autoEndFreeTrialSession();
+                    }
                 }, 1000);
             }
 
@@ -1568,6 +1670,25 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 document.getElementById('timerDisplay').innerText = `${format(h)}:${format(m)}:${format(s)}`;
             }
 
+
+
+                        // ✨ دالة إنهاء الجلسة التجريبية تلقائياً
+            async function autoEndFreeTrialSession() {
+                showSnackBar(tl('trial_ended_msg'), 'orange');
+                try {
+                    const token = await currentUser.getIdToken();
+                    await fetch(`/api/session/leave/${sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (e) {
+                    console.error('Auto end error:', e);
+                } finally {
+                    if (agoraEngine) await agoraEngine.leave();
+                    if (screenShareClient) await screenShareClient.leave();
+                    window.location.href = isTeacher ? '/teacher-dashboard' : '/student-dashboard';
+                }
+            }
 
 
                     async function registerSessionJoin() {
@@ -1591,6 +1712,14 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 timerUnsub = db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
                     if (!doc.exists) return;
                     const data = doc.data();
+                    isFreeTrialSession = !!data.isFreeTrial; // ✨ تحديث حالة التجريبية
+                    
+                    // ✨ إظهار شارة الحصة التجريبية المضيئة للطرفين
+                    const trialBadge = document.getElementById('freeTrialLiveBadge');
+                    if (trialBadge) {
+                        trialBadge.style.display = isFreeTrialSession ? 'block' : 'none';
+                    }
+
                     const timerStartedAt = data.timerStartedAt;
 
                     if (timerStartedAt && !timerSynced) {
@@ -1611,7 +1740,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 db.collection('users').doc(studentId).onSnapshot((doc) => {
                     if (doc.exists) {
                         const points = doc.data().points || 0;
-                        document.getElementById('pointsDisplay').innerText = `${points} نقطة`;
+                        document.getElementById('pointsDisplay').innerText = `${points} ${tl('points_suffix')}`;
                     }
                 });
             }
@@ -1748,18 +1877,18 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     if (!isScreenSharing) {
                         // 🔐 فحص الصلاحية: الطالب ما بيقدر يشارك إلا لو المعلم سمح
                         if (!isTeacher && !screenShareAllowedForStudent) {
-                            showSnackBar('لم يسمح لك المعلم بمشاركة الشاشة بعد', 'orange');
+                            showSnackBar(tl('screen_share_not_allowed'), 'orange');
                             return;
                         }
                         // 🔐 المعلم ما بيقدر يشارك طالما الخيار مفعّل لصالح الطالب
                         if (isTeacher && screenShareAllowedForStudent) {
-                            showSnackBar('لا يمكنك مشاركة الشاشة الآن، الخيار مفعّل لصالح الطالب. أوقف السماح للطالب أولاً.', 'orange');
+                            showSnackBar(tl('screen_share_teacher_active'), 'orange');
                             return;
                         }
                         // 🔐 تعارض: فيه طرف تاني يشارك شاشته حالياً
                         if (sessionIsScreenSharing && sessionScreenShareUid && sessionScreenShareUid !== currentUser.uid) {
                             const otherIsTeacher = sessionScreenShareUid === sessionTeacherId;
-                            showSnackBar(otherIsTeacher ? 'عذراً، المعلم يشارك شاشته الآن' : 'عذراً، الطالب يشارك شاشته الآن', 'orange');
+                            showSnackBar(otherIsTeacher ? tl('screen_share_other_teacher') : tl('screen_share_other_student'), 'orange');
                             return;
                         }
 
@@ -1855,7 +1984,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         updatePermissionButtonsUI();
                         if (!isTeacher) {
                             showSnackBar(
-                                screenShareAllowedForStudent ? 'المعلم سمح لك بمشاركة الشاشة الآن 🎉' : 'تم إيقاف صلاحية مشاركة الشاشة من قبل المعلم',
+                                screenShareAllowedForStudent ? tl('screen_share_allowed_by_teacher') : tl('screen_share_revoked_by_teacher'),
                                 screenShareAllowedForStudent ? 'green' : 'orange'
                             );
                         }
@@ -1864,10 +1993,11 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     const newDrawAllowed = !!data.drawingAllowedForStudent;
                     if (newDrawAllowed !== drawingAllowedForStudent) {
                         drawingAllowedForStudent = newDrawAllowed;
+                        updatePermissionButtonsUI(); // ✨ إضافة هذا السطر لتحديث لون الزر للمعلم
                         updateStudentDrawingUI();
                         if (!isTeacher) {
                             showSnackBar(
-                                drawingAllowedForStudent ? 'المعلم سمح لك بالرسم على السبورة الآن ✏️' : 'تم إيقاف صلاحية الرسم من قبل المعلم',
+                                drawingAllowedForStudent ? tl('draw_allowed_by_teacher') : tl('draw_revoked_by_teacher'),
                                 drawingAllowedForStudent ? 'green' : 'orange'
                             );
                         }
@@ -1901,6 +2031,11 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                                 setTimeout(() => window.location.href = '/student-dashboard', 3000);
                             } else if (isTeacher && data.interruptedBy === 'student') {
                                 showSnackBar(tl('student_disconnected'), 'orange');
+                                // ✨ إغلاق الغرفة للمعلم فوراً إذا كانت الحصة تجريبية
+                                if (isFreeTrialSession) {
+                                    clearInterval(sessionTimer);
+                                    setTimeout(() => window.location.href = '/teacher-dashboard', 3000);
+                                }
                             }
                         }
                         
@@ -1966,7 +2101,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         throw new Error('Upload failed');
                     }
                 } catch (e) {
-                    document.getElementById('uploadStatus').innerText = (currentLangLive === 'en') ? 'File upload failed' : 'فشل رفع الملف';
+                    document.getElementById('uploadStatus').innerText = tl('file_upload_failed');
                     setTimeout(() => document.getElementById('uploadStatus').classList.add('hidden'), 2000);
                 }
                 event.target.value = '';

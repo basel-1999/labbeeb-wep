@@ -125,6 +125,19 @@
             </div>
         </div>
 
+        <!-- ✨ كرت الحصة التجريبية المجانية (يظهر في لوحة التحكم) -->
+        <div id="freeTrialDashboardCard" class="bg-gradient-to-l from-green-500 to-emerald-600 p-5 rounded-2xl shadow-lg mb-6 hidden cursor-pointer hover:shadow-xl transition" onclick="openBookingModal(true)">
+            <div class="flex items-center gap-4">
+                <div class="bg-white/20 p-3 rounded-full shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <div class="text-white text-right">
+                    <h3 data-i18n="free_trial_card_title" class="text-base sm:text-lg font-extrabold">🚀 ابدأ بحصتك التجريبية المجانية الآن!</h3>
+                    <p data-i18n="free_trial_card_desc" class="text-xs sm:text-sm text-white/90 mt-1">استكشف منصة لبيب مع 20 دقيقة مجانية لكل المواد. (متاحة لمرة واحدة فقط)</p>
+                </div>
+            </div>
+        </div>
+
         <!-- New Class Request Section -->
         <div class="bg-white p-4 sm:p-5 rounded-2xl border-[1.5px] border-oliveGreen/30 shadow-sm mb-6">
             <div class="flex items-center mb-4">
@@ -200,8 +213,8 @@
             </select>
 
             <!-- ✨ إضافة خانة الملاحظات -->
-            <label class="text-xs text-gray-500 block mb-2">ملاحظات للحصة (اختياري):</label>
-            <textarea id="bookingNotes" rows="2" placeholder="اكتب أي تفاصيل تود إخبار المعلم بها..." class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen resize-none"></textarea>
+            <label data-i18n="booking_notes_label" class="text-xs text-gray-500 block mb-2">ملاحظات للحصة (اختياري):</label>
+            <textarea id="bookingNotes" rows="2" data-i18n-placeholder="booking_notes_placeholder" placeholder="اكتب أي تفاصيل تود إخبار المعلم بها..." class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen resize-none"></textarea>
 
             <label data-i18n="booking_type_label" class="text-xs text-gray-500 block mb-2">نوع الحجز:</label>
             <div class="flex gap-4 mb-4 text-sm">
@@ -209,14 +222,22 @@
                 <label class="flex items-center gap-2"><input type="radio" name="bookingType" value="schedule"> <span data-i18n="booking_schedule">مجدولة 🗓️</span></label>
             </div>
 
+            <!-- ✨ خيار الحصة التجريبية المجانية -->
+            <div id="freeTrialContainer" class="mb-4">
+                <label class="flex items-center gap-2 cursor-pointer p-3 bg-accentOrange/10 rounded-xl border border-accentOrange/30">
+                    <input type="checkbox" id="isFreeTrialCheckbox" class="w-4 h-4 accent-accentOrange">
+                    <span class="text-sm font-bold text-accentOrange">🚀 طلب كحصة تجريبية مجانية (متاحة لمرة واحدة)</span>
+                </label>
+            </div>
+
             <!-- ✨ إضافة اختيار معلم معين -->
             <div class="mb-4">
                 <label class="flex items-center gap-2 cursor-pointer mb-2">
                     <input type="checkbox" id="requestSpecificTeacher" onchange="toggleTeacherDropdown()">
-                    <span class="text-xs text-gray-500 font-bold">هل تفضل طلب معلم معين؟</span>
+                    <span data-i18n="preferred_teacher_label" class="text-xs text-gray-500 font-bold">هل تفضل طلب معلم معين؟</span>
                 </label>
                 <select id="preferredTeacherSelect" class="w-full bg-beigeCard rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen hidden">
-                    <option value="">-- اختر المعلم --</option>
+                    <option value="" data-i18n="select_teacher_option">-- اختر المعلم --</option>
                 </select>
             </div>
 
@@ -266,18 +287,32 @@
                 <span data-i18n="card_payment_title">الدفع بالبطاقة</span>
             </h3>
             <p data-i18n="card_payment_desc" class="text-xs text-gray-500 mb-4 text-center">سيتم تحويلك لصفحة دفع آمنة لتسديد المبلغ عبر Tap Payments.</p>
-            <div class="space-y-2 mb-6">
-                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="6|50" checked> باقة 6 نقاط (50 ر.س)
-                </label>
-                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="30|250"> باقة 30 نقطة (250 ر.س)
-                </label>
-                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cardPackage" value="72|600"> باقة التفوق 72 نقطة (600 ر.س)
-                </label>
+            <div id="cardPackagesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <!-- سيتم حقن البطاقات هنا ديناميكياً -->
             </div>
-                       <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
+
+            <!-- ✨ خيارات طريقة الدفع -->
+            <div class="mb-6">
+                <label data-i18n="payment_method_label" class="text-xs text-gray-500 block mb-2">اختر طريقة الدفع:</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <label class="border-2 border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 cursor-pointer hover:border-oliveGreen transition">
+                        <input type="radio" name="paymentSource" value="src_card" checked class="w-4 h-4 accent-oliveGreen">
+                        <span data-i18n="visa_mastercard_option" class="text-[11px] font-bold text-center">فيزا / ماستركارد</span>
+                        <span class="text-xl">💳</span>
+                    </label>
+                    <label class="border-2 border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 cursor-pointer hover:border-oliveGreen transition">
+                        <input type="radio" name="paymentSource" value="src_apple_pay" class="w-4 h-4 accent-oliveGreen">
+                        <span data-i18n="apple_pay_option" class="text-[11px] font-bold text-center">Apple Pay</span>
+                        <span class="text-xl"></span>
+                    </label>
+                    <label class="border-2 border-gray-200 rounded-xl p-2 flex flex-col items-center gap-1 cursor-pointer hover:border-oliveGreen transition">
+                        <input type="radio" name="paymentSource" value="src_qa.naps" class="w-4 h-4 accent-oliveGreen">
+                        <span data-i18n="naps_option" class="text-[11px] font-bold text-center">بنك قطري (NAPS)</span>
+                        <span class="text-xl">🏦</span>
+                    </label>
+                </div>
+            </div>
+            <button onclick="payWithTap()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 <span data-i18n="pay_now_btn">ادفع الآن</span>
             </button>
@@ -296,16 +331,8 @@
             </h3>
             <p data-i18n="bank_transfer_desc" class="text-xs text-gray-500 mb-4">اختر الباقة، حول المبلغ، ثم أرفق صورة الإشعار وأدخل رقم المرجع:</p>
           
-            <div class="space-y-2 mb-4">
-                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="6|باقة 6 نقاط (50 ر.س)" checked> باقة 6 نقاط (50 ر.س)
-                </label>
-                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="30|باقة 30 نقطة (250 ر.س)"> باقة 30 نقطة (250 ر.س)
-                </label>
-                <label class="block bg-beigeCard border border-gray-200 rounded-lg p-3 text-sm font-bold flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="bankPackage" value="72|باقة التفوق 72 نقطة (600 ر.س)"> باقة التفوق 72 نقطة (600 ر.س)
-                </label>
+            <div id="bankPackagesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <!-- سيتم حقن البطاقات هنا ديناميكياً -->
             </div>
             <input type="text" id="referenceNumber" data-i18n-placeholder="reference_placeholder" placeholder="رقم الإيصال أو المرجع البنكي" class="w-full bg-beigeCard rounded-xl p-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
             <label data-i18n="receipt_label" class="text-xs font-bold block mb-2">صورة إشعار التحويل (إجباري):</label>
@@ -413,6 +440,10 @@
                 reference_placeholder: "رقم الإيصال أو المرجع البنكي",
                 receipt_label: "صورة إشعار التحويل (إجباري):",
                 receipt_upload_hint: "اضغط لرفع صورة الإشعار",
+                payment_method_label: "اختر طريقة الدفع:",
+                visa_mastercard_option: "فيزا / ماستركارد",
+                apple_pay_option: "Apple Pay",
+                naps_option: "بنك قطري (NAPS)",
                 submit_to_admin_btn: "إرسال للإدارة 📤",
                 notifications_title: "الإشعارات الحية",
                 close_btn: "إغلاق",
@@ -446,6 +477,32 @@
                 sec_word: "ث",
                 select_grade_first: "الرجاء اختيار مرحلتك الدراسية",
                 select_date_time: "الرجاء اختيار تاريخ ووقت الحصة",
+                 free_trial_card_title: "🚀 ابدأ بحصتك التجريبية المجانية الآن!",
+                free_trial_card_desc: "استكشف منصة لبيب مع 20 دقيقة مجانية لكل المواد. (متاحة لمرة واحدة فقط)",
+                booking_notes_label: "ملاحظات للحصة (اختياري):",
+                booking_notes_placeholder: "اكتب أي تفاصيل تود إخبار المعلم بها...",
+                preferred_teacher_label: "هل تفضل طلب معلم معين؟",
+                select_teacher_option: "-- اختر المعلم --",
+                select_teacher_warning: "الرجاء اختيار معلم من القائمة",
+                wait_user_data: "-- يرجى الانتظار لحين تحميل بيانات الحساب --",
+                loading_teachers: "-- جاري تحميل المعلمين... --",
+                no_previous_teachers: "-- لا يوجد معلمون سابقون --",
+                default_teacher_name: "معلم لبيب",
+                error_loading_teachers: "-- خطأ في تحميل المعلمين --",
+                payment_server_error: "فشل إنشاء رابط الدفع في السيرفر.",
+                server_error_status: "خطأ في السيرفر",
+                payment_gateway_error: "تعذر الحصول على رابط الدفع من البوابة.",
+                payment_error_prefix: "خطأ في الدفع: ",
+                upload_image_failed: "فشل رفع الصورة",
+                general_error_prefix: "حدث خطأ:",
+                loading_dots: "جاري التحميل...",
+                no_files_uploaded: "لا توجد ملفات مرفوعة.",
+                files_load_error: "تعذر تحميل الملفات.",
+                send_msg_failed: "فشل إرسال الرسالة: ",
+                receipt_upload_hint: "اضغط لرفع صورة الإشعار",
+                no_notifications: "لا توجد إشعارات حالياً.",
+                loading_chat: "جاري تحميل المحادثة...",
+                support_welcome_msg: "مرحباً بك في الدعم الفني. كيف يمكننا مساعدتك؟",
                 sending_request: "جاري إرسال طلب الحصة...",
                 request_sent_success: "تم إرسال طلب الحصة بنجاح! بانتظار قبول المعلم ⏳",
                 request_failed: "فشل إنشاء الطلب في السيرفر.",
@@ -494,6 +551,10 @@
                 reference_placeholder: "Receipt or bank reference number",
                 receipt_label: "Transfer receipt image (required):",
                 receipt_upload_hint: "Tap to upload the receipt image",
+                payment_method_label: "Select Payment Method:",
+                visa_mastercard_option: "Visa / Mastercard",
+                apple_pay_option: "Apple Pay",
+                naps_option: "Qatari Bank (NAPS)",
                 submit_to_admin_btn: "Submit to Admin 📤",
                 notifications_title: "Live Notifications",
                 close_btn: "Close",
@@ -527,6 +588,32 @@
                 sec_word: "s",
                 select_grade_first: "Please select your grade level",
                 select_date_time: "Please select the session date and time",
+                free_trial_card_title: "🚀 Start Your Free Trial Session Now!",
+                free_trial_card_desc: "Explore Labeeb Platform with 20 free minutes for all subjects. (Available only once)",
+                booking_notes_label: "Notes for the session (optional):",
+                booking_notes_placeholder: "Write any details you want to tell the teacher...",
+                preferred_teacher_label: "Do you prefer a specific teacher?",
+                select_teacher_option: "-- Select Teacher --",
+                select_teacher_warning: "Please select a teacher from the list",
+                wait_user_data: "-- Please wait while account data loads --",
+                loading_teachers: "-- Loading teachers... --",
+                no_previous_teachers: "-- No previous teachers --",
+                default_teacher_name: "Labeeb Teacher",
+                error_loading_teachers: "-- Error loading teachers --",
+                payment_server_error: "Failed to create payment link on the server.",
+                server_error_status: "Server error",
+                payment_gateway_error: "Could not get payment link from the gateway.",
+                payment_error_prefix: "Payment error: ",
+                upload_image_failed: "Failed to upload image",
+                general_error_prefix: "An error occurred:",
+                loading_dots: "Loading...",
+                no_files_uploaded: "No files uploaded.",
+                files_load_error: "Failed to load files.",
+                send_msg_failed: "Failed to send message: ",
+                receipt_upload_hint: "Click to upload receipt image",
+                no_notifications: "No notifications currently.",
+                loading_chat: "Loading chat...",
+                support_welcome_msg: "Welcome to Technical Support. How can we help you?",
                 sending_request: "Sending session request...",
                 request_sent_success: "Session request sent! Waiting for teacher approval ⏳",
                 request_failed: "Failed to create the request on the server.",
@@ -560,6 +647,87 @@
         }
 
 
+        // ✨ دالة توليد باقات الدفع بناءً على لغة الطالب (عربي/انترناشونال)
+        function renderPricingPackages() {
+            // باقات الطالب العربي (الساعة = 12 نقطة)
+            const arPackages = [
+                { points: 12, price: 50, label: "باقة ساعة واحدة (12 نقطة) - 50 ر.س (الساعة : 50 ر.س)" },
+                { points: 120, price: 450, label: "باقة 10 ساعات (120 نقطة) - 450 ر.س (الساعة : 45 ر.س)" },
+                { points: 240, price: 850, label: "باقة 20 ساعة (240 نقطة) - 850 ر.س (الساعة : 42.5 ر.س)" },
+                { points: 360, price: 1200, label: "باقة 30 ساعة (360 نقطة) - 1200 ر.س (الساعة : 40 ر.س)" }
+            ];
+
+            // باقات الطالب الانترناشونال (الساعة = 12 نقطة)
+            const enPackages = [
+                { points: 12, price: 80, label: "1 Hour Package (12 points) - 80 SAR (Hour: 80 SAR)" },
+                { points: 120, price: 800, label: "10 Hours Package (120 points) - 800 SAR (Hour: 80 SAR)" },
+                { points: 240, price: 1500, label: "20 Hours Package (240 points) - 1500 SAR (Hour: 75 SAR)" },
+                { points: 360, price: 2100, label: "30 Hours Package (360 points) - 2100 SAR (Hour: 70 SAR)" }
+            ];
+
+            const activePackages = (studentLanguage === 'en') ? enPackages : arPackages;
+            const cardList = document.getElementById('cardPackagesList');
+            const bankList = document.getElementById('bankPackagesList');
+            
+            if (!cardList || !bankList) return;
+
+            let cardHtml = '';
+            let bankHtml = '';
+
+            activePackages.forEach((pkg, index) => {
+                const isChecked = index === 0 ? 'checked' : '';
+                const hours = pkg.points / 12;
+                const title = studentLanguage === 'en' ? (hours === 1 ? "1 Hour Package" : `${hours} Hours Package`) : (hours === 1 ? "باقة ساعة واحدة" : `باقة ${hours} ساعات`);
+                const pointsTxt = studentLanguage === 'en' ? `${pkg.points} points` : `${pkg.points} نقطة`;
+                const priceTxt = studentLanguage === 'en' ? `${pkg.price} SAR` : `${pkg.price} ر.س`;
+                const hourRateTxt = studentLanguage === 'en' ? `Hour: ${pkg.price / hours} SAR` : `الساعة : ${pkg.price / hours} ر.س`;
+                const selectedClass = index === 0 ? 'border-oliveGreen bg-oliveGreen/10' : 'border-gray-200';
+
+                // كود بطاقة الدفع بالبطاقة
+                cardHtml += `
+                    <label class="pricing-card cursor-pointer block border-2 ${selectedClass} rounded-xl p-4 transition relative hover:border-oliveGreen">
+                        <input type="radio" name="cardPackage" value="${pkg.points}|${pkg.price}" ${isChecked} class="absolute top-3 left-3 w-4 h-4 accent-oliveGreen" onchange="highlightCard(this)">
+                        <div class="text-center">
+                            <h4 class="font-bold text-textDark text-sm mb-1">${title}</h4>
+                            <p class="text-xs text-gray-500 mb-2">${pointsTxt}</p>
+                            <p class="text-2xl font-extrabold text-oliveGreen mb-1">${priceTxt}</p>
+                            <p class="text-[11px] text-accentOrange font-bold">${hourRateTxt}</p>
+                        </div>
+                    </label>
+                `;
+
+                // كود بطاقة التحويل البنكي
+                bankHtml += `
+                    <label class="pricing-card cursor-pointer block border-2 ${selectedClass} rounded-xl p-4 transition relative hover:border-oliveGreen">
+                        <input type="radio" name="bankPackage" value="${pkg.points}|${title}" ${isChecked} class="absolute top-3 left-3 w-4 h-4 accent-oliveGreen" onchange="highlightCard(this)">
+                        <div class="text-center">
+                            <h4 class="font-bold text-textDark text-sm mb-1">${title}</h4>
+                            <p class="text-xs text-gray-500 mb-2">${pointsTxt}</p>
+                            <p class="text-2xl font-extrabold text-oliveGreen mb-1">${priceTxt}</p>
+                            <p class="text-[11px] text-accentOrange font-bold">${hourRateTxt}</p>
+                        </div>
+                    </label>
+                `;
+            });
+
+            cardList.innerHTML = cardHtml;
+            bankList.innerHTML = bankHtml;
+        }
+
+
+                // ✨ دالة تظليل البطاقة المختارة
+        function highlightCard(radioInput) {
+            const name = radioInput.name;
+            document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+                const card = input.parentElement;
+                card.classList.remove('border-oliveGreen', 'bg-oliveGreen/10');
+                card.classList.add('border-gray-200');
+            });
+            const currentCard = radioInput.parentElement;
+            currentCard.classList.remove('border-gray-200');
+            currentCard.classList.add('border-oliveGreen', 'bg-oliveGreen/10');
+        }
+
         let currentUser = null; 
         let displayName = "طالب لبيب";
         let studentLanguage = 'ar';
@@ -577,13 +745,22 @@
                 
                 try {
                     const userDoc = await db.collection('users').doc(user.uid).get();
-                    if (userDoc.exists) {
-                        const data = userDoc.data();
-                        displayName = data.name || "طالب لبيب";
-                        studentLanguage = data.preferredLanguage || 'ar';
-                        document.getElementById('studentNameDisplay').innerText = displayName;
-                        applyLanguage(studentLanguage);
-                    }
+                let studentHasUsedFreeTrial = false; // متغير عام جديد
+                if (userDoc.exists) {
+                    const data = userDoc.data();
+                    displayName = data.name || "طالب لبيب";
+                    studentLanguage = data.preferredLanguage || 'ar';
+                    studentHasUsedFreeTrial = data.hasUsedFreeTrial || false; // ✨ جلب حالة الحصة التجريبية
+                    document.getElementById('studentNameDisplay').innerText = displayName;
+                    applyLanguage(studentLanguage);
+                    renderPricingPackages(); // ✨ توليد باقات الأسعار الجديدة
+                }
+                // ✨ إخفاء أو إظهار كرت الحصة التجريبية في لوحة التحكم
+                const trialCard = document.getElementById('freeTrialDashboardCard');
+                if (trialCard) trialCard.style.display = studentHasUsedFreeTrial ? 'none' : 'block';
+                // وإخفاء الخيار من داخل النافذة المنبثقة لأنه أصبح زر مستقل
+                const trialContainer = document.getElementById('freeTrialContainer');
+                if (trialContainer) trialContainer.style.display = 'none'; 
                 } catch(e) {
                     console.error("Error fetching user profile:", e);
                 }
@@ -599,12 +776,19 @@
         function formatPointsAsTime(points) {
             // كل نقطة = 5 دقائق
             const totalMinutes = Math.round(points * 5);
-            if (totalMinutes <= 0) return '0 د';
+            if (totalMinutes <= 0) return currentLang === 'en' ? '0 m' : '0 د';
             const hours = Math.floor(totalMinutes / 60);
             const minutes = totalMinutes % 60;
-            if (hours > 0 && minutes > 0) return `${hours} س ${minutes} د`;
-            if (hours > 0) return `${hours} س`;
-            return `${minutes} د`;
+            
+            if (currentLang === 'en') {
+                if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+                if (hours > 0) return `${hours}h`;
+                return `${minutes}m`;
+            } else {
+                if (hours > 0 && minutes > 0) return `${hours} س ${minutes} د`;
+                if (hours > 0) return `${hours} س`;
+                return `${minutes} د`;
+            }
         }
 
         function listenToWallet() {
@@ -612,7 +796,8 @@
             db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
                 if (doc.exists) {
                     const points = doc.data().points || 0;
-                    document.getElementById('pointsBalance').innerText = `${points} نقطة`;
+                    const pointsWord = currentLang === 'en' ? 'points' : 'نقطة';
+                    document.getElementById('pointsBalance').innerText = `${points} ${pointsWord}`;
                     const timeEl = document.getElementById('pointsTimeEquivalent');
                     if (timeEl) timeEl.innerText = `(${formatPointsAsTime(points)})`;
                 }
@@ -1007,7 +1192,7 @@
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-        function openBookingModal() {
+        function openBookingModal(isFreeTrialRequest = false) {
             openModal('bookingModal');
             document.querySelectorAll('input[name="bookingType"]').forEach(radio => {
                 radio.onchange = (e) => {
@@ -1018,6 +1203,7 @@
             document.getElementById('bookingNotes').value = '';
             document.getElementById('requestSpecificTeacher').checked = false;
             document.getElementById('preferredTeacherSelect').classList.add('hidden');
+            document.getElementById('isFreeTrialCheckbox').checked = isFreeTrialRequest; // ✨ تحديد التجريبية تلقائياً لو جاء من زر التجريبية
             loadPreviousTeachers(); // جلب قائمة المعلمين
         }
 
@@ -1033,65 +1219,68 @@
             }
         }
 
-async function loadPreviousTeachers() {
-    const select = document.getElementById('preferredTeacherSelect');
-    
-    // التأكد أولاً من تسجيل الدخول وجلب المستخدم الحالي
-    const user = currentUser || auth.currentUser;
-    if (!user) {
-        select.innerHTML = '<option value="">-- يرجى الانتظار لحين تحميل بيانات الحساب --</option>';
-        return;
-    }
-
-    select.innerHTML = '<option value="">-- جاري تحميل المعلمين... --</option>';
-    
-    try {
-        const snapshot = await db.collection('sessions')
-            .where('studentId', '==', user.uid)
-            .get();
-
-        const teacherIds = new Set();
-        
-        if (snapshot.empty) {
-            select.innerHTML = '<option value="">-- لا يوجد معلمون سابقون --</option>';
-            return;
-        }
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.teacherId && ['completed', 'accepted', 'active'].includes(data.status)) {
-                teacherIds.add(data.teacherId);
+        async function loadPreviousTeachers() {
+            const select = document.getElementById('preferredTeacherSelect');
+            
+            // التأكد أولاً من تسجيل الدخول وجلب المستخدم الحالي
+            const user = currentUser || auth.currentUser;
+            if (!user) {
+                select.innerHTML = `<option value="">${t('wait_user_data')}</option>`;
+                return;
             }
-        });
 
-        if (teacherIds.size === 0) {
-            select.innerHTML = '<option value="">-- لا يوجد معلمون سابقون --</option>';
-            return;
-        }
+            select.innerHTML = `<option value="">${t('loading_teachers')}</option>`;
+            
+            try {
+                const snapshot = await db.collection('sessions')
+                    .where('studentId', '==', user.uid)
+                    .get();
 
-        select.innerHTML = '<option value="">-- اختر المعلم --</option>';
-        
-        for (const id of teacherIds) {
-            const userDoc = await db.collection('users').doc(id).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                let rawName = userData.fullName || userData.name || userData.displayName || 'معلم لبيب';
+                const teacherIds = new Set();
                 
-                rawName = rawName.replace(/^أ\.\s*/, '').trim();
-                const formattedName = `أ. ${rawName}`;
+                if (snapshot.empty) {
+                    select.innerHTML = `<option value="">${t('no_previous_teachers')}</option>`;
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.teacherId && ['completed', 'accepted', 'active'].includes(data.status)) {
+                        teacherIds.add(data.teacherId);
+                    }
+                });
+
+                if (teacherIds.size === 0) {
+                    select.innerHTML = `<option value="">${t('no_previous_teachers')}</option>`;
+                    return;
+                }
+
+                select.innerHTML = `<option value="">${t('select_teacher_option')}</option>`;
                 
-                const option = document.createElement('option');
-                option.value = JSON.stringify({ id: id, name: formattedName });
-                option.innerText = formattedName;
-                select.appendChild(option);
+                for (const id of teacherIds) {
+                    const userDoc = await db.collection('users').doc(id).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        let rawName = userData.fullName || userData.name || userData.displayName || t('default_teacher_name');
+                        
+                        // إزالة أي بادئة عربية أو إنجليزية سابقة
+                        rawName = rawName.replace(/^(أ\.|Mr\.|T\.)\s*/, '').trim();
+                        // إضافة بادئة مناسبة للغة الحالية
+                        const prefix = currentLang === 'en' ? 'Mr. ' : 'أ. ';
+                        const formattedName = `${prefix}${rawName}`;
+                        
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({ id: id, name: formattedName });
+                        option.innerText = formattedName;
+                        select.appendChild(option);
+                    }
+                }
+
+            } catch(e) {
+                console.error("Error loading previous teachers:", e);
+                select.innerHTML = `<option value="">${t('error_loading_teachers')}</option>`;
             }
         }
-
-    } catch(e) {
-        console.error("Error loading previous teachers:", e);
-        select.innerHTML = '<option value="">-- خطأ في تحميل المعلمين --</option>';
-    }
-}
 
         async function submitBooking() {
             const subject = document.getElementById('bookingSubject').value;
@@ -1116,12 +1305,15 @@ async function loadPreviousTeachers() {
 
             try {
                 const token = await currentUser.getIdToken();
+                const isFreeTrial = document.getElementById('isFreeTrialCheckbox').checked; // ✨ جلب حالة التجريبية
+                
                 const formData = new FormData();
                 formData.append('studentName', displayName);
                 formData.append('subject', subject);
                 formData.append('topic', subject);
                 formData.append('grade', grade); 
                 formData.append('language', studentLanguage);
+                formData.append('isFreeTrial', isFreeTrial); // ✨ إرسال الحالة للسيرفر
 
                 const response = await fetch('/api/session/create', {
                     method: 'POST',
@@ -1151,7 +1343,7 @@ async function loadPreviousTeachers() {
                 if (document.getElementById('requestSpecificTeacher').checked) {
                     const selectedVal = document.getElementById('preferredTeacherSelect').value;
                     if (!selectedVal) {
-                        showSnackBar('الرجاء اختيار المعلم من القائمة', '#D97706');
+                    showSnackBar(t('select_teacher_warning'), '#D97706');
                         return;
                     }
     const teacherData = JSON.parse(selectedVal);
@@ -1188,7 +1380,7 @@ async function loadPreviousTeachers() {
         function openRechargeModal() {
             openModal('rechargeModal');
             document.getElementById('receiptImage').onchange = (e) => {
-                const fileName = e.target.files[0]?.name || 'اضغط لرفع صورة الإشعار';
+                const fileName = e.target.files[0]?.name || t('receipt_upload_hint');
                 document.getElementById('receiptUploadBox').innerText = fileName;
             };
         }
@@ -1208,6 +1400,9 @@ async function loadPreviousTeachers() {
             const [pointsCountStr, amountStr] = packageVal.split('|');
             const pointsCount = parseInt(pointsCountStr);
             const amount = parseFloat(amountStr);
+            
+            // ✨ جلب طريقة الدفع المختارة (افتراضياً src_card)
+            const sourceId = document.querySelector('input[name="paymentSource"]:checked')?.value || 'src_card';
 
             showSnackBar(t('preparing_payment'), '#4E6B45');
 
@@ -1216,6 +1411,7 @@ async function loadPreviousTeachers() {
                 const formData = new FormData();
                 formData.append('amount', amount);
                 formData.append('pointsCount', pointsCount);
+                formData.append('sourceId', sourceId); // ✨ إرسال طريقة الدفع للسيرفر
 
                 const res = await fetch('/api/payment/create-checkout', {
                     method: 'POST',
@@ -1224,12 +1420,12 @@ async function loadPreviousTeachers() {
                 });
 
                 if (!res.ok) {
-                    let errorMsg = 'فشل إنشاء رابط الدفع في السيرفر.';
+                    let errorMsg = t('payment_server_error');
                     try {
                         const err = await res.json();
                         errorMsg = err.detail || errorMsg;
                     } catch (e) {
-                        errorMsg = `خطأ في السيرفر (${res.status}). قد يكون السيرفر نائماً أو تجاوز الحصة المجانية.`;
+                        errorMsg = `${t('server_error_status')} (${res.status}).`;
                     }
                     throw new Error(errorMsg);
                 }
@@ -1238,10 +1434,10 @@ async function loadPreviousTeachers() {
                 if (data.checkoutUrl) {
                     window.location.href = data.checkoutUrl;
                 } else {
-                    throw new Error('تعذر الحصول على رابط الدفع من البوابة.');
+                    throw new Error(t('payment_gateway_error'));
                 }
             } catch (e) {
-                showSnackBar('خطأ في الدفع: ' + e.message, '#ef4444');
+                showSnackBar(t('payment_error_prefix') + e.message, '#ef4444');
             }
         }
 
@@ -1271,7 +1467,7 @@ async function loadPreviousTeachers() {
                 });
                 const uploadData = await uploadRes.json();
 
-                if (!uploadData.url) throw new Error('فشل رفع الصورة');
+                if (!uploadData.url) throw new Error(t('upload_image_failed'));
 
                 await db.collection('recharge_requests').add({
                     studentId: currentUser.uid,
@@ -1289,10 +1485,10 @@ async function loadPreviousTeachers() {
                 
                 document.getElementById('referenceNumber').value = '';
                 document.getElementById('receiptImage').value = '';
-                document.getElementById('receiptUploadBox').innerText = 'اضغط لرفع صورة الإشعار';
+                document.getElementById('receiptUploadBox').innerText = t('receipt_upload_hint');
 
             } catch (e) {
-                showSnackBar(`حدث خطأ: ${e.message}`, '#ef4444');
+                showSnackBar(`${t('general_error_prefix')} ${e.message}`, '#ef4444');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = t('submit_to_admin_btn');
@@ -1314,7 +1510,7 @@ async function loadPreviousTeachers() {
                     container.innerHTML = '';
                     
                     if (snapshot.empty) {
-                        container.innerHTML = '<p class="text-center text-gray-400">لا توجد إشعارات حالياً.</p>';
+                        container.innerHTML = `<p class="text-center text-gray-400">${t('no_notifications')}</p>`;
                         if(badge) badge.classList.add('hidden');
                         return;
                     }
@@ -1365,7 +1561,7 @@ async function loadPreviousTeachers() {
         // ==========================================
         async function openStudentFilesModal(sessionId) {
             const container = document.getElementById('studentFilesList');
-            container.innerHTML = '<p class="text-center text-gray-400">جاري التحميل...</p>';
+            container.innerHTML = `<p class="text-center text-gray-400">${t('loading_dots')}</p>`;
             openModal('studentFilesModal');
             
             try {
@@ -1382,10 +1578,10 @@ async function loadPreviousTeachers() {
                         `;
                     });
                 } else {
-                    container.innerHTML = '<p class="text-center text-gray-400">لا توجد ملفات مرفوعة.</p>';
+                    container.innerHTML = `<p class="text-center text-gray-400">${t('no_files_uploaded')}</p>`;
                 }
             } catch (e) {
-                container.innerHTML = '<p class="text-center text-red-500">تعذر تحميل الملفات.</p>';
+                container.innerHTML = `<p class="text-center text-red-500">${t('files_load_error')}</p>`;
             }
         }
 
@@ -1409,14 +1605,14 @@ async function loadPreviousTeachers() {
             if (!currentUser) return;
             if (supportUnsub) supportUnsub();
             const container = document.getElementById('supportMessages');
-            container.innerHTML = '<p class="text-center text-gray-400 text-xs">جاري تحميل المحادثة...</p>';
+            container.innerHTML = `<p class="text-center text-gray-400 text-xs">${t('loading_chat')}</p>`;
             
             supportUnsub = db.collection('support_chats').doc(currentUser.uid).collection('messages')
                 .orderBy('createdAt', 'asc')
                 .onSnapshot((snapshot) => {
                     container.innerHTML = '';
                     if (snapshot.empty) {
-                        container.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">مرحباً بك في الدعم الفني. كيف يمكننا مساعدتك؟</p>';
+                        container.innerHTML = `<p class="text-center text-gray-500 text-sm p-4">${t('support_welcome_msg')}</p>`;
                         return;
                     }
                     snapshot.forEach((doc) => {
@@ -1478,7 +1674,7 @@ async function loadPreviousTeachers() {
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } catch (e) {
-                showSnackBar('فشل إرسال الرسالة: ' + e.message, '#ef4444');
+                showSnackBar(t('send_msg_failed') + e.message, '#ef4444');
             }
         }
 

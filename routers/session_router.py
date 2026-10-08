@@ -95,6 +95,7 @@ async def create_session_request(
     topic: str = Form(...),
     grade: str = Form("غير محدد"),  # ✨ تمت إضافة المرحلة الدراسية
     language: str = Form("ar"),  # ✨ لغة الدراسة المطلوبة (ar أو en)
+    isFreeTrial: bool = Form(False),  # ✨ إضافة حقل الحصة التجريبية
     uid: str = Depends(get_current_user)
 ):
     try:
@@ -105,11 +106,16 @@ async def create_session_request(
             raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
 
         user_data = user_snap.to_dict()
-        raw_points = user_data.get('points', 0)
-        current_points = raw_points if isinstance(raw_points, (int, float)) else 0
 
-        if current_points <= 0:
-            raise HTTPException(status_code=400, detail="لا يوجد لديك نقاط كافية.")
+        # ✨ التحقق من الحصة التجريبية
+        if isFreeTrial:
+            if user_data.get('hasUsedFreeTrial', False):
+                raise HTTPException(status_code=403, detail="لقد قمت باستخدام حصتك التجريبية المجانية مسبقاً.")
+        else:
+            raw_points = user_data.get('points', 0)
+            current_points = raw_points if isinstance(raw_points, (int, float)) else 0
+            if current_points <= 0:
+                raise HTTPException(status_code=400, detail="لا يوجد لديك نقاط كافية.")
 
         session_ref = db.collection('sessions').document()
         session_ref.set({
@@ -134,6 +140,7 @@ async def create_session_request(
             'createdAt': firestore.SERVER_TIMESTAMP,
             'audioRecordingUrl': None,
             'boardPdfUrl': None,
+            'isFreeTrial': isFreeTrial,  # ✨ حفظ علم الحصة التجريبية
         })
 
         return {"sessionId": session_ref.id, "message": "تم إنشاء الطلب بنجاح"}
@@ -221,6 +228,10 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
         if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
             raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
 
+        # ✨ إيقاف الخصم فوراً إذا كانت الحصة تجريبية مجانية
+        if session_data.get('isFreeTrial'):
+            return {"message": "جلسة تجريبية مجانية، لا يتم الخصم", "pointsDeducted": 0}
+
         now_utc = datetime.now(timezone.utc)
         log_ts = now_utc.strftime('%H:%M:%S')
 
@@ -235,7 +246,7 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
         intervals_due = int(elapsed_seconds // 300)  # كل 300 ثانية = 5 دقائق
 
         already_deducted = session_data.get('pointsDeducted', 0)
-        intervals_already_done = int(round(already_deducted / 0.5))
+        intervals_already_done = int(round(already_deducted / 1.0)) # ✨ تعديل المعدل إلى 1 نقطة
 
         intervals_to_deduct = intervals_due - intervals_already_done
 
@@ -247,7 +258,7 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
             print(f"🕐 [{log_ts}] session={sessionId} → لا يوجد خصم مستحق الآن")
             return {"message": "لا يوجد خصم مستحق الآن", "pointsDeducted": already_deducted}
 
-        points_to_deduct = intervals_to_deduct * 0.5
+        points_to_deduct = intervals_to_deduct * 1.0 # ✨ تعديل الخصم إلى 1 نقطة لكل 5 دقائق
         student_id = session_data.get('studentId')
         student_ref = db.collection('users').document(student_id)
         student_snap = student_ref.get()
@@ -316,7 +327,14 @@ async def leave_session(sessionId: str, uid: str = Depends(get_current_user)):
             session_ref.update({
                 'status': 'completed',
                 'completedAt': firestore.SERVER_TIMESTAMP
-            })
+            })  
+            # ✨ تحديث حالة الحصة التجريبية للطالب عند المغادرة
+            if session_data.get('isFreeTrial'):
+                student_id_for_trial = session_data.get('studentId')
+                if student_id_for_trial:
+                    db.collection('users').document(student_id_for_trial).update({
+                        'hasUsedFreeTrial': True
+                    })
 
         return {"message": "تم إنهاء الجلسة"}
 
@@ -352,6 +370,14 @@ async def interrupt_session(sessionId: str, uid: str = Depends(get_current_user)
             'status': 'interrupted',
             'interruptedBy': 'teacher' if is_teacher else 'student'
         })
+
+        # ✨ تحديث حالة الحصة التجريبية للطالب عند الانقطاع المفاجئ
+        if session_data.get('isFreeTrial'):
+            student_id_for_trial = session_data.get('studentId')
+            if student_id_for_trial:
+                db.collection('users').document(student_id_for_trial).update({
+                    'hasUsedFreeTrial': True
+                })
 
         return {"message": "تم تسجيل الانقطاع"}
 
@@ -506,12 +532,12 @@ async def register_teacher(
     try:
         update_data = {
             'subject': subject,
-            'subjects': [s.strip() for s in subject.split('،')],
+            'subjects': [s.trim() for s in subject.split('،')],
             'role': 'teacher',
             'experienceYears': experience,
-            'targetAge': [a.strip() for a in targetAge.split('،')],
+            'targetAge': [a.trim() for a in targetAge.split('،')],
             'teachingLanguage': teachingLanguage,
-            'ownedDevices': [d.strip() for d in ownedDevices.split('،') if d.strip()],
+            'ownedDevices': [d.trim() for d in ownedDevices.split('،') if d.trim()],
             'academicDegree': academicDegree,
             'certificates': [certificateUrl],
             'certificateUrl': certificateUrl,
@@ -539,6 +565,8 @@ async def register_teacher(
 async def create_tap_checkout(
     amount: float = Form(...),
     pointsCount: int = Form(...),
+    sourceId: str = Form("src_all"),
+    customPhone: str = Form(""),  # ✨ استقبال رقم الهاتف المخصص للدفع
     uid: str = Depends(get_current_user)
 ):
     """إنشاء رابط دفع آمن عبر بوابة Tap Payments"""
@@ -550,17 +578,32 @@ async def create_tap_checkout(
         if not secret_key:
             raise HTTPException(status_code=500, detail="لم يتم إعداد مفاتيح بوابة الدفع بشكل صحيح.")
 
-        # جلب اسم الطالب لعرضه في صفحة الدفع
+        # جلب اسم الطالب ورقم هاتفه لعرضهما في صفحة الدفع
         user_ref = db.collection('users').document(uid)
         user_snap = user_ref.get()
         student_name = "طالب لبيب"
+        student_phone = "00000000"
         if user_snap.exists:
-            student_name = user_snap.to_dict().get('name', student_name)
+            user_data = user_snap.to_dict()
+            student_name = user_data.get('name', student_name)
+            # ✨ جلب رقم الهاتف وإزالة المقدمة (+974) إذا كانت موجودة
+            raw_phone = user_data.get('phone', '00000000')
+            if raw_phone.startswith('+'):
+                student_phone = raw_phone[4:] 
+            else:
+                student_phone = raw_phone
+
+        # ✨ استخدام الرقم المخصص للدفع إذا أدخله الطالب
+        if customPhone:
+            if customPhone.startswith('+'):
+                student_phone = customPhone[4:] 
+            else:
+                student_phone = customPhone
 
         # تجهيز بيانات الدفع لإرسالها لـ Tap
         payload = {
             "amount": amount,
-                   "currency": "SAR",
+                   "currency": "QAR",  # ✨ تغيير العملة للريال القطري لتتوافق مع NAPS وقطر
             "threeDSecure": True,
             "save_card_later": False,
             "description": f"شحن محفظة منصة لبيب ({pointsCount} نقطة)",
@@ -585,11 +628,11 @@ async def create_tap_checkout(
                 "email": "",
                 "phone": {
                     "country_code": "+974",
-                    "number": "00000000"
+                    "number": student_phone  # ✨ استخدام رقم الطالب الحقيقي
                 }
             },
             "source": {
-                "id": "src_all"
+                "id": sourceId  # ✨ استخدام طريقة الدفع التي اختارها الطالب
             },
             "redirect": {
                 "url": f"https://labeeb-wep.onrender.com/payment-success" 
@@ -614,7 +657,15 @@ async def create_tap_checkout(
                     raise HTTPException(status_code=500, detail="تعذر الحصول على رابط الدفع من البوابة.")
             else:
                 print("Tap Error Response:", response.text)
-                raise HTTPException(status_code=400, detail="فشل إنشاء طلب الدفع. تأكد من البيانات.")
+                # ✨ استخراج رسالة الخطأ الحقيقية من Tap لعرضها للطالب
+                error_detail = "فشل إنشاء طلب الدفع."
+                try:
+                    error_json = response.json()
+                    if "errors" in error_json and len(error_json["errors"]) > 0:
+                        error_detail = error_json["errors"][0].get("description", error_detail)
+                except:
+                    pass
+                raise HTTPException(status_code=400, detail=f"فشل الدفع: {error_detail}")
             
     except HTTPException:
         raise # إعادة رمي أخطاء HTTP المخصصة
@@ -768,6 +819,14 @@ async def complete_session(
 
     session_ref.update(update_data)
     print("Session completed successfully in Firestore!")
+
+    # ✨ تحديث حالة الحصة التجريبية للطالب لمنع تكرارها
+    if session_data.get('isFreeTrial'):
+        student_id_for_trial = session_data.get('studentId')
+        if student_id_for_trial:
+            db.collection('users').document(student_id_for_trial).update({
+                'hasUsedFreeTrial': True
+            })
 
     # ✨ إرسال إشعار للطالب بتوفر ملخص الحصة
     student_id = session_data.get('studentId')

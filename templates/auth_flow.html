@@ -85,28 +85,43 @@
                 <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
                 <div class="step-bar h-1.5 flex-1 rounded-full bg-oliveGreen/15"></div>
             </div>
-            <!-- Step 0: Phone Number -->
+            <!-- Step 0: Auth Selection (Phone for Student, Email/Password for Teacher) -->
             <div id="step-0" class="step-content">
-                <h2 class="text-xl font-bold mb-2">أهلاً بك، سجل دخولك برقم الجوال</h2>
-                <p class="text-sm text-gray-500 mb-6 leading-relaxed">قم بإدخال رقم هاتفك المحمول وسيصلك رمز تحقق حقيقي عبر رسالة نصية.</p>
-                
-                <label class="text-sm font-bold block mb-2">رقم الجوال لتسجيل الدخول</label>
-                <div class="flex items-center bg-beigeCard rounded-xl overflow-hidden">
-                <select id="countryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
-                    <option value="+974">قطر +974</option>
-                    <option value="+966">السعودية +966</option>
-                    <option value="+970">فلسطين +970</option>
-                    <option value="+971">الإمارات +971</option>
-                    <option value="+965">الكويت +965</option>
-                    <option value="+962">الأردن +962</option>
-                    <option value="+20">مصر +20</option>
-                </select>
-                    <div class="h-5 w-px bg-gray-300 mx-1"></div>
-                    <input type="tel" id="phoneNumber" placeholder="5xxxxxxxx" class="bg-transparent py-3 px-2 flex-1 focus:outline-none text-sm">
+                <!-- ✨ واجهة الطالب (رقم الهاتف) -->
+                <div id="studentPhoneAuth">
+                    <h2 class="text-xl font-bold mb-2">أهلاً بك، سجل دخولك برقم الجوال</h2>
+                    <p class="text-sm text-gray-500 mb-6 leading-relaxed">قم بإدخال رقم هاتفك المحمول وسيصلك رمز تحقق حقيقي عبر رسالة نصية.</p>
+                    
+                    <label class="text-sm font-bold block mb-2">رقم الجوال لتسجيل الدخول</label>
+                    <div class="flex items-center bg-beigeCard rounded-xl overflow-hidden">
+                    <select id="countryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
+                        <option value="+974">قطر +974</option>
+                        <option value="+966">السعودية +966</option>
+                        <option value="+970">فلسطين +970</option>
+                        <option value="+971">الإمارات +971</option>
+                        <option value="+965">الكويت +965</option>
+                        <option value="+962">الأردن +962</option>
+                        <option value="+20">مصر +20</option>
+                    </select>
+                        <div class="h-5 w-px bg-gray-300 mx-1"></div>
+                        <input type="tel" id="phoneNumber" placeholder="5xxxxxxxx" class="bg-transparent py-3 px-2 flex-1 focus:outline-none text-sm">
+                    </div>
                 </div>
 
-                <div id="teacherSignupLink" class="text-center mt-5 hidden">
-                    <button onclick="goToStep(2)" class="text-accentOrange font-bold text-sm underline">ليس لدي حساب؟ عمل حساب معلم جديد الآن</button>
+                <!-- ✨ واجهة المعلم (الإيميل والباسوورد) -->
+                <div id="teacherEmailAuth" class="hidden">
+                    <h2 class="text-xl font-bold mb-2">أهلاً بك أستاذ، سجل دخولك</h2>
+                    <p class="text-sm text-gray-500 mb-6 leading-relaxed">قم بإدخال البريد الإلكتروني وكلمة المرور للدخول لحسابك أو إنشاء حساب جديد.</p>
+                    
+                    <label class="text-sm font-bold block mb-2">البريد الإلكتروني</label>
+                    <input type="email" id="teacherEmail" placeholder="example@email.com" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    
+                    <label class="text-sm font-bold block mb-2">كلمة المرور</label>
+                    <input type="password" id="teacherPassword" placeholder="********" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+
+                    <div id="teacherSignupLink" class="text-center mt-5 hidden">
+                        <button onclick="goToStep(2)" class="text-accentOrange font-bold text-sm underline">ليس لدي حساب؟ أكمل بيانات إنشاء حساب معلم</button>
+                    </div>
                 </div>
             </div>
 
@@ -136,9 +151,18 @@
             <!-- Step 2: Teacher Signup -->
             <div id="step-2" class="step-content hidden-step">
                 <h2 class="text-xl font-bold mb-1">إنشاء حساب معلم جديد</h2>
-                <p class="text-sm text-gray-500 mb-4">سجل معنا كمعلم معتمد. بعد تعبئة البيانات سنتحقق من رقمك برسالة نصية.</p>
+                <p class="text-sm text-gray-500 mb-4">سجل معنا كمعلم معتمد. بعد تعبئة البيانات سيتم إنشاء حسابك بالإيميل وكلمة المرور.</p>
                 
                 <div class="space-y-3">
+                    <!-- ✨ إضافة خانات الإيميل والباسوورد -->
+                    <div>
+                        <label class="text-sm font-bold block mb-1">البريد الإلكتروني (للدخول)</label>
+                        <input type="email" id="signupEmail" placeholder="example@email.com" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    </div>
+                    <div>
+                        <label class="text-sm font-bold block mb-1">كلمة المرور (للدخول)</label>
+                        <input type="password" id="signupPassword" placeholder="********" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    </div>
                     <div>
                         <label class="text-sm font-bold block mb-1">رقم الموبايل</label>
                         <input type="tel" id="signupPhone" placeholder="5xxxxxxxx" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
@@ -529,7 +553,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Set Role Title
             document.getElementById('roleTitle').innerText = role === 'student' ? 'الطالب الطموح' : 'المعلم لبيب';
-            if (role === 'teacher') document.getElementById('teacherSignupLink').classList.remove('hidden');
+            
+            // ✨ فصل واجهة الدخول بناءً على الدور
+            if (role === 'teacher') {
+                document.getElementById('studentPhoneAuth').classList.add('hidden');
+                document.getElementById('teacherEmailAuth').classList.remove('hidden');
+                document.getElementById('teacherSignupLink').classList.remove('hidden');
+            } else {
+                document.getElementById('studentPhoneAuth').classList.remove('hidden');
+                document.getElementById('teacherEmailAuth').classList.add('hidden');
+            }
+            
+            // ✨ حصر تسجيل الطالب برقم قطر فقط
+            if (role === 'student') {
+                document.getElementById('countryCode').innerHTML = '<option value="+974">قطر +974</option>';
+            }
             
             // إظهار شريط التقدم للمعلم فقط وإخفائه للطالب
             if (role === 'teacher') {
@@ -565,8 +603,6 @@
                 });
             });
 
-            // Set default booking type
-            setBookingType('now');
         });
 
         // ==========================================
@@ -953,14 +989,129 @@ function sendOtp(rawPhone) {
         // ==========================================
         // 🎯 Main Button Handler
         // ==========================================
+
+
+
+                // ✨ دالة تسجيل دخول المعلم بالإيميل
+        async function loginTeacherWithEmail(email, password) {
+            toggleLoading(true);
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                const userData = userDoc.exists ? userDoc.data() : null;
+
+                if (userData && userData.role === 'teacher') {
+                    const status = userData.status || 'pending_approval';
+                    if (status === 'approved') {
+                        const teacherName = encodeURIComponent(userData.name || 'معلم لبيب');
+                        window.location.href = `/teacher-dashboard?name=${teacherName}`;
+                    } else {
+                        toggleLoading(false);
+                        goToStep(3);
+                        document.getElementById('pendingMsg').innerText = `أهلاً بك يا أستاذ ${userData.name || ''} في منصة لبيب. طلبك قيد المراجعة، يرجى انتظار قبول طلبك من لوحة إدارة المنصة ⏳`;
+                        showSnackBar('حسابك قيد المراجعة، يرجى انتظار قبول طلبك من لوحة إدارة المنصة ⏳', '#D97706');
+                    }
+                } else {
+                    await auth.signOut();
+                    throw new Error('هذا الحساب غير موجود كمعلم، يرجى إنشاء حساب جديد.');
+                }
+            } catch (error) {
+                console.error('Login Error:', error);
+                toggleLoading(false);
+                let errorMsg = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        errorMsg = 'صيغة البريد الإلكتروني غير صحيحة.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMsg = 'لا يوجد حساب بهذا البريد الإلكتروني، يرجى إنشاء حساب جديد.';
+                        break;
+                    case 'auth/wrong-password':
+                    case 'auth/invalid-credential':
+                        errorMsg = 'بيانات الدخول غير صحيحة. تأكد من البريد الإلكتروني وكلمة المرور.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMsg = 'تم تعطيل هذا الحساب من قبل إدارة المنصة.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMsg = 'تم حظر الوصول مؤقتاً بسبب محاولات دخول خاطئة كثيرة. حاول لاحقاً.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMsg = 'حدث خطأ في الاتصال بالشبكة. تأكد من اتصالك بالإنترنت.';
+                        break;
+                }
+                showSnackBar(errorMsg, '#D97706');
+            }
+        }
+
+        // ✨ دالة إنشاء حساب معلم جديد بالإيميل
+        async function createTeacherAccount() {
+            // ✨ قراءة الإيميل والباسوورد مباشرة من الحقول داخل الدالة
+            const email = document.getElementById('signupEmail')?.value.trim();
+            const password = document.getElementById('signupPassword')?.value;
+            
+            if (!email || !password) {
+                showSnackBar('الرجاء إدخال البريد الإلكتروني وكلمة المرور بشكل صحيح', '#D97706');
+                return;
+            }
+
+            // ✨ التحقق من قوة كلمة المرور (8 خانات على الأقل، أحرف وأرقام)
+            const passwordRegex = /^(?=.*[0-9])(?=.*[a-zA-Z]).{8,}$/;
+            if (!passwordRegex.test(password)) {
+                showSnackBar('كلمة المرور يجب أن تتكون من 8 خانات على الأقل وتحتوي على أحرف وأرقام.', '#D97706');
+                return;
+            }
+
+            toggleLoading(true);
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                const contactPhone = normalizePhone(document.getElementById('signupPhone').value);
+                await registerTeacherDirectly(user, contactPhone);
+            } catch (error) {
+                console.error('Signup Error:', error);
+                toggleLoading(false);
+                let errorMsg = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMsg = 'هذا البريد الإلكتروني مستخدم بالفعل. يرجى تسجيل الدخول.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMsg = 'كلمة المرور ضعيفة، يجب أن تتكون من 6 أحرف على الأقل.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMsg = 'صيغة البريد الإلكتروني غير صحيحة.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMsg = 'حدث خطأ في الاتصال بالشبكة. تأكد من اتصالك بالإنترنت.';
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMsg = 'تم تعطيل التسجيل بالبريد الإلكتروني مؤقتاً. تواصل مع الإدارة.';
+                        break;
+                }
+                showSnackBar(errorMsg, '#D97706');
+            }
+        }
+
+
         function handlePrimaryButton() {
             if (isLoading) return;
 
             if (currentStep === 0) {
-                const phone = document.getElementById('phoneNumber').value.trim();
-                if (phone.length < 9) { showSnackBar('الرجاء إدخال رقم جوال صحيح', '#D97706'); return; }
-                isSignUpMode = false;
-                sendOtp(phone);
+                if (role === 'teacher') {
+                    // ✨ تسجيل دخول المعلم بالإيميل والباسوورد
+                    const email = document.getElementById('teacherEmail').value.trim();
+                    const password = document.getElementById('teacherPassword').value;
+                    if (!email || !password) { showSnackBar('الرجاء إدخال البريد الإلكتروني وكلمة المرور', '#D97706'); return; }
+                    loginTeacherWithEmail(email, password);
+                } else {
+                    // تسجيل دخول الطالب برقم الهاتف (OTP)
+                    const phone = document.getElementById('phoneNumber').value.trim();
+                    if (phone.length < 9) { showSnackBar('الرجاء إدخال رقم جوال صحيح', '#D97706'); return; }
+                    isSignUpMode = false;
+                    sendOtp(phone);
+                }
             } 
             else if (currentStep === 1) {
                 verifyOtp();
@@ -983,14 +1134,9 @@ function sendOtp(rawPhone) {
                     showSnackBar('يرجى رفع ملف شهادة الدرجة العلمية العليا (الماجستير/الدكتوراه)', '#D97706');
                     return;
                 }
+                // ✨ إنشاء حساب معلم بالإيميل والباسوورد من نموذج التسجيل
                 isSignUpMode = true;
-                const user = auth.currentUser;
-                const phone = normalizePhone(document.getElementById('signupPhone').value);
-                if (user) {
-                    registerTeacherDirectly(user, phone);
-                } else {
-                    sendOtp(document.getElementById('signupPhone').value);
-                }
+                createTeacherAccount();
             } 
             else if (currentStep === 4) {
                 completeStudentProfile();

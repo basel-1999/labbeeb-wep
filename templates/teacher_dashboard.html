@@ -118,22 +118,22 @@
 
         <!-- State 2: Registration Form -->
         <div id="registrationForm" class="hidden max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-8">
-            <h2 class="text-xl font-bold text-oliveGreen mb-2">🎓 إكمال ملف المعلم ورفع الشهادات</h2>
-            <p class="text-sm text-gray-500 mb-6">يرجى تعبئة بيانات التخصص وإرفاق الشهادة الجامعية للاعتماد من قبل إدارة المنصة.</p>
+            <h2 data-i18n-t="reg_form_title" class="text-xl font-bold text-oliveGreen mb-2">🎓 إكمال ملف المعلم ورفع الشهادات</h2>
+            <p data-i18n-t="reg_form_desc" class="text-sm text-gray-500 mb-6">يرجى تعبئة بيانات التخصص وإرفاق الشهادة الجامعية للاعتماد من قبل إدارة المنصة.</p>
             
             <div class="space-y-4">
                 <div>
-                    <label class="text-sm font-bold block mb-2">اختر التخصصات التي تدرسها (يمكنك اختيار أكثر من تخصص):</label>
+                    <label data-i18n-t="reg_specialty_label" class="text-sm font-bold block mb-2">اختر التخصصات التي تدرسها (يمكنك اختيار أكثر من تخصص):</label>
                     <div id="specialtyListDash" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
                 </div>
 
                 <div>
-                    <label class="text-sm font-bold block mb-2">الفئة العمرية / الصفوف التي تدرسها (يمكن اختيار أكثر من فئة):</label>
+                    <label data-i18n-t="reg_age_label" class="text-sm font-bold block mb-2">الفئة العمرية / الصفوف التي تدرسها (يمكن اختيار أكثر من فئة):</label>
                     <div id="targetAgeListDash" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-xl"></div>
                 </div>
 
                 <div>
-                    <label class="text-sm font-bold block mb-2">هل تستطيع التدريس باللغة العربية أم الإنجليزية (انترناشونال)؟</label>
+                    <label data-i18n-t="reg_lang_label" class="text-sm font-bold block mb-2">هل تستطيع التدريس باللغة العربية أم الإنجليزية (انترناشونال)؟</label>
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" id="langDash_ar" onclick="selectTeachingLanguageDash('العربية')" class="teaching-lang-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
                             <span class="text-2xl">🇸🇦</span>
@@ -151,7 +151,7 @@
                 </div>
 
                 <div>
-                    <label class="text-sm font-bold block mb-2">هل تمتلك جهاز (هاتف محمول , تابلت , لابتوب)؟ (يمكنك اختيار أكثر من جهاز):</label>
+                    <label data-i18n-t="reg_devices_label" class="text-sm font-bold block mb-2">هل تمتلك جهاز (هاتف محمول , تابلت , لابتوب)؟ (يمكنك اختيار أكثر من جهاز):</label>
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" id="devDash_phone" onclick="toggleDeviceSelectionDash('هاتف محمول')" class="device-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
                             <span class="text-2xl">📱</span>
@@ -168,8 +168,8 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="text-sm font-bold block mb-2">هل تمتلك درجة علمية عليا (ماجستير، دكتوراه)؟</label>
+                 <div>
+                    <label data-i18n-t="reg_degree_label" class="text-sm font-bold block mb-2">هل تمتلك درجة علمية عليا (ماجستير، دكتوراه)؟</label>
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" id="degDash_none" onclick="selectAcademicDegreeDash('لا أملك')" class="degree-btn-dash flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 border-gray-200 bg-white text-textDark text-xs font-bold transition hover:border-oliveGreen/50">
                             <span class="text-2xl">🚫</span>
@@ -187,32 +187,28 @@
                 </div>
 
                 <div>
-                    <label class="text-sm font-bold block mb-1">سنوات الخبرة</label>
-                    <input type="number" id="experienceInput" class="w-full bg-beigeCard rounded-lg p-3 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-oliveGreen" placeholder="عدد سنوات الخبرة">
+                    <label data-i18n-t="reg_exp_label" class="text-sm font-bold block mb-1">سنوات الخبرة</label>
+                    <input type="number" id="experienceInput" data-i18n-t-placeholder="reg_exp_placeholder" class="w-full bg-beigeCard rounded-lg p-3 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-oliveGreen" placeholder="عدد سنوات الخبرة">
                 </div>
 
                 <div>
-                    <label class="text-sm font-bold block mb-1">سنوات الخبرة</label>
-                    <input type="number" id="experienceInput" class="w-full bg-beigeCard rounded-lg p-3 text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-oliveGreen" placeholder="عدد سنوات الخبرة">
-                </div>
-                <div>
-                    <label class="text-sm font-bold block mb-2">الشهادة الجامعية أو المؤهل:</label>
+                    <label data-i18n-t="reg_cert_label" class="text-sm font-bold block mb-2">الشهادة الجامعية أو المؤهل:</label>
                     <input type="file" id="certificateInput" accept="image/*,.pdf" class="hidden">
-                    <div id="certUploadBox" onclick="document.getElementById('certificateInput').click()" class="border-2 border-dashed border-oliveGreen/50 rounded-lg p-4 text-center text-sm text-oliveGreen cursor-pointer hover:bg-oliveGreen/5">
+                    <div id="certUploadBox" onclick="document.getElementById('certificateInput').click()" data-i18n-t="reg_cert_box" class="border-2 border-dashed border-oliveGreen/50 rounded-lg p-4 text-center text-sm text-oliveGreen cursor-pointer hover:bg-oliveGreen/5">
                         اضغط لاختيار ملف الشهادة (PDF / الصورة)
                     </div>
                 </div>
 
                 <div id="advDegreeUploadContainerDash" class="hidden">
-                    <label class="text-sm font-bold block mb-2">شهادة الدرجة العلمية العليا (إجباري):</label>
+                    <label data-i18n-t="reg_adv_deg_label" class="text-sm font-bold block mb-2">شهادة الدرجة العلمية العليا (إجباري):</label>
                     <input type="file" id="advDegreeCertificateInput" accept="image/*,.pdf" class="hidden">
-                    <div id="advDegUploadBoxDash" onclick="document.getElementById('advDegreeCertificateInput').click()" class="border-2 border-dashed border-accentGold/50 rounded-lg p-4 text-center text-sm text-accentGold cursor-pointer hover:bg-accentGold/5">
+                    <div id="advDegUploadBoxDash" onclick="document.getElementById('advDegreeCertificateInput').click()" data-i18n-t="reg_adv_deg_box" class="border-2 border-dashed border-accentGold/50 rounded-lg p-4 text-center text-sm text-accentGold cursor-pointer hover:bg-accentGold/5">
                         اضغط لاختيار ملف شهادة الماجستير/الدكتوراه
                     </div>
                 </div>
                 
                 <button id="submitRegBtn" onclick="submitRegistration()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-oliveLight transition">
-                    <span id="regBtnText">إرسال الطلب للاعتماد</span>
+                    <span id="regBtnText" data-i18n-t="reg_submit_btn">إرسال الطلب للاعتماد</span>
                     <svg id="regBtnSpinner" class="hidden animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </button>
             </div>
@@ -397,7 +393,43 @@
                 upload_failed: "فشل رفع الملف:",
                 file_deleted: "تم حذف الملف",
                 delete_failed: "فشل الحذف",
-                no_mic_warning: "⚠️ تنبيه: لم يتم اكتشاف ميكروفون. يتم الدخول للجلسة والمحاولة بالخلفية..."
+                no_mic_warning: "⚠️ تنبيه: لم يتم اكتشاف ميكروفون. يتم الدخول للجلسة والمحاولة بالخلفية...",
+                student_notes_label: "📝 ملاحظات الطالب:",
+                free_trial_badge: "🚀 حصة تجريبية مجانية",
+                                reg_select_specialty: "يرجى اختيار تخصص واحد على الأقل",
+                reg_select_age: "يرجى اختيار فئة عمرية واحدة على الأقل",
+                reg_select_language: "يرجى اختيار لغة التدريس",
+                reg_select_device: "يرجى اختيار جهاز واحد على الأقل",
+                reg_select_degree: "يرجى اختيار الدرجة العلمية",
+                reg_enter_experience: "يرجى إدخال عدد السنوات",
+                reg_upload_cert: "يرجى اختيار ملف الشهادة أولاً",
+                reg_upload_adv_degree: "يرجى رفع ملف شهادة الدرجة العلمية العليا",
+                reg_cloudinary_failed: "فشل رفع الملف إلى Cloudinary.",
+                reg_adv_degree_failed: "فشل رفع ملف شهادة الدرجة العلمية.",
+                reg_save_failed: "فشل حفظ البيانات",
+                reg_success: "تم إرسال بياناتك وشهادتك للإدارة بنجاح!",
+                reg_error_prefix: "حدث خطأ أثناء الرفع:",
+                                reg_form_title: "🎓 إكمال ملف المعلم ورفع الشهادات",
+                reg_form_desc: "يرجى تعبئة بيانات التخصص وإرفاق الشهادة الجامعية للاعتماد من قبل إدارة المنصة.",
+                reg_specialty_label: "اختر التخصصات التي تدرسها (يمكنك اختيار أكثر من تخصص):",
+                reg_age_label: "الفئة العمرية / الصفوف التي تدرسها (يمكن اختيار أكثر من فئة):",
+                reg_lang_label: "هل تستطيع التدريس باللغة العربية أم الإنجليزية (انترناشونال)؟",
+                reg_devices_label: "هل تمتلك جهاز (هاتف محمول , تابلت , لابتوب)؟ (يمكنك اختيار أكثر من جهاز):",
+                reg_degree_label: "هل تمتلك درجة علمية عليا (ماجستير، دكتوراه)؟",
+                reg_exp_label: "سنوات الخبرة",
+                reg_exp_placeholder: "عدد سنوات الخبرة",
+                reg_cert_label: "الشهادة الجامعية أو المؤهل:",
+                reg_cert_box: "اضغط لاختيار ملف الشهادة (PDF / الصورة)",
+                reg_adv_deg_label: "شهادة الدرجة العلمية العليا (إجباري):",
+                reg_adv_deg_box: "اضغط لاختيار ملف شهادة الماجستير/الدكتوراه",
+                reg_submit_btn: "إرسال الطلب للاعتماد",
+                status_pending_update: "تعديلاتك قيد المراجعة",
+                pending_update_desc: "يتم حالياً مراجعة التعديلات التي طلبتها (التخصصات/الشهادات). سيتم تفعيل حسابك فور الموافقة.",
+                custom_request_badge: "طلب مخصص لك",
+                duration_label: "المدة المعتمدة",
+                summary_regular_label: "إجمالي مدة الحصص العادية المنجزة",
+                summary_trial_label: "إجمالي مدة الحصص التجريبية المنجزة",
+
             },
             en: {
                 portal_title: "Labeeb Platform",
@@ -457,7 +489,42 @@
                 upload_failed: "File upload failed:",
                 file_deleted: "File deleted",
                 delete_failed: "Delete failed",
-                no_mic_warning: "⚠️ Warning: No microphone detected. Joining the session and will keep retrying in the background..."
+                no_mic_warning: "⚠️ Warning: No microphone detected. Joining the session and will keep retrying in the background...",
+                student_notes_label: "📝 Student Notes:",
+                free_trial_badge: "🚀 Free Trial Session",
+                                reg_select_specialty: "Please select at least one specialty",
+                reg_select_age: "Please select at least one age group",
+                reg_select_language: "Please select teaching language",
+                reg_select_device: "Please select at least one device",
+                reg_select_degree: "Please select academic degree",
+                reg_enter_experience: "Please enter years of experience",
+                reg_upload_cert: "Please select the certificate file first",
+                reg_upload_adv_degree: "Please upload the advanced degree certificate file",
+                reg_cloudinary_failed: "Failed to upload file to Cloudinary.",
+                reg_adv_degree_failed: "Failed to upload advanced degree certificate.",
+                reg_save_failed: "Failed to save data",
+                reg_success: "Your data and certificate have been sent to admin successfully!",
+                reg_error_prefix: "An error occurred during upload:",
+                                reg_form_title: "🎓 Complete Teacher Profile & Upload Certificates",
+                reg_form_desc: "Please fill in the specialization data and attach the university certificate for approval by the platform administration.",
+                reg_specialty_label: "Select the subjects you teach (you can choose more than one):",
+                reg_age_label: "Age group / Grades you teach (you can choose more than one):",
+                reg_lang_label: "Can you teach in Arabic or English (International)?",
+                reg_devices_label: "Do you own a device (mobile phone, tablet, laptop)? (You can choose more than one):",
+                reg_degree_label: "Do you hold an advanced degree (Master's, PhD)?",
+                reg_exp_label: "Years of Experience",
+                reg_exp_placeholder: "Number of years of experience",
+                reg_cert_label: "University Certificate or Qualification:",
+                reg_cert_box: "Click to select certificate file (PDF / Image)",
+                reg_adv_deg_label: "Advanced Degree Certificate (Mandatory):",
+                reg_adv_deg_box: "Click to select Master's/PhD certificate file",
+                reg_submit_btn: "Submit Request for Approval",
+                status_pending_update: "Your updates are under review",
+                pending_update_desc: "The updates you requested (Specialties/Certificates) are currently being reviewed. Your account will be activated once approved.",
+                custom_request_badge: "Custom Request for You",
+                duration_label: "Approved Duration",
+                summary_regular_label: "Total Regular Sessions Duration",
+                summary_trial_label: "Total Trial Sessions Duration",
             }
         };
         let currentLangTeacher = 'ar';
@@ -472,6 +539,10 @@
             document.documentElement.setAttribute('dir', currentLangTeacher === 'en' ? 'ltr' : 'rtl');
             document.querySelectorAll('[data-i18n-t]').forEach((el) => {
                 el.innerText = tt(el.getAttribute('data-i18n-t'));
+            });
+            // ✨ إضافة دعم حقول الإدخال (Placeholder)
+            document.querySelectorAll('[data-i18n-t-placeholder]').forEach((el) => {
+                el.setAttribute('placeholder', tt(el.getAttribute('data-i18n-t-placeholder')));
             });
         }
         let currentUser = null;
@@ -631,8 +702,8 @@
 
         // 🌐 تحويل قيمة "لغة التدريس" النصية لكود واجهة (ar/en)
         function teachingLanguageToUiCode(teachingLanguage) {
-            if (teachingLanguage === 'الإنجليزية (انترناشونال)') return 'en';
-            return 'ar'; // العربية أو كلاهما → الواجهة تعرض بالعربي افتراضياً
+            if (teachingLanguage === 'العربية') return 'ar';
+            return 'en'; // الإنجليزية أو كلاهما → الواجهة تعرض بالإنجليزية
         }
 
         // 🌐 هل المعلم بلغة التدريس دي يقدر يقبل حصة بلغة معينة؟
@@ -707,7 +778,7 @@
                 document.getElementById('dashboardView').classList.remove('hidden');
             } else if (status === 'pending_approval' || status === 'pending_profile_update') {
                 // ✨ إذا كان قيد المراجعة بسبب التسجيل أو بسبب تعديل البيانات
-                statusText.innerText = status === 'pending_profile_update' ? 'تعديلاتك قيد المراجعة' : tt('status_pending');
+                statusText.innerText = status === 'pending_profile_update' ? tt('status_pending_update') : tt('status_pending');
                 statusText.classList.remove('text-gray-500', 'text-green-600');
                 statusText.classList.add('text-accentOrange');
                 document.getElementById('pendingApproval').classList.remove('hidden');
@@ -715,7 +786,7 @@
                 // تحديث رسالة الانتظار لتوضيح السبب
                 const pendingDesc = document.querySelector('[data-i18n-t="pending_desc"]');
                 if (status === 'pending_profile_update' && pendingDesc) {
-                    pendingDesc.innerText = 'يتم حالياً مراجعة التعديلات التي طلبتها (التخصصات/الشهادات). سيتم تفعيل حسابك فور الموافقة.';
+                    pendingDesc.innerText = tt('pending_update_desc');
                 }
             } else {
                 statusText.innerText = tt('status_new');
@@ -737,18 +808,18 @@
             const experience = document.getElementById('experienceInput').value.trim();
             const fileInput = document.getElementById('certificateInput');
 
-            if (selectedSpecialtiesDash.length === 0) { showSnackBar('يرجى اختيار تخصص واحد على الأقل', '#D97706'); return; }
-            if (selectedTargetAgesDash.length === 0) { showSnackBar('يرجى اختيار فئة عمرية واحدة على الأقل', '#D97706'); return; }
-            if (!selectedTeachingLanguageDash) { showSnackBar('يرجى اختيار لغة التدريس', '#D97706'); return; }
-            if (selectedDevicesDash.length === 0) { showSnackBar('يرجى اختيار جهاز واحد على الأقل', '#D97706'); return; }
-            if (!selectedAcademicDegreeDash) { showSnackBar('يرجى اختيار الدرجة العلمية', '#D97706'); return; }
-            if (!experience) { showSnackBar('يرجى إدخال عدد السنوات', '#D97706'); return; }
-            if (!fileInput.files[0]) { showSnackBar('يرجى اختيار ملف الشهادة أولاً', '#ef4444'); return; }
+            if (selectedSpecialtiesDash.length === 0) { showSnackBar(tt('reg_select_specialty'), '#D97706'); return; }
+            if (selectedTargetAgesDash.length === 0) { showSnackBar(tt('reg_select_age'), '#D97706'); return; }
+            if (!selectedTeachingLanguageDash) { showSnackBar(tt('reg_select_language'), '#D97706'); return; }
+            if (selectedDevicesDash.length === 0) { showSnackBar(tt('reg_select_device'), '#D97706'); return; }
+            if (!selectedAcademicDegreeDash) { showSnackBar(tt('reg_select_degree'), '#D97706'); return; }
+            if (!experience) { showSnackBar(tt('reg_enter_experience'), '#D97706'); return; }
+            if (!fileInput.files[0]) { showSnackBar(tt('reg_upload_cert'), '#ef4444'); return; }
 
             let advDegFileToUpload = null;
             if (selectedAcademicDegreeDash === 'ماجستير' || selectedAcademicDegreeDash === 'دكتوراه') {
                 advDegFileToUpload = document.getElementById('advDegreeCertificateInput').files[0];
-                if (!advDegFileToUpload) { showSnackBar('يرجى رفع ملف شهادة الدرجة العلمية العليا', '#D97706'); return; }
+                if (!advDegFileToUpload) { showSnackBar(tt('reg_upload_adv_degree'), '#D97706'); return; }
             }
 
             document.getElementById('regBtnText').classList.add('hidden');
@@ -769,7 +840,7 @@
                 });
                 const uploadData = await uploadRes.json();
 
-                if (!uploadData.url) throw new Error('فشل رفع الملف إلى Cloudinary.');
+                if (!uploadData.url) throw new Error(tt('reg_cloudinary_failed'));
 
                 // 1.b رفع شهادة الدرجة العليا (إن وجدت)
                 let advDegUrl = '';
@@ -784,7 +855,7 @@
                         body: advFormData
                     });
                     const advUploadData = await advUploadRes.json();
-                    if (!advUploadData.url) throw new Error('فشل رفع ملف شهادة الدرجة العلمية.');
+                    if (!advUploadData.url) throw new Error(tt('reg_adv_degree_failed'));
                     advDegUrl = advUploadData.url;
                 }
 
@@ -808,13 +879,13 @@
 
                 if (!regRes.ok) {
                     const err = await regRes.json();
-                    throw new Error(err.detail || 'فشل حفظ البيانات');
+                    throw new Error(err.detail || tt('reg_save_failed'));
                 }
 
-                showSnackBar('تم إرسال بياناتك وشهادتك للإدارة بنجاح!', '#4E6B45');
+                showSnackBar(tt('reg_success'), '#4E6B45');
 
             } catch (e) {
-                showSnackBar(`حدث خطأ أثناء الرفع: ${e.message}`, '#ef4444');
+                showSnackBar(`${tt('reg_error_prefix')} ${e.message}`, '#ef4444');
             } finally {
                 document.getElementById('regBtnText').classList.remove('hidden');
                 document.getElementById('regBtnSpinner').classList.add('hidden');
@@ -952,6 +1023,60 @@ function processSessions() {
             }
 
             container.innerHTML = '';
+            
+            // ✨ إضافة كروت الملخص في تبويب المنجزة فقط
+            if (tabName === 'completed') {
+                let regularMins = 0;
+                let trialMins = 0;
+
+                sessions.forEach((req) => {
+                    const data = req.data;
+                    const tStart = data.timerStartedAt;
+                    const tEnd = data.completedAt;
+                    if (tStart && tEnd && typeof tStart.toDate === 'function' && typeof tEnd.toDate === 'function') {
+                        const diffSecs = Math.floor((tEnd.toDate().getTime() - tStart.toDate().getTime()) / 1000);
+                        const intervals = Math.floor(diffSecs / 300);
+                        const mins = intervals * 5;
+                        
+                        if (data.isFreeTrial) {
+                            trialMins += mins;
+                        } else {
+                            regularMins += mins;
+                        }
+                    }
+                });
+
+                const formatTotalMins = (totalMins) => {
+                    const h = Math.floor(totalMins / 60);
+                    const m = totalMins % 60;
+                    if (currentLangTeacher === 'en') {
+                        if (h > 0 && m > 0) return `${h}h ${m}m`;
+                        else if (h > 0) return `${h}h`;
+                        else if (m > 0) return `${m}m`;
+                        else return `0m`;
+                    } else {
+                        if (h > 0 && m > 0) return `${h} س ${m} د`;
+                        else if (h > 0) return `${h} س`;
+                        else if (m > 0) return `${m} د`;
+                        else return `0 د`;
+                    }
+                };
+
+                const summaryHtml = `
+                    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                        <div class="flex-1 bg-oliveGreen/10 p-4 rounded-xl text-center border border-oliveGreen/20">
+                            <p class="text-xs text-gray-600 font-bold mb-1">${tt('summary_regular_label')}</p>
+                            <p class="text-xl font-extrabold text-oliveGreen">${formatTotalMins(regularMins)}</p>
+                        </div>
+                        <div class="flex-1 bg-accentOrange/10 p-4 rounded-xl text-center border border-accentOrange/20">
+                            <p class="text-xs text-gray-600 font-bold mb-1">${tt('summary_trial_label')}</p>
+                            <p class="text-xl font-extrabold text-accentOrange">${formatTotalMins(trialMins)}</p>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += summaryHtml;
+            }
+
             sessions.forEach((req) => {
                 const data = req.data;
                 
@@ -960,7 +1085,35 @@ function processSessions() {
                 
                 let actionHtml = '';
                 if (tabName === 'completed') {
-                    actionHtml = `<span class="bg-gray-200 text-gray-600 text-xs font-bold px-4 py-3 rounded-xl">${tt('completed_badge')}</span>`;
+                    // ✨ حساب المدة المعتمدة بناءً على قاعدة الـ 5 دقائق
+                    let durationText = '';
+                    const tStart = data.timerStartedAt;
+                    const tEnd = data.completedAt;
+                    if (tStart && tEnd && typeof tStart.toDate === 'function' && typeof tEnd.toDate === 'function') {
+                        const diffSecs = Math.floor((tEnd.toDate().getTime() - tStart.toDate().getTime()) / 1000);
+                        const intervals = Math.floor(diffSecs / 300); // كل 300 ثانية = 5 دقائق
+                        const totalMins = intervals * 5;
+                        
+                        const h = Math.floor(totalMins / 60);
+                        const m = totalMins % 60;
+                        
+                        if (currentLangTeacher === 'en') {
+                            if (h > 0 && m > 0) durationText = `${h}h ${m}m`;
+                            else if (h > 0) durationText = `${h}h`;
+                            else durationText = `${m}m`;
+                        } else {
+                            if (h > 0 && m > 0) durationText = `${h} س ${m} د`;
+                            else if (h > 0) durationText = `${h} س`;
+                            else durationText = `${m} د`;
+                        }
+                    }
+
+                    actionHtml = `
+                        <div class="flex flex-col items-center gap-1 shrink-0 w-28 sm:w-32">
+                            <span class="bg-gray-200 text-gray-600 text-xs font-bold px-4 py-2 rounded-xl w-full text-center">${tt('completed_badge')}</span>
+                            ${durationText ? `<span class="bg-oliveGreen/10 text-oliveGreen text-[11px] font-bold px-3 py-2 rounded-xl w-full text-center">${tt('duration_label')}: ${durationText}</span>` : ''}
+                        </div>
+                    `;
                 } else if (tabName === 'pending') {
                     actionHtml = `<button onclick="acceptSession('${req.id}')" class="bg-oliveGreen text-white text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> ${tt('accept_request_btn')}</button>`;
                 } else {
@@ -979,16 +1132,19 @@ function processSessions() {
                 const statusBadge = (tabName === 'pending') ? tt('new_request_badge') : (tabName === 'completed' ? tt('completed_badge_2') : (isStartAllowed ? tt('ready_now_badge') : `⏳ ${data.scheduledTime ?? tt('tab_upcoming')}`));
 
                 // ✨ التحقق من وجود ملاحظات أو طلب مخصص
-                const notesHtml = data.notes ? `<div class="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded-lg border border-yellow-200">📝 ملاحظات الطالب: ${data.notes}</div>` : '';
-                const preferredBadge = data.preferredTeacherId ? `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded">طلب مخصص لك</span>` : '';
+                const notesHtml = data.notes ? `<div class="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded-lg border border-yellow-200">${tt('student_notes_label')} ${data.notes}</div>` : '';
+                const preferredBadge = data.preferredTeacherId ? `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded">${tt('custom_request_badge')}</span>` : '';
                 
+                // ✨ إضافة شارة الحصة التجريبية (مكبرة وبارزة)
+                const freeTrialBadge = data.isFreeTrial ? `<span class="bg-green-500 text-white text-sm font-extrabold px-3 py-1.5 rounded-lg shadow-sm animate-pulse">${tt('free_trial_badge')}</span>` : '';
                 const card = `
-                    <div class="bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center gap-4 ${data.preferredTeacherId ? 'border-r-4 border-purple-500' : ''}">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center gap-4 ${data.isFreeTrial ? 'border-r-4 border-green-500' : (data.preferredTeacherId ? 'border-r-4 border-purple-500' : '')}">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
                                 <span class="bg-oliveGreen/10 text-oliveGreen text-xs font-bold px-2 py-1 rounded">${tt('request_word')} #${req.id.substring(0,6)}</span>
                                 <span class="text-gray-500 text-xs font-bold">${statusBadge}</span>
                                 ${preferredBadge}
+                                ${freeTrialBadge}
                             </div>
                             <h4 class="text-base font-bold text-textDark">${tt('student_label')} ${data.studentName ?? tt('default_student')}</h4>
                             <p class="text-xs text-gray-500">${data.subject ?? tt('general_subject')} • ${data.grade ?? ''} (${tt('lesson_topic_label')} ${data.topic ?? data.subject ?? tt('direct_lesson')})</p>
