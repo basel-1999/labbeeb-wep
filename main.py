@@ -6,10 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
 # استيراد راوترات الـ API
-from routers.api_router import router as api_router
 from routers.session_router import router as session_router
-
-from routers.payment_router import router as payment_router
 
 # ==========================================
 # 🚀 تهيئة تطبيق FastAPI
@@ -41,10 +38,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # تضمين راوترات الـ API (الخاصة بعمليات الباك-ند)
-app.include_router(api_router)
 app.include_router(session_router)
-app.include_router(payment_router)
-
 # ==========================================
 # 🔒 نظام الحماية والتوجيه (Redirect Logic)
 # ==========================================

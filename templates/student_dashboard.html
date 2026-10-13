@@ -651,18 +651,18 @@
         function renderPricingPackages() {
             // باقات الطالب العربي (الساعة = 12 نقطة)
             const arPackages = [
-                { points: 12, price: 50, label: "باقة ساعة واحدة (12 نقطة) - 50 ر.س (الساعة : 50 ر.س)" },
-                { points: 120, price: 450, label: "باقة 10 ساعات (120 نقطة) - 450 ر.س (الساعة : 45 ر.س)" },
-                { points: 240, price: 850, label: "باقة 20 ساعة (240 نقطة) - 850 ر.س (الساعة : 42.5 ر.س)" },
-                { points: 360, price: 1200, label: "باقة 30 ساعة (360 نقطة) - 1200 ر.س (الساعة : 40 ر.س)" }
+                { points: 6, price: 50, label: "باقة ساعة واحدة (6 نقاط) - 50 ر.ق (الساعة : 50 ر.ق)" },
+                { points: 60, price: 450, label: "باقة 10 ساعات (60 نقطة) - 450 ر.ق (الساعة : 45 ر.ق)" },
+                { points: 120, price: 850, label: "باقة 20 ساعة (120 نقطة) - 850 ر.ق (الساعة : 42.5 ر.ق)" },
+                { points: 180, price: 1200, label: "باقة 30 ساعة (180 نقطة) - 1200 ر.ق (الساعة : 40 ر.ق)" }
             ];
 
-            // باقات الطالب الانترناشونال (الساعة = 12 نقطة)
+            // باقات الطالب الانترناشونال (الساعة = 6 نقاط)
             const enPackages = [
-                { points: 12, price: 80, label: "1 Hour Package (12 points) - 80 SAR (Hour: 80 SAR)" },
-                { points: 120, price: 800, label: "10 Hours Package (120 points) - 800 SAR (Hour: 80 SAR)" },
-                { points: 240, price: 1500, label: "20 Hours Package (240 points) - 1500 SAR (Hour: 75 SAR)" },
-                { points: 360, price: 2100, label: "30 Hours Package (360 points) - 2100 SAR (Hour: 70 SAR)" }
+                { points: 6, price: 80, label: "1 Hour Package (6 points) - 80 QAR (Hour: 80 QAR)" },
+                { points: 60, price: 800, label: "10 Hours Package (60 points) - 800 QAR (Hour: 80 QAR)" },
+                { points: 120, price: 1500, label: "20 Hours Package (120 points) - 1500 QAR (Hour: 75 QAR)" },
+                { points: 180, price: 2100, label: "30 Hours Package (180 points) - 2100 QAR (Hour: 70 QAR)" }
             ];
 
             const activePackages = (studentLanguage === 'en') ? enPackages : arPackages;
@@ -676,11 +676,11 @@
 
             activePackages.forEach((pkg, index) => {
                 const isChecked = index === 0 ? 'checked' : '';
-                const hours = pkg.points / 12;
+                const hours = pkg.points / 6;
                 const title = studentLanguage === 'en' ? (hours === 1 ? "1 Hour Package" : `${hours} Hours Package`) : (hours === 1 ? "باقة ساعة واحدة" : `باقة ${hours} ساعات`);
                 const pointsTxt = studentLanguage === 'en' ? `${pkg.points} points` : `${pkg.points} نقطة`;
-                const priceTxt = studentLanguage === 'en' ? `${pkg.price} SAR` : `${pkg.price} ر.س`;
-                const hourRateTxt = studentLanguage === 'en' ? `Hour: ${pkg.price / hours} SAR` : `الساعة : ${pkg.price / hours} ر.س`;
+                const priceTxt = studentLanguage === 'en' ? `${pkg.price} QAR` : `${pkg.price} ر.ق`;
+                const hourRateTxt = studentLanguage === 'en' ? `Hour: ${pkg.price / hours} QAR` : `الساعة : ${pkg.price / hours} ر.ق`;
                 const selectedClass = index === 0 ? 'border-oliveGreen bg-oliveGreen/10' : 'border-gray-200';
 
                 // كود بطاقة الدفع بالبطاقة
@@ -774,8 +774,8 @@
 
 
         function formatPointsAsTime(points) {
-            // كل نقطة = 5 دقائق
-            const totalMinutes = Math.round(points * 5);
+            // كل نقطة = 10 دقائق (6 نقاط = ساعة)
+            const totalMinutes = Math.round(points * 10);
             if (totalMinutes <= 0) return currentLang === 'en' ? '0 m' : '0 د';
             const hours = Math.floor(totalMinutes / 60);
             const minutes = totalMinutes % 60;
@@ -955,6 +955,7 @@
                         <div class="flex flex-col items-end gap-1 shrink-0 w-28 sm:w-32">
                             ${filesBtn}
                             <div id="timer_${id}" class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 w-full text-center">${t('calculating')}</div>
+                        </div>
                     `;
                 }
 
@@ -1300,6 +1301,20 @@
                 scheduledDate = new Date(`${dateVal}T${timeVal}`);
             }
 
+            // ✨ التحقق من المعلم المختار قبل إنشاء أي شي بالسيرفر
+            let preferredTeacherId = null;
+            let preferredTeacherName = null;
+            if (document.getElementById('requestSpecificTeacher').checked) {
+                const selectedVal = document.getElementById('preferredTeacherSelect').value;
+                if (!selectedVal) {
+                    showSnackBar(t('select_teacher_warning'), '#D97706');
+                    return;
+                }
+                const teacherData = JSON.parse(selectedVal);
+                preferredTeacherId = teacherData.id;
+                preferredTeacherName = teacherData.name;
+            }
+
             closeModal('bookingModal');
             showSnackBar(t('sending_request'), '#4E6B45');
 
@@ -1314,6 +1329,9 @@
                 formData.append('grade', grade); 
                 formData.append('language', studentLanguage);
                 formData.append('isFreeTrial', isFreeTrial); // ✨ إرسال الحالة للسيرفر
+                formData.append('notes', document.getElementById('bookingNotes').value.trim());
+                formData.append('preferredTeacherId', preferredTeacherId || '');
+                formData.append('preferredTeacherName', preferredTeacherName || '');
 
                 const response = await fetch('/api/session/create', {
                     method: 'POST',
@@ -1335,27 +1353,8 @@
                 const result = await response.json();
                 const sessionId = result.sessionId;
 
-                // ✨ قراءة الملاحظات والمعلم المختار
-                const notes = document.getElementById('bookingNotes').value.trim();
-                let preferredTeacherId = null;
-                let preferredTeacherName = null;
-                
-                if (document.getElementById('requestSpecificTeacher').checked) {
-                    const selectedVal = document.getElementById('preferredTeacherSelect').value;
-                    if (!selectedVal) {
-                    showSnackBar(t('select_teacher_warning'), '#D97706');
-                        return;
-                    }
-    const teacherData = JSON.parse(selectedVal);
-    preferredTeacherId = teacherData.id;
-    preferredTeacherName = teacherData.name;
-                }
 
-                const updateData = {
-                    'notes': notes,
-                    'preferredTeacherId': preferredTeacherId,
-                    'preferredTeacherName': preferredTeacherName
-                };
+                const updateData = {};
 
                 if (bookingType === 'schedule') {
                     updateData['bookingType'] = 'schedule';

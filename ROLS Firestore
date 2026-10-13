@@ -49,6 +49,7 @@ service cloud.firestore {
         isOwner(userId) &&
         request.resource.data.role in ['student', 'teacher'] &&
         request.resource.data.get('points', 0) == 0 &&
+        request.resource.data.get('totalStars', 0) == 0 &&
         (
           (request.resource.data.role == 'student' && request.resource.data.get('status', 'active') == 'active') ||
           (request.resource.data.role == 'teacher' && request.resource.data.get('status', 'pending_approval') == 'pending_approval')
@@ -63,15 +64,23 @@ service cloud.firestore {
 
       allow update: if isAdmin() || (
         isOwner(userId) &&
-        // 1. منع المعلم من تعديل هذه الحقول الحساسة نهائياً
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'role', 'isApproved', 'accountStatus', 'isAvailable']) &&
+        // 1. حقول ما حدا بيعدلها من المتصفح (السيرفر ولوحة الأدمن فقط)
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'points', 'role', 'status', 'isApproved', 'accountStatus', 'isAvailable',
+          'hasUsedFreeTrial', 'pendingProfileUpdates', 'profileUpdateRequestedAt',
+          'totalStars'
+        ]) &&
+        // 2. المعلم المعتمد ما بيعدل بياناته الأكاديمية إلا عبر طلب تعديل للإدارة
         (
-          // 2. السماح للمعلم بتغيير حالته إلى (pending_profile_update) فقط إذا كان يرسل طلب تعديل
-          (request.resource.data.status == 'pending_profile_update' && request.resource.data.diff(resource.data).affectedKeys().hasAny(['pendingProfileUpdates'])) ||
-          
-          // 3. منع المعلم من تغيير (status) لأي قيمة أخرى، ومنع تعديل التخصصات إذا كان معتمداً
-          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && 
-           (resource.data.get('status', '') != 'approved' || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subjects', 'targetAge', 'teachingLanguage', 'experienceYears'])))
+          resource.data.get('status', '') != 'approved' ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'name', 'country', 'city',
+            'subject', 'subjects', 'targetAge', 'teachingLanguage', 'experienceYears',
+            'ownedDevices', 'academicDegree',
+            'certificates', 'certificateUrl', 'certificateName',
+            'advancedDegreeCertificateUrl', 'identityUrl', 'identityFileName',
+            'experienceCertificateUrl', 'experienceCertificateName'
+          ])
         )
       );
 
@@ -96,7 +105,8 @@ service cloud.firestore {
           'studentId', 'teacherId', 'assignedTeacherId',
           'status', 'completedAt', 'endReason',
           'timerStartedAt', 'pointsDeducted', 'lastDeductionAt',
-          'studentJoinedAt', 'teacherJoinedAt'
+          'studentJoinedAt', 'teacherJoinedAt',
+          'starsAwarded', 'lastStarAt'
         ]) &&
         (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['drawingAllowedForStudent', 'screenShareAllowedForStudent']) ||
@@ -129,6 +139,11 @@ service cloud.firestore {
         allow write: if isSessionTeacher(sessionId);
       }
 
+      // ⭐ أحداث المكافآت: القراءة للطرفين، والكتابة للسيرفر فقط (Admin SDK)
+      match /rewards/{rewardId} {
+        allow read: if isSessionParticipant(sessionId);
+        allow write: if false;
+      }
       // 👆 المؤشر المباشر: كل طرف يكتب وثيقته هو فقط (الطالب بس لما المعلم يسمحله بالرسم)
       match /live/{docId} {
         allow read: if isSessionParticipant(sessionId);

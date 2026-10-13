@@ -87,6 +87,31 @@
                 display: none; /* مخفي افتراضياً */
             }
 
+
+                        /* ⭐ ===== نظام المكافآت ===== */
+            #rewardBasket { position: absolute; right: 14px; bottom: 14px; width: clamp(130px, 17vw, 210px); pointer-events: none; z-index: 35; filter: drop-shadow(0 6px 10px rgba(0,0,0,.25)); }
+            #rewardBasket > svg { width: 100%; height: auto; display: block; overflow: visible; }
+            #cupsBadge { position: absolute; top: -6px; left: -6px; display: none; align-items: center; gap: 2px; background: #fff; border: 2px solid #E0A000; border-radius: 999px; padding: 2px 8px 2px 4px; font-weight: 900; font-size: 13px; color: #8A5300; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+            #cupsBadge svg { width: 22px; height: 26px; }
+
+            .slot-fill { opacity: 0; transform-box: fill-box; transform-origin: center; }
+            .slot-fill.on { opacity: 1; }
+            @keyframes slotPop { 0% { transform: scale(.2); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+            .slot-fill.pop { animation: slotPop .45s cubic-bezier(.2,.9,.3,1.3); }
+
+            #rewardStage { position: absolute; inset: 0; display: none; z-index: 60; pointer-events: none; overflow: hidden; }
+            #rewardBackdrop { position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(0,0,0,.2), rgba(0,0,0,.6)); opacity: 0; }
+            .reward-big { position: absolute; display: none; left: 50%; top: 44%; width: var(--rw); height: var(--rh); margin-left: calc(var(--rw) / -2); margin-top: calc(var(--rh) / -2); }
+            .reward-big svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 10px 24px rgba(0,0,0,.45)); }
+            #rewardBigStar { --rh: min(220px, 34vh); --rw: min(220px, 34vh); }
+            #rewardBigSilver, #rewardBigGold { --rh: min(300px, 46vh); --rw: calc(min(300px, 46vh) * .706); }
+            #rewardBigCup { --rh: min(330px, 50vh); --rw: calc(min(330px, 50vh) * .842); }
+            #rewardRays { position: absolute; display: none; opacity: 0; transition: opacity .6s; left: 50%; top: 44%; width: min(620px, 90vh); height: min(620px, 90vh); margin-left: calc(min(620px, 90vh) / -2); margin-top: calc(min(620px, 90vh) / -2); border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255,230,120,.38) 0deg 9deg, rgba(255,230,120,0) 9deg 18deg); -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 68%); mask-image: radial-gradient(circle, #000 18%, transparent 68%); animation: raysSpin 14s linear infinite; }
+            @keyframes raysSpin { to { transform: rotate(360deg); } }
+            #rewardCaption { position: absolute; left: 0; right: 0; top: calc(44% + min(190px, 28vh)); text-align: center; font-weight: 900; font-size: clamp(22px, 4vw, 40px); color: #fff; text-shadow: 0 3px 12px rgba(0,0,0,.6), 0 0 24px rgba(255,200,0,.6); opacity: 0; }
+            .reward-particle { position: absolute; left: 50%; top: 44%; pointer-events: none; }
+            #awardStarBtn:disabled { opacity: .5; cursor: not-allowed; }
+
         </style>
     </head>
     <body class="h-screen flex flex-col">
@@ -245,6 +270,11 @@
                     <div id="animationButtons" class="contents">
                         <div class="h-4 w-px bg-white/15 mx-2"></div>
                         
+                                                <button id="awardStarBtn" onclick="awardStar()" class="relative p-2 hover:bg-white/10 rounded-lg shrink-0 flex items-center gap-1" title="منح نجمة للطالب">
+                            <svg class="w-7 h-7" viewBox="0 0 100 100"><use href="/static/images/rewards/rewards.svg#starFaceted"/></svg>
+                            <span id="starQuota" class="text-xs font-bold text-amber-300">0/3</span>
+                        </button>
+
                         <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
                         <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
                         <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
@@ -260,6 +290,30 @@
                     <canvas id="whiteboard"></canvas>
                     <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
                     <div id="remotePointer"></div>
+
+                    <!-- ⭐ سلة النجوم (عند الطالب والمعلم) -->
+                    <div id="rewardBasket">
+                        <svg viewBox="0 -48 240 248" aria-hidden="true">
+                            <use href="/static/images/rewards/rewards.svg#basketBack"/>
+                            <g id="basketSlots"></g>
+                            <use href="/static/images/rewards/rewards.svg#basketFront"/>
+                        </svg>
+                        <div id="cupsBadge">
+                            <svg viewBox="0 0 160 190"><use href="/static/images/rewards/rewards.svg#cupTrophy"/></svg>
+                            <span id="cupsCountText">×0</span>
+                        </div>
+                    </div>
+
+                    <!-- ⭐ مسرح الأنيميشن (النجمة الكبيرة والميداليات والكأس) -->
+                    <div id="rewardStage">
+                        <div id="rewardBackdrop"></div>
+                        <div id="rewardRays"></div>
+                        <div id="rewardBigStar" class="reward-big"><svg viewBox="0 0 100 100"><use href="/static/images/rewards/rewards.svg#starFaceted"/></svg></div>
+                        <div id="rewardBigSilver" class="reward-big"><svg viewBox="0 0 120 170"><use href="/static/images/rewards/rewards.svg#medalSilver"/></svg></div>
+                        <div id="rewardBigGold" class="reward-big"><svg viewBox="0 0 120 170"><use href="/static/images/rewards/rewards.svg#medalGold"/></svg></div>
+                        <div id="rewardBigCup" class="reward-big"><svg viewBox="0 0 160 190"><use href="/static/images/rewards/rewards.svg#cupTrophy"/></svg></div>
+                        <div id="rewardCaption"></div>
+                    </div>
                 </div>
             </div>
 
@@ -469,6 +523,13 @@
                     end_session_text: "إنهاء الجلسة",
                     file_upload_failed: "فشل رفع الملف",
                     trial_badge_text: "🚀 حصة تجريبية مجانية",
+                    reward_star_caption: "أحسنت! نجمة جديدة",
+                    reward_silver_caption: "ميدالية فضية!",
+                    reward_gold_caption: "ميدالية ذهبية!",
+                    reward_cup_caption: "مبروك! كأس البطل",
+                    reward_limit_reached: "وصلت للحد الأقصى من النجوم لهذه الحصة",
+                    reward_award_failed: "تعذر منح النجمة",
+                    reward_star_btn_title: "منح نجمة للطالب",
                     trial_ended_msg: "انتهت مدة الحصة التجريبية (20 دقيقة)، يتم إغلاق الجلسة الآن.",
                     screen_share_not_allowed: "لم يسمح لك المعلم بمشاركة الشاشة بعد",
                     screen_share_teacher_active: "لا يمكنك مشاركة الشاشة الآن، الخيار مفعّل لصالح الطالب. أوقف السماح للطالب أولاً.",
@@ -559,6 +620,13 @@
                     end_session_text: "End Session",
                     file_upload_failed: "File upload failed",
                     trial_badge_text: "🚀 Free Trial Session",
+                    reward_star_caption: "Great job! New star",
+                    reward_silver_caption: "Silver Medal!",
+                    reward_gold_caption: "Gold Medal!",
+                    reward_cup_caption: "Congratulations! Champion's Cup",
+                    reward_limit_reached: "Star limit reached for this session",
+                    reward_award_failed: "Could not award the star",
+                    reward_star_btn_title: "Award a star to the student",
                     trial_ended_msg: "The free trial duration (20 minutes) has ended, closing the session now.",
                     screen_share_not_allowed: "The teacher has not allowed you to share screen yet",
                     screen_share_teacher_active: "You cannot share screen now, the option is enabled for the student. Disable student permission first.",
@@ -786,6 +854,7 @@
                     listenToSessionState();
                     listenToAnimations();
                     listenToRemotePointer();
+                    listenToRewards();
                     
                     window.addEventListener('beforeunload', () => {
                         hideMyPointer();
@@ -825,6 +894,8 @@
                     document.getElementById('allowStudentScreenShareBtn').classList.remove('hidden');
                     document.getElementById('allowStudentDrawBtn').classList.remove('hidden');
                 }
+
+                initRewardsUI();
             }
 
             // ==========================================
@@ -1646,6 +1717,461 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }, (err) => console.error('Pointer listener error:', err));
         }
 
+
+
+                // ==========================================
+        // ⭐ نظام المكافآت: النجوم والميداليات والكأس
+        // ==========================================
+        const REWARD_SPRITE = '/static/images/rewards/rewards.svg';
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+        const BASKET_SLOT_X = [52, 80, 108, 136, 164];
+        const BASKET_SLOT_Y = [28, 52];
+        const BASKET_SLOT_SIZE = 24;
+        const STARS_PER_BASKET = 10;
+
+        let rewardQueue = [];
+        let rewardBusy = false;
+        let cupsCount = 0;
+        let starsAwardedInSession = 0;
+        let starsLimit = 3;
+        let starCooldownTimer = null;
+
+        function rwEl(id) { return document.getElementById(id); }
+        function rwSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function rwAnimate(el, frames, opts) {
+            const a = el.animate(frames, Object.assign({ fill: 'forwards' }, opts));
+            const p = a.finished;
+            p.catch(() => {});
+            return p;
+        }
+
+        function rwReset(el) {
+            el.getAnimations().forEach(a => a.cancel());
+            el.style.display = 'none';
+        }
+
+        // ---------- السلة ----------
+        function buildBasketSlots() {
+            const g = rwEl('basketSlots');
+            if (!g || g.childElementCount) return;
+            const k = BASKET_SLOT_SIZE / 100;
+            for (let i = 0; i < STARS_PER_BASKET; i++) {
+                const x = BASKET_SLOT_X[i % 5];
+                const y = BASKET_SLOT_Y[Math.floor(i / 5)];
+                const tf = `translate(${x},${y}) scale(${k})`;
+
+                const empty = document.createElementNS(SVG_NS, 'use');
+                empty.setAttribute('href', `${REWARD_SPRITE}#starOutline`);
+                empty.setAttribute('transform', tf);
+                g.appendChild(empty);
+
+                const wrap = document.createElementNS(SVG_NS, 'g');
+                wrap.setAttribute('id', `slotFill${i}`);
+                wrap.setAttribute('class', 'slot-fill');
+                const box = document.createElementNS(SVG_NS, 'rect');
+                box.setAttribute('x', x);
+                box.setAttribute('y', y);
+                box.setAttribute('width', BASKET_SLOT_SIZE);
+                box.setAttribute('height', BASKET_SLOT_SIZE);
+                box.setAttribute('fill', 'none');
+                wrap.appendChild(box);
+                const full = document.createElementNS(SVG_NS, 'use');
+                full.setAttribute('href', `${REWARD_SPRITE}#starFaceted`);
+                full.setAttribute('transform', tf);
+                wrap.appendChild(full);
+                g.appendChild(wrap);
+            }
+        }
+
+        function setBasketFilled(n) {
+            for (let i = 0; i < STARS_PER_BASKET; i++) {
+                const el = rwEl(`slotFill${i}`);
+                if (el) el.classList.toggle('on', i < n);
+            }
+        }
+
+        function fillSlot(i) {
+            const el = rwEl(`slotFill${i}`);
+            if (!el) return;
+            el.classList.add('on');
+            el.classList.remove('pop');
+            void el.getBoundingClientRect();
+            el.classList.add('pop');
+            setTimeout(() => el.classList.remove('pop'), 500);
+        }
+
+        function updateCupsBadge() {
+            const b = rwEl('cupsBadge');
+            if (!b) return;
+            rwEl('cupsCountText').innerText = `×${cupsCount}`;
+            b.style.display = cupsCount > 0 ? 'flex' : 'none';
+        }
+
+        // ---------- الأصوات (مولّدة بالكود، وبتتبدل بملفات mp3 لو وُجدت) ----------
+        let rewardAudioCtx = null;
+        const rewardSoundMissing = {};
+
+        function getRewardCtx() {
+            if (!rewardAudioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return null;
+                rewardAudioCtx = new AC();
+            }
+            if (rewardAudioCtx.state === 'suspended') rewardAudioCtx.resume().catch(() => {});
+            return rewardAudioCtx;
+        }
+
+        function unlockRewardAudio() { getRewardCtx(); }
+
+        function rewardTone(freq, start, dur, type, vol) {
+            const ac = getRewardCtx();
+            if (!ac) return;
+            const t0 = ac.currentTime + start;
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, t0);
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            osc.start(t0);
+            osc.stop(t0 + dur + 0.05);
+        }
+
+        function synthRewardSound(kind) {
+            const sets = {
+                star:   { notes: [988, 1319, 1760],                    gap: 0.09, dur: 0.45, vol: 0.18 },
+                silver: { notes: [523, 659, 784, 1047],                gap: 0.13, dur: 0.6,  vol: 0.2 },
+                gold:   { notes: [523, 659, 784, 1047, 1319],          gap: 0.12, dur: 0.7,  vol: 0.22 },
+                cup:    { notes: [392, 523, 659, 784, 1047, 1319],     gap: 0.14, dur: 0.9,  vol: 0.24 }
+            };
+            const s = sets[kind];
+            if (!s) return;
+            s.notes.forEach((f, i) => {
+                rewardTone(f, i * s.gap, s.dur, 'triangle', s.vol);
+                rewardTone(f * 2, i * s.gap, s.dur * 0.6, 'sine', s.vol * 0.35);
+            });
+            if (kind === 'gold' || kind === 'cup') {
+                const base = s.notes.length * s.gap + 0.05;
+                [523, 659, 784, 1047].forEach(f => rewardTone(f, base, 1.2, 'triangle', 0.14));
+            }
+        }
+
+        function playRewardSound(kind) {
+            if (rewardSoundMissing[kind]) { synthRewardSound(kind); return; }
+            let fell = false;
+            const fallback = () => {
+                if (fell) return;
+                fell = true;
+                rewardSoundMissing[kind] = true;
+                synthRewardSound(kind);
+            };
+            try {
+                const a = new Audio(`/static/sounds/rewards/${kind}.mp3`);
+                a.addEventListener('error', fallback);
+                const p = a.play();
+                if (p && p.catch) p.catch((e) => { if (e && e.name === 'NotSupportedError') fallback(); });
+            } catch (e) { fallback(); }
+        }
+
+        // ---------- الجسيمات (قصاصات ملونة) ----------
+        function rewardBurst(count, spread, colors) {
+            const stage = rwEl('rewardStage');
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'reward-particle';
+                const size = 6 + Math.random() * 9;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.background = colors[i % colors.length];
+                p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                stage.appendChild(p);
+                const ang = Math.random() * Math.PI * 2;
+                const dist = spread * (0.45 + Math.random() * 0.55);
+                const dx = Math.cos(ang) * dist;
+                const dy = Math.sin(ang) * dist + 40;
+                const anim = p.animate([
+                    { transform: 'translate(-50%,-50%) scale(1) rotate(0deg)', opacity: 1 },
+                    { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.3) rotate(${Math.random() * 540}deg)`, opacity: 0 }
+                ], { duration: 900 + Math.random() * 800, easing: 'cubic-bezier(.15,.8,.3,1)' });
+                anim.onfinish = () => p.remove();
+            }
+        }
+
+        // ---------- مشهد النجمة: تظهر كبيرة ثم تطير للسلة ----------
+        async function rewardShowStar(slotIndex) {
+            const stage = rwEl('rewardStage');
+            const star = rwEl('rewardBigStar');
+            const cap = rwEl('rewardCaption');
+            const backdrop = rwEl('rewardBackdrop');
+
+            rwReset(star);
+            [cap, backdrop].forEach(x => x.getAnimations().forEach(a => a.cancel()));
+            cap.innerText = tl('reward_star_caption');
+            cap.style.opacity = 0;
+            backdrop.style.opacity = 0;
+            stage.style.display = 'block';
+            star.style.display = 'block';
+
+            playRewardSound('star');
+            rewardBurst(18, 220, ['#FFE777', '#F7B500', '#FFFFFF', '#FFB02E']);
+            backdrop.animate([{ opacity: 0 }, { opacity: 0.45 }], { duration: 350, fill: 'forwards' });
+
+            await rwAnimate(star, [
+                { transform: 'scale(.1) rotate(-70deg)', opacity: 0 },
+                { transform: 'scale(1.22) rotate(8deg)', opacity: 1, offset: 0.65 },
+                { transform: 'scale(1) rotate(0deg)', opacity: 1 }
+            ], { duration: 800, easing: 'cubic-bezier(.2,.9,.3,1)' });
+
+            rwAnimate(cap, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 300 });
+            await rwSleep(850);
+
+            // الطيران لمكان النجمة بالسلة
+            const slot = rwEl(`slotFill${slotIndex}`);
+            const from = star.getBoundingClientRect();
+            const to = slot ? slot.getBoundingClientRect() : from;
+            const dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+            const dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+            const k = from.width ? Math.max(0.05, to.width / from.width) : 0.1;
+
+            rwAnimate(cap, [{ opacity: 1 }, { opacity: 0 }], { duration: 250 });
+            backdrop.animate([{ opacity: 0.45 }, { opacity: 0 }], { duration: 900, fill: 'forwards' });
+            await rwAnimate(star, [
+                { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+                { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(360deg)`, opacity: 1 }
+            ], { duration: 950, easing: 'cubic-bezier(.55,0,.25,1)' });
+
+            star.style.display = 'none';
+            fillSlot(slotIndex);
+            await rwSleep(350);
+        }
+
+        // ---------- مشهد الميدالية أو الكأس ----------
+        async function rewardShowMilestone(kind) {
+            const cfg = {
+                silver: { id: 'rewardBigSilver', sound: 'silver', cap: 'reward_silver_caption', hold: 3000, colors: ['#FFFFFF', '#DDE3EA', '#8CC4FF', '#B7C0CC'] },
+                gold:   { id: 'rewardBigGold',   sound: 'gold',   cap: 'reward_gold_caption',   hold: 3400, colors: ['#FFE777', '#F7B500', '#FF7A7A', '#FFFFFF'] },
+                cup:    { id: 'rewardBigCup',    sound: 'cup',    cap: 'reward_cup_caption',    hold: 4200, colors: ['#FFE777', '#F7B500', '#FF7A7A', '#6FD6FF', '#B38CFF', '#FFFFFF'] }
+            }[kind];
+            if (!cfg) return;
+
+            const stage = rwEl('rewardStage');
+            const el = rwEl(cfg.id);
+            const cap = rwEl('rewardCaption');
+            const backdrop = rwEl('rewardBackdrop');
+            const rays = rwEl('rewardRays');
+
+            rwReset(el);
+            [cap, backdrop].forEach(x => x.getAnimations().forEach(a => a.cancel()));
+            cap.innerText = tl(cfg.cap);
+            cap.style.opacity = 0;
+            backdrop.style.opacity = 0;
+            stage.style.display = 'block';
+            el.style.display = 'block';
+            rays.style.display = 'block';
+            void rays.offsetWidth;
+            rays.style.opacity = '1';
+
+            playRewardSound(cfg.sound);
+            backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, fill: 'forwards' });
+            rewardBurst(kind === 'cup' ? 60 : 36, kind === 'cup' ? 420 : 320, cfg.colors);
+
+            await rwAnimate(el, [
+                { transform: 'scale(.15) rotate(-25deg)', opacity: 0 },
+                { transform: 'scale(1.18) rotate(5deg)', opacity: 1, offset: 0.6 },
+                { transform: 'scale(1) rotate(0deg)', opacity: 1 }
+            ], { duration: 900, easing: 'cubic-bezier(.2,.9,.3,1)' });
+
+            rwAnimate(cap, [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 400 });
+            const pulse = el.animate(
+                [{ transform: 'scale(1)' }, { transform: 'scale(1.045)' }, { transform: 'scale(1)' }],
+                { duration: 1200, iterations: Infinity, easing: 'ease-in-out' }
+            );
+
+            if (kind === 'cup') {
+                await rwSleep(1200);
+                rewardBurst(40, 380, cfg.colors);
+                await rwSleep(cfg.hold - 1200);
+            } else {
+                await rwSleep(cfg.hold * 0.5);
+                rewardBurst(24, 300, cfg.colors);
+                await rwSleep(cfg.hold * 0.5);
+            }
+
+            pulse.cancel();
+            rwAnimate(cap, [{ opacity: 1 }, { opacity: 0 }], { duration: 350 });
+            backdrop.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: 'forwards' });
+            rays.style.opacity = '0';
+            await rwAnimate(el, [
+                { transform: 'scale(1)', opacity: 1 },
+                { transform: 'scale(.6)', opacity: 0 }
+            ], { duration: 450, easing: 'ease-in' });
+            el.style.display = 'none';
+            rays.style.display = 'none';
+        }
+
+        // ---------- تفريغ السلة بعد الكأس ----------
+        async function rewardEmptyBasket() {
+            for (let i = STARS_PER_BASKET - 1; i >= 0; i--) {
+                const el = rwEl(`slotFill${i}`);
+                if (el) {
+                    el.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.3)' }], { duration: 220, easing: 'ease-in' });
+                    el.classList.remove('on');
+                }
+                await rwSleep(70);
+            }
+        }
+
+        // ---------- التسلسل الكامل لحدث مكافأة ----------
+        async function playRewardSequence(ev) {
+            const total = ev.total;
+            const slotIndex = (total - 1) % STARS_PER_BASKET;
+
+            // نتأكد إنه حالة السلة مطابقة قبل ما نبدأ (حتى لو فاتنا حدث)
+            cupsCount = Math.floor((total - 1) / STARS_PER_BASKET);
+            updateCupsBadge();
+            setBasketFilled(slotIndex);
+
+            await rewardShowStar(slotIndex);
+            if (ev.milestone) await rewardShowMilestone(ev.milestone);
+            rwEl('rewardStage').style.display = 'none';
+
+            if (ev.milestone === 'cup') {
+                await rewardEmptyBasket();
+                cupsCount = Math.floor(total / STARS_PER_BASKET);
+                updateCupsBadge();
+                const badge = rwEl('cupsBadge');
+                if (badge) badge.animate(
+                    [{ transform: 'scale(.4)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }],
+                    { duration: 500, easing: 'cubic-bezier(.2,.9,.3,1.3)' }
+                );
+            }
+        }
+
+        function enqueueReward(ev) {
+            rewardQueue.push(ev);
+            if (!rewardBusy) processRewardQueue();
+        }
+
+        async function processRewardQueue() {
+            rewardBusy = true;
+            while (rewardQueue.length) {
+                const ev = rewardQueue.shift();
+                try {
+                    await playRewardSequence(ev);
+                } catch (e) {
+                    console.error('Reward animation failed:', e);
+                    rwEl('rewardStage').style.display = 'none';
+                    setBasketFilled(ev.total % STARS_PER_BASKET);
+                    cupsCount = Math.floor(ev.total / STARS_PER_BASKET);
+                    updateCupsBadge();
+                }
+            }
+            rewardBusy = false;
+        }
+
+        // ---------- استقبال الأحداث من Firestore ----------
+        let isInitialRewardLoad = true;
+        function listenToRewards() {
+            db.collection('sessions').doc(sessionId).collection('rewards')
+                .orderBy('createdAt', 'desc').limit(1)
+                .onSnapshot((snapshot) => {
+                    if (isInitialRewardLoad) { isInitialRewardLoad = false; return; }
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type !== 'added') return;
+                        const d = change.doc.data();
+                        if (d && d.total) enqueueReward({ total: d.total, milestone: d.milestone || null });
+                    });
+                }, (err) => console.error('Rewards listener error:', err));
+        }
+
+        // ---------- الحالة الأولية عند دخول الحصة (من رد مسار join) ----------
+        function initRewardsFromJoin(data) {
+            const total = Number(data.studentStars || 0);
+            if (!rewardBusy) {
+                setBasketFilled(total % STARS_PER_BASKET);
+                cupsCount = Math.floor(total / STARS_PER_BASKET);
+                updateCupsBadge();
+            }
+            starsAwardedInSession = Number(data.starsAwarded || 0);
+            starsLimit = Number(data.starsLimit || 3);
+            updateStarQuota();
+        }
+
+        // ---------- زر المعلم ----------
+        function updateStarQuota() {
+            const q = rwEl('starQuota');
+            if (q) q.innerText = `${starsAwardedInSession}/${starsLimit}`;
+        }
+
+        function startStarCooldown(seconds) {
+            const btn = rwEl('awardStarBtn');
+            const q = rwEl('starQuota');
+            if (!btn || !q) return;
+            btn.disabled = true;
+            let left = seconds;
+            q.innerText = `${left}s`;
+            if (starCooldownTimer) clearInterval(starCooldownTimer);
+            starCooldownTimer = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(starCooldownTimer);
+                    starCooldownTimer = null;
+                    btn.disabled = false;
+                    updateStarQuota();
+                } else {
+                    q.innerText = `${left}s`;
+                }
+            }, 1000);
+        }
+
+        async function awardStar() {
+            if (!isTeacher || !currentUser) return;
+            if (starsAwardedInSession >= starsLimit) {
+                showSnackBar(tl('reward_limit_reached'), 'orange');
+                return;
+            }
+            const btn = rwEl('awardStarBtn');
+            if (btn && btn.disabled) return;
+            if (btn) btn.disabled = true;
+            try {
+                const token = await currentUser.getIdToken();
+                const res = await fetch(`/api/session/award-star/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    let msg = tl('reward_award_failed');
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    showSnackBar(msg, 'orange');
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+                const data = await res.json();
+                starsAwardedInSession = data.starsAwarded;
+                starsLimit = data.starsLimit || starsLimit;
+                startStarCooldown(10);
+            } catch (e) {
+                console.error('Award star failed:', e);
+                showSnackBar(tl('reward_award_failed'), 'red');
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function initRewardsUI() {
+            buildBasketSlots();
+            updateCupsBadge();
+            ['pointerdown', 'keydown', 'touchstart'].forEach(evt =>
+                document.addEventListener(evt, unlockRewardAudio, { once: true })
+            );
+            const btn = rwEl('awardStarBtn');
+            if (btn) btn.title = tl('reward_star_btn_title');
+            updateStarQuota();
+        }
+
             // ==========================================
             // ⏱️ Timer & Extend (Count Up)
             // ==========================================
@@ -1694,10 +2220,13 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     async function registerSessionJoin() {
                 try {
                     authToken = await currentUser.getIdToken();
-                    await fetch(`/api/session/join/${sessionId}`, {
+                    const joinRes = await fetch(`/api/session/join/${sessionId}`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${authToken}` }
                     });
+                    if (joinRes.ok) {
+                        initRewardsFromJoin(await joinRes.json());
+                    }
                 } catch (e) {
                     console.error('Failed to register session join:', e);
                 }

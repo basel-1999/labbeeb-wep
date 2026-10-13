@@ -176,6 +176,7 @@
                             <label class="text-sm font-bold block mb-1">الدولة</label>
                             <select id="country" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                                 <option value="">اختر الدولة</option>
+                                <option>قطر</option>
                                 <option>المملكة العربية السعودية</option>
                                 <option>فلسطين</option>
                                 <option>جمهورية مصر العربية</option>
@@ -425,9 +426,12 @@
         let isProcessingAdvDegFile = false;
 
         const citiesMap = {
+            'قطر': ['الدوحة', 'الريان', 'الوكرة', 'الخور', 'أم صلال', 'الشمال'],
             'المملكة العربية السعودية': ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام'],
             'فلسطين': ['غزة', 'خان يونس', 'القدس', 'رام الله', 'الخليل'],
-            'جمهورية مصر العربية': ['القاهرة', 'الإسكندرية', 'المنصورة']
+            'جمهورية مصر العربية': ['القاهرة', 'الإسكندرية', 'المنصورة'],
+            'الإمارات العربية المتحدة': ['دبي', 'أبو ظبي', 'الشارقة', 'عجمان'],
+            'الأردن': ['عمان', 'إربد', 'الزرقاء', 'العقبة']
         };
 
         // 📚 قائمة المواد الموحدة (للطالب والمعلم)
@@ -1108,7 +1112,7 @@ function sendOtp(rawPhone) {
                 } else {
                     // تسجيل دخول الطالب برقم الهاتف (OTP)
                     const phone = document.getElementById('phoneNumber').value.trim();
-                    if (phone.length < 9) { showSnackBar('الرجاء إدخال رقم جوال صحيح', '#D97706'); return; }
+                    if (phone.length !== 8) { showSnackBar('الرجاء إدخال رقم جوال صحيح', '#D97706'); return; }
                     isSignUpMode = false;
                     sendOtp(phone);
                 }

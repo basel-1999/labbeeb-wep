@@ -11,7 +11,7 @@ import os
 import requests
 import uuid
 from dotenv import load_dotenv
-from typing import Optional
+from typing import Optional, List
 import json 
 from datetime import datetime, timezone
 import httpx
@@ -21,6 +21,20 @@ load_dotenv()
 
 router = APIRouter()
 security = HTTPBearer()
+router = APIRouter()
+security = HTTPBearer()
+
+# 💰 جدول الباقات المعتمد (المصدر الوحيد للأسعار): { عدد النقاط: السعر }
+# لازم يطابق الباقات المعروضة بـ student_dashboard.html (6 نقاط = ساعة)
+PRICING_PACKAGES = {
+    'ar': {6: 50, 60: 450, 120: 850, 180: 1200},
+    'en': {6: 80, 60: 800, 120: 1500, 180: 2100},
+}
+
+# ⭐ نظام النجوم والمكافآت
+STARS_PER_SESSION_LIMIT = 3   # أقصى عدد نجوم يمنحها المعلم بالحصة الواحدة
+STAR_COOLDOWN_SECONDS = 10    # الفاصل بين كل نجمة والتي بعدها
+STARS_PER_BASKET = 10         # كل 10 نجوم = كأس وبتفضى السلة
 
 # إعداد Cloudinary باستخدام متغيرات البيئة (أكثر أماناً)
 cloudinary.config(
@@ -96,6 +110,9 @@ async def create_session_request(
     grade: str = Form("غير محدد"),  # ✨ تمت إضافة المرحلة الدراسية
     language: str = Form("ar"),  # ✨ لغة الدراسة المطلوبة (ar أو en)
     isFreeTrial: bool = Form(False),  # ✨ إضافة حقل الحصة التجريبية
+    notes: str = Form(""),  # ملاحظات الطالب للمعلم
+    preferredTeacherId: str = Form(""),  # معلم معين (اختياري)
+    preferredTeacherName: str = Form(""),
     uid: str = Depends(get_current_user)
 ):
     try:
@@ -111,11 +128,27 @@ async def create_session_request(
         if isFreeTrial:
             if user_data.get('hasUsedFreeTrial', False):
                 raise HTTPException(status_code=403, detail="لقد قمت باستخدام حصتك التجريبية المجانية مسبقاً.")
+
+            # 🔒 منع طلب حصة تجريبية ثانية طالما في واحدة لسا ما انتهت
+            existing_trials = db.collection('sessions') \
+                .where('studentId', '==', uid) \
+                .where('isFreeTrial', '==', True) \
+                .stream()
+            for s in existing_trials:
+                if s.to_dict().get('status') in ('pending', 'accepted', 'active', 'interrupted'):
+                    raise HTTPException(status_code=403, detail="لديك حصة تجريبية قيد الانتظار أو التنفيذ بالفعل.")
         else:
             raw_points = user_data.get('points', 0)
             current_points = raw_points if isinstance(raw_points, (int, float)) else 0
             if current_points <= 0:
                 raise HTTPException(status_code=400, detail="لا يوجد لديك نقاط كافية.")
+
+        # 🔒 لو الطالب طلب معلم معين: لازم يكون موجود ومعتمد
+        if preferredTeacherId:
+            pref_snap = db.collection('users').document(preferredTeacherId).get()
+            pref_data = pref_snap.to_dict() if pref_snap.exists else {}
+            if pref_data.get('role') != 'teacher' or pref_data.get('status') != 'approved':
+                raise HTTPException(status_code=400, detail="المعلم المختار غير متاح حالياً.")
 
         session_ref = db.collection('sessions').document()
         session_ref.set({
@@ -141,6 +174,9 @@ async def create_session_request(
             'audioRecordingUrl': None,
             'boardPdfUrl': None,
             'isFreeTrial': isFreeTrial,  # ✨ حفظ علم الحصة التجريبية
+            'notes': notes.strip()[:500],
+            'preferredTeacherId': preferredTeacherId or None,
+            'preferredTeacherName': preferredTeacherName or None,
         })
 
         return {"sessionId": session_ref.id, "message": "تم إنشاء الطلب بنجاح"}
@@ -204,7 +240,20 @@ async def join_session(sessionId: str, uid: str = Depends(get_current_user)):
                 'interruptedBy': firestore.DELETE_FIELD
             })
 
-        return {"message": "تم تسجيل الدخول"}
+        # ⭐ بيانات النجوم للواجهة (السلة عند الطالب والمعلم)
+        student_stars = 0
+        student_id_for_stars = session_data.get('studentId')
+        if student_id_for_stars:
+            stars_snap = db.collection('users').document(student_id_for_stars).get()
+            if stars_snap.exists:
+                student_stars = int(stars_snap.to_dict().get('totalStars', 0))
+
+        return {
+            "message": "تم تسجيل الدخول",
+            "studentStars": student_stars,
+            "starsAwarded": int(session_data.get('starsAwarded', 0)),
+            "starsLimit": STARS_PER_SESSION_LIMIT
+        }
 
     except HTTPException:
         raise
@@ -246,7 +295,7 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
         intervals_due = int(elapsed_seconds // 300)  # كل 300 ثانية = 5 دقائق
 
         already_deducted = session_data.get('pointsDeducted', 0)
-        intervals_already_done = int(round(already_deducted / 1.0)) # ✨ تعديل المعدل إلى 1 نقطة
+        intervals_already_done = int(round(already_deducted / 0.5))  # كل 5 دقائق = نص نقطة
 
         intervals_to_deduct = intervals_due - intervals_already_done
 
@@ -258,7 +307,7 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
             print(f"🕐 [{log_ts}] session={sessionId} → لا يوجد خصم مستحق الآن")
             return {"message": "لا يوجد خصم مستحق الآن", "pointsDeducted": already_deducted}
 
-        points_to_deduct = intervals_to_deduct * 1.0 # ✨ تعديل الخصم إلى 1 نقطة لكل 5 دقائق
+        points_to_deduct = intervals_to_deduct * 0.5  # نص نقطة لكل 5 دقائق
         student_id = session_data.get('studentId')
         student_ref = db.collection('users').document(student_id)
         student_snap = student_ref.get()
@@ -388,6 +437,107 @@ async def interrupt_session(sessionId: str, uid: str = Depends(get_current_user)
         print(f"❌ ERROR in interrupt_session: {error_str}")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
+
+
+@firestore.transactional
+def _award_star_txn(transaction, session_ref, student_ref, teacher_uid):
+    """منح نجمة بشكل ذري: كل الفحوصات والتحديثات بنفس العملية عشان ما يصير تكرار أو تجاوز للحد."""
+    session_snap = session_ref.get(transaction=transaction)
+    if not session_snap.exists:
+        raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+    s = session_snap.to_dict()
+
+    if s.get('teacherId') != teacher_uid:
+        raise HTTPException(status_code=403, detail="فقط معلم الحصة يستطيع منح النجوم.")
+    if s.get('status') != 'active':
+        raise HTTPException(status_code=400, detail="يمكن منح النجوم فقط أثناء الحصة النشطة.")
+
+    awarded = int(s.get('starsAwarded', 0))
+    if awarded >= STARS_PER_SESSION_LIMIT:
+        raise HTTPException(status_code=429, detail=f"وصلت للحد الأقصى ({STARS_PER_SESSION_LIMIT} نجوم) لهذه الحصة.")
+
+    last_star_at = s.get('lastStarAt')
+    if last_star_at is not None:
+        elapsed = (datetime.now(timezone.utc) - last_star_at).total_seconds()
+        if elapsed < STAR_COOLDOWN_SECONDS:
+            raise HTTPException(status_code=429, detail="انتظر ثواني قبل منح نجمة أخرى.")
+
+    student_snap = student_ref.get(transaction=transaction)
+    if not student_snap.exists:
+        raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
+    total = int(student_snap.to_dict().get('totalStars', 0)) + 1
+
+    transaction.update(student_ref, {'totalStars': total})
+    transaction.update(session_ref, {
+        'starsAwarded': awarded + 1,
+        'lastStarAt': firestore.SERVER_TIMESTAMP
+    })
+    return total, awarded + 1
+
+
+@router.post("/api/session/award-star/{sessionId}")
+async def award_star(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        session_snap = session_ref.get()
+        if not session_snap.exists:
+            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+
+        student_id = session_snap.to_dict().get('studentId')
+        if not student_id:
+            raise HTTPException(status_code=400, detail="لا يوجد طالب بهذه الحصة.")
+        student_ref = db.collection('users').document(student_id)
+
+        total, awarded = _award_star_txn(db.transaction(), session_ref, student_ref, uid)
+
+        # 3 = ميدالية فضية، 6 = ميدالية ذهبية، 10 = كأس (بكل دورة سلة)
+        position = total % STARS_PER_BASKET
+        milestone = None
+        if position == 0:
+            milestone = 'cup'
+        elif position == 6:
+            milestone = 'gold'
+        elif position == 3:
+            milestone = 'silver'
+
+        # إشارة الأنيميشن للطرفين (المعلم والطالب)
+        session_ref.collection('rewards').add({
+            'total': total,
+            'milestone': milestone,
+            'teacherId': uid,
+            'createdAt': firestore.SERVER_TIMESTAMP
+        })
+
+        # إشعار للطالب عند الكأس
+        if milestone == 'cup':
+            try:
+                lang = (student_ref.get().to_dict() or {}).get('preferredLanguage', 'ar')
+                if lang == 'en':
+                    title, body = 'Congratulations! You earned a cup 🏆', 'You completed 10 stars. Keep shining!'
+                else:
+                    title, body = 'مبروك! حصلت على كأس 🏆', 'أكملت 10 نجوم، واصل تألقك!'
+                student_ref.collection('notifications').add({
+                    'title': title,
+                    'body': body,
+                    'read': False,
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            except Exception as e:
+                print(f"Failed to send cup notification: {e}")
+
+        return {
+            "total": total,
+            "starsAwarded": awarded,
+            "starsLimit": STARS_PER_SESSION_LIMIT,
+            "milestone": milestone
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in award_star: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+    
 @router.post("/api/session/cancel/{sessionId}")
 async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_user)):
     try:
@@ -446,6 +596,10 @@ async def accept_session(
     
     current_status = session_data.get('status')
     if current_status == 'pending':
+        # 🔒 لو الطالب طلب معلم معين، ما حدا غيره بيقبل الطلب
+        preferred_teacher = session_data.get('preferredTeacherId')
+        if preferred_teacher and preferred_teacher != uid:
+            raise HTTPException(status_code=403, detail="هذا الطلب موجه لمعلم آخر.")
         # 🛡️ فلترة ذكية (Smart Routing Security): التأكد من أن المعلم يدرس هذه المادة والمرحلة
         user_ref = db.collection('users').document(uid)
         user_snap = user_ref.get()
@@ -532,12 +686,12 @@ async def register_teacher(
     try:
         update_data = {
             'subject': subject,
-            'subjects': [s.trim() for s in subject.split('،')],
+            'subjects': [s.strip() for s in subject.split('،')],
             'role': 'teacher',
             'experienceYears': experience,
-            'targetAge': [a.trim() for a in targetAge.split('،')],
+            'targetAge': [a.strip() for a in targetAge.split('،')],
             'teachingLanguage': teachingLanguage,
-            'ownedDevices': [d.trim() for d in ownedDevices.split('،') if d.trim()],
+            'ownedDevices': [d.strip() for d in ownedDevices.split('،') if d.strip()],
             'academicDegree': academicDegree,
             'certificates': [certificateUrl],
             'certificateUrl': certificateUrl,
@@ -557,13 +711,82 @@ async def register_teacher(
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء الحفظ: {str(e)}")
 
 
+
+# ==========================================
+# ✏️ طلب تعديل بيانات المعلم (يحتاج موافقة الإدارة)
+# ==========================================
+class ProfileUpdateRequest(BaseModel):
+    name: str
+    country: str
+    city: str
+    subjects: List[str]
+    targetAge: List[str]
+    teachingLanguage: str
+    ownedDevices: List[str]
+    academicDegree: str
+    certificateUrl: Optional[str] = None
+    advancedDegreeCertificateUrl: Optional[str] = None
+    identityUrl: Optional[str] = None
+    experienceCertificateUrl: Optional[str] = None
+
+
+@router.post("/api/teacher/request-profile-update")
+async def request_profile_update(payload: ProfileUpdateRequest, uid: str = Depends(get_current_user)):
+    try:
+        user_ref = db.collection('users').document(uid)
+        user_snap = user_ref.get()
+
+        if not user_snap.exists:
+            raise HTTPException(status_code=404, detail="الحساب غير موجود.")
+
+        user_data = user_snap.to_dict()
+        if user_data.get('role') != 'teacher':
+            raise HTTPException(status_code=403, detail="هذا الإجراء مخصص للمعلمين فقط.")
+        if user_data.get('status') != 'approved':
+            raise HTTPException(status_code=400, detail="لا يمكن تقديم تعديلات إلا بعد اعتماد الحساب.")
+        if user_data.get('pendingProfileUpdates'):
+            raise HTTPException(status_code=400, detail="لديك تعديلات قيد المراجعة بالفعل.")
+
+        # 🔒 التحقق من القيم
+        if payload.teachingLanguage not in ('العربية', 'الإنجليزية (انترناشونال)', 'كلاهما'):
+            raise HTTPException(status_code=400, detail="لغة التدريس غير صالحة.")
+        if payload.academicDegree not in ('لا أملك', 'ماجستير', 'دكتوراه'):
+            raise HTTPException(status_code=400, detail="الدرجة العلمية غير صالحة.")
+        if not payload.name.strip() or not payload.subjects or not payload.targetAge or not payload.ownedDevices:
+            raise HTTPException(status_code=400, detail="بيانات ناقصة.")
+        if len(payload.name) > 120 or len(payload.subjects) > 30 or len(payload.targetAge) > 30:
+            raise HTTPException(status_code=400, detail="بيانات غير صالحة.")
+
+        updates = payload.dict(exclude_none=True)
+        updates['name'] = payload.name.strip()
+
+        # روابط الملفات لازم تكون من Cloudinary فقط
+        for key in ('certificateUrl', 'advancedDegreeCertificateUrl', 'identityUrl', 'experienceCertificateUrl'):
+            url = updates.get(key)
+            if url and not url.startswith('https://res.cloudinary.com/'):
+                raise HTTPException(status_code=400, detail="رابط ملف غير صالح.")
+
+        user_ref.update({
+            'pendingProfileUpdates': updates,
+            'status': 'pending_profile_update',
+            'profileUpdateRequestedAt': firestore.SERVER_TIMESTAMP
+        })
+
+        return {"message": "تم إرسال التعديلات للإدارة"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in request_profile_update: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+    
 # ==========================================
 # 💳 بوابة الدفع (Tap Payments)
 # ==========================================
 
 @router.post("/api/payment/create-checkout")
 async def create_tap_checkout(
-    amount: float = Form(...),
+    amount: float = Form(0),  # يُتجاهل: السعر الفعلي بيتحسب من جدول PRICING_PACKAGES
     pointsCount: int = Form(...),
     sourceId: str = Form("src_all"),
     customPhone: str = Form(""),  # ✨ استقبال رقم الهاتف المخصص للدفع
@@ -581,24 +804,37 @@ async def create_tap_checkout(
         # جلب اسم الطالب ورقم هاتفه لعرضهما في صفحة الدفع
         user_ref = db.collection('users').document(uid)
         user_snap = user_ref.get()
+
+        if not user_snap.exists:
+            raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
+
+        # 🔒 السعر بيتحدد هون حسب لغة الطالب وعدد النقاط، مش حسب اللي بعته المتصفح
+        student_lang = user_snap.to_dict().get('preferredLanguage', 'ar')
+        price_table = PRICING_PACKAGES.get(student_lang, PRICING_PACKAGES['ar'])
+        if pointsCount not in price_table:
+            raise HTTPException(status_code=400, detail="الباقة المطلوبة غير صالحة.")
+        amount = float(price_table[pointsCount])
+
         student_name = "طالب لبيب"
         student_phone = "00000000"
         if user_snap.exists:
             user_data = user_snap.to_dict()
             student_name = user_data.get('name', student_name)
-            # ✨ جلب رقم الهاتف وإزالة المقدمة (+974) إذا كانت موجودة
+            # ✨ جلب رقم الهاتف وإزالة مقدمة الدولة بشكل آمن
             raw_phone = user_data.get('phone', '00000000')
-            if raw_phone.startswith('+'):
-                student_phone = raw_phone[4:] 
-            else:
-                student_phone = raw_phone
+            for code in ['+974', '+966', '+971', '+965', '+962', '+970', '+20']:
+                if raw_phone.startswith(code):
+                    raw_phone = raw_phone[len(code):]
+                    break
+            student_phone = raw_phone
 
-        # ✨ استخدام الرقم المخصص للدفع إذا أدخله الطالب
+        # ✨ استخدام الرقم المخصص للدفع وتنظيفه إذا أدخله الطالب
         if customPhone:
-            if customPhone.startswith('+'):
-                student_phone = customPhone[4:] 
-            else:
-                student_phone = customPhone
+            for code in ['+974', '+966', '+971', '+965', '+962', '+970', '+20']:
+                if customPhone.startswith(code):
+                    customPhone = customPhone[len(code):]
+                    break
+            student_phone = customPhone
 
         # تجهيز بيانات الدفع لإرسالها لـ Tap
         payload = {
@@ -634,8 +870,11 @@ async def create_tap_checkout(
             "source": {
                 "id": sourceId  # ✨ استخدام طريقة الدفع التي اختارها الطالب
             },
+            "post": {
+                "url": "https://labeeb-wep.onrender.com/api/payment/webhook"
+            },
             "redirect": {
-                "url": f"https://labeeb-wep.onrender.com/payment-success" 
+                "url": "https://labeeb-wep.onrender.com/payment-success"
             }
         }
 
@@ -676,6 +915,19 @@ async def create_tap_checkout(
             raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة غداً.")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
+@firestore.transactional
+def _apply_topup(transaction, charge_ref, user_ref, points_count, record):
+    """شحن الرصيد وتسجيل العملية بشكل ذري. لو العملية مسجلة قبل، ما بيشحن مرة ثانية."""
+    charge_snap = charge_ref.get(transaction=transaction)
+    if charge_snap.exists:
+        return 'duplicate'
+    user_snap = user_ref.get(transaction=transaction)
+    if not user_snap.exists:
+        return 'no_student'
+    current_points = user_snap.to_dict().get('points', 0)
+    transaction.update(user_ref, {'points': current_points + points_count})
+    transaction.set(charge_ref, record)
+    return 'ok'
 
 @router.post("/api/payment/webhook")
 async def tap_webhook(request: Request):
@@ -710,40 +962,33 @@ async def tap_webhook(request: Request):
             points_count_str = metadata.get("pointsCount", "0")
 
             # التأكد من صحة البيانات قبل شحن المحفظة
-            if student_id and points_count_str.isdigit():
+            points_count_str = str(points_count_str)
+            if student_id and points_count_str.isdigit() and int(points_count_str) > 0:
                 points_count = int(points_count_str)
-                if points_count > 0:
-                    # شحن رصيد الطالب في Firestore
-                    user_ref = db.collection('users').document(student_id)
-                    user_snap = user_ref.get()
 
-                    if user_snap.exists:
-                        user_data = user_snap.to_dict()
-                        current_points = user_data.get('points', 0)
-                        
-                        # زيادة الرصيد
-                        user_ref.update({
-                            'points': current_points + points_count
-                        })
-                        print(f"✅ Wallet topped up for {student_id}: +{points_count} points")
+                user_ref = db.collection('users').document(student_id)
+                # رقم العملية من Tap هو اسم الوثيقة => نفس العملية ما بتنسجل مرتين
+                charge_ref = db.collection('recharge_requests').document(charge_id)
+                record = {
+                    'studentId': student_id,
+                    'studentName': metadata.get("studentName", "طالب"),
+                    'packageTitle': f"دفع إلكتروني ({points_count} نقطة)",
+                    'pointsCount': points_count,
+                    'referenceNumber': charge_id,
+                    'receiptImageUrl': '',
+                    'status': 'approved',
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                    'approvedAt': firestore.SERVER_TIMESTAMP,
+                    'paymentMethod': 'Tap Gateway'
+                }
 
-                        # حفظ سجل الدفع في قاعدة البيانات للأرشيف
-                        db.collection('recharge_requests').add({
-                            'studentId': student_id,
-                            'studentName': metadata.get("studentName", "طالب"),
-                            'packageTitle': f"دفع إلكتروني ({points_count} نقطة)",
-                            'pointsCount': points_count,
-                            'referenceNumber': charge_id, # استخدام الـ ID الحقيقي
-                            'receiptImageUrl': '',
-                            'status': 'approved',
-                            'createdAt': firestore.SERVER_TIMESTAMP,
-                            'approvedAt': firestore.SERVER_TIMESTAMP,
-                            'paymentMethod': 'Tap Gateway'
-                        })
-                    else:
-                        print("❌ Webhook Error: Student not found.")
+                result = _apply_topup(db.transaction(), charge_ref, user_ref, points_count, record)
+                if result == 'ok':
+                    print(f"✅ Wallet topped up for {student_id}: +{points_count} points (charge {charge_id})")
+                elif result == 'duplicate':
+                    print(f"ℹ️ Webhook ignored: charge {charge_id} was already processed.")
                 else:
-                    print("❌ Webhook Error: Invalid points count.")
+                    print("❌ Webhook Error: Student not found.")
             else:
                 print("❌ Webhook Error: Missing or invalid metadata.")
         else:

@@ -94,6 +94,7 @@
                             <label class="text-sm font-bold block mb-1">الدولة</label>
                             <select id="countryInput" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                                 <option value="">اختر الدولة</option>
+                                <option>قطر</option>
                                 <option>المملكة العربية السعودية</option>
                                 <option>فلسطين</option>
                                 <option>جمهورية مصر العربية</option>
@@ -213,12 +214,15 @@
     </main>
 
     <script>
-        const allSubjects = ['طب بشري', 'طب أسنان', 'هندسة', 'رياضيات', 'اللغة الإنجليزية', 'علوم', 'التربية الدينية', 'كيمياء', 'فيزياء', 'اللغة العربية', 'تعليم أساسي (تربية أطفال)', 'الإحصاء', 'البرمجة', 'علم نفس', 'إدارة أعمال'];
+const allSubjects = ['طب بشري', 'طب أسنان', 'هندسة', 'رياضيات', 'اللغة الإنجليزية', 'علوم', 'التربية الدينية', 'كيمياء', 'فيزياء', 'اللغة العربية', 'اللغة الفرنسية', 'تعليم أساسي (تربية أطفال)', 'الإحصاء', 'البرمجة', 'علم نفس', 'إدارة أعمال'];
         const allAges = ['روضة الأطفال (تمهيدي)', 'الصف الأول الابتدائي', 'الصف الثاني الابتدائي', 'الصف الثالث الابتدائي', 'الصف الرابع الابتدائي', 'الصف الخامس الابتدائي', 'الصف السادس الابتدائي', 'الصف الأول المتوسط', 'الصف الثاني المتوسط', 'الصف الثالث المتوسط', 'الصف الأول الثانوي', 'الصف الثاني الثانوي', 'الصف الثالث الثانوي', 'التعليم الجامعي المستمر'];
         const citiesMap = {
+            'قطر': ['الدوحة', 'الريان', 'الوكرة', 'الخور', 'أم صلال', 'الشمال'],
             'المملكة العربية السعودية': ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام'],
             'فلسطين': ['غزة', 'خان يونس', 'القدس', 'رام الله', 'الخليل'],
-            'جمهورية مصر العربية': ['القاهرة', 'الإسكندرية', 'المنصورة']
+            'جمهورية مصر العربية': ['القاهرة', 'الإسكندرية', 'المنصورة'],
+            'الإمارات العربية المتحدة': ['دبي', 'أبو ظبي', 'الشارقة', 'عجمان'],
+            'الأردن': ['عمان', 'إربد', 'الزرقاء', 'العقبة']
         };
 
         let currentUser = null;
@@ -441,11 +445,22 @@
             if (newExpUrl) updates.experienceCertificateUrl = newExpUrl;
 
             try {
-                await db.collection('users').doc(currentUser.uid).update({
-                    pendingProfileUpdates: updates,
-                    status: 'pending_profile_update'
+                const token = await currentUser.getIdToken();
+                const res = await fetch('/api/teacher/request-profile-update', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updates)
                 });
-                
+
+                if (!res.ok) {
+                    let msg = 'فشل إرسال التعديلات.';
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    throw new Error(msg);
+                }
+
                 alert('تم إرسال طلبك بنجاح. سيتم تجميد حسابك مؤقتاً حتى تراجع الإدارة تعديلاتك.');
                 window.location.href = '/teacher-dashboard';
             } catch (e) {

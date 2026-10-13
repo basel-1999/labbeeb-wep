@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>معاينة رسومات المكافآت</title>
+<style>
+  body { font-family: Cairo, Arial, sans-serif; background: #F4EFE6; padding: 24px; }
+  #status { background: #fff; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; font-weight: bold; line-height: 1.8; }
+  #cards { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+  .card { background: #fff; border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.1); font-weight: bold; }
+  svg { display: block; margin: 0 auto 8px; }
+</style>
+</head>
+<body>
+<div id="status">جاري فحص ملف الرسومات...</div>
+<div id="cards"></div>
+
+<script>
+  // رقم متغير بنهاية الرابط عشان المتصفح ما يستخدم نسخة قديمة من الكاش
+  const SP = '/static/images/rewards/rewards.svg?v=' + Date.now();
+  const NS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(w, h, vb) {
+    const s = document.createElementNS(NS, 'svg');
+    s.setAttribute('width', w); s.setAttribute('height', h); s.setAttribute('viewBox', vb);
+    return s;
+  }
+  function useEl(id, transform) {
+    const u = document.createElementNS(NS, 'use');
+    u.setAttribute('href', SP + '#' + id);
+    if (transform) u.setAttribute('transform', transform);
+    return u;
+  }
+  function card(label, svg) {
+    const d = document.createElement('div');
+    d.className = 'card';
+    d.appendChild(svg);
+    d.appendChild(document.createTextNode(label));
+    document.getElementById('cards').appendChild(d);
+  }
+
+  let s = svgEl(140, 140, '0 0 100 100'); s.appendChild(useEl('starFaceted')); card('النجمة', s);
+  s = svgEl(120, 170, '0 0 120 170'); s.appendChild(useEl('medalSilver')); card('ميدالية فضية', s);
+  s = svgEl(120, 170, '0 0 120 170'); s.appendChild(useEl('medalGold')); card('ميدالية ذهبية', s);
+  s = svgEl(160, 190, '0 0 160 190'); s.appendChild(useEl('cupTrophy')); card('الكأس', s);
+
+  // السلة مع 7 نجوم
+  s = svgEl(300, 310, '0 -48 240 248');
+  s.appendChild(useEl('basketBack'));
+  const X = [52, 80, 108, 136, 164], Y = [28, 52];
+  for (let i = 0; i < 10; i++) {
+    s.appendChild(useEl(i < 7 ? 'starFaceted' : 'starOutline',
+      `translate(${X[i % 5]},${Y[Math.floor(i / 5)]}) scale(.24)`));
+  }
+  s.appendChild(useEl('basketFront'));
+  card('السلة (7 نجوم من 10)', s);
+
+  // فحص الملف نفسه
+  const st = document.getElementById('status');
+  fetch(SP)
+    .then(r => { if (!r.ok) throw new Error('الملف غير موجود (HTTP ' + r.status + ')'); return r.text(); })
+    .then(txt => {
+      const doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
+      const err = doc.querySelector('parsererror');
+      if (err) { st.innerHTML = '❌ ملف rewards.svg فيه خطأ بالكتابة:<br>' + err.textContent.slice(0, 300); return; }
+      const ids = ['starFaceted', 'starOutline', 'medalSilver', 'medalGold', 'cupTrophy', 'basketBack', 'basketFront', 'basketClip', 'wicker'];
+      const missing = ids.filter(id => !doc.querySelector('[id="' + id + '"]'));
+      const dups = ids.filter(id => doc.querySelectorAll('[id="' + id + '"]').length > 1);
+      let msg = '';
+      if (missing.length) msg += '⚠️ عناصر ناقصة بالملف: ' + missing.join('، ') + '<br>';
+      if (dups.length) msg += '⚠️ عناصر مكررة بالملف: ' + dups.join('، ') + '<br>';
+      st.innerHTML = msg || '✅ الملف سليم وكل العناصر موجودة';
+    })
+    .catch(e => { st.textContent = '❌ ' + e.message; });
+</script>
+</body>
+</html>
