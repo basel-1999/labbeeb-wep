@@ -29,20 +29,6 @@
     </linearGradient>
     <linearGradient id="gCupBase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6B4A1E"/><stop offset="1" stop-color="#3A2410"/></linearGradient>
     <linearGradient id="gCupRim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1A8"/><stop offset="1" stop-color="#E0A000"/></linearGradient>
-    <!-- ====== تدرجات السلة ====== -->
-    <radialGradient id="gBasketInside" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#7A4A22"/><stop offset="1" stop-color="#3B2008"/></radialGradient>
-    <linearGradient id="gBasketRim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E3A760"/><stop offset="1" stop-color="#A8672A"/></linearGradient>
-    <linearGradient id="gBasketShade" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#2A1503" stop-opacity=".45"/><stop offset=".3" stop-color="#2A1503" stop-opacity="0"/>
-      <stop offset=".7" stop-color="#2A1503" stop-opacity="0"/><stop offset="1" stop-color="#2A1503" stop-opacity=".5"/>
-    </linearGradient>
-    <pattern id="wicker" width="22" height="16" patternUnits="userSpaceOnUse">
-      <rect width="22" height="16" fill="#D3984F"/>
-      <rect width="11" height="8" fill="#C0803A"/>
-      <rect x="11" y="8" width="11" height="8" fill="#C0803A"/>
-      <path d="M0 8H22M11 0V16" stroke="#7E4A1E" stroke-width="1.2" stroke-opacity=".45"/>
-    </pattern>
-    <clipPath id="basketClip"><path d="M15,52 L42,168 Q120,198 198,168 L225,52 Z"/></clipPath>
 
     <!-- ====== النجمة (مقسمة لأوجه عشان تبان مجسمة) ====== -->
     <g id="starFaceted">
@@ -60,38 +46,36 @@
       <circle cx="43" cy="29" r="3.2" fill="#FFFFFF" fill-opacity=".85"/>
     </g>
 
-    <!-- النجمة الفاضية (مكان النجمة بالسلة قبل ما تنعبى) -->
+    <!-- النجمة الفاضية: فاتحة وشفافة، بتبان كأنها حفرة على اللوحة الغامقة -->
     <g id="starOutline">
-      <path d="M50,7 L61.17,37.63 L93.75,38.79 L68.07,58.87 L77.04,90.21 L50,72 L22.96,90.21 L31.93,58.87 L6.25,38.79 L38.83,37.63 Z" fill="#3A1D05" fill-opacity=".30" stroke="#3A1D05" stroke-opacity=".25" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M50,7 L61.17,37.63 L93.75,38.79 L68.07,58.87 L77.04,90.21 L50,72 L22.96,90.21 L31.93,58.87 L6.25,38.79 L38.83,37.63 Z" fill="#FFFFFF" fill-opacity=".16" stroke="#FFFFFF" stroke-opacity=".38" stroke-width="5" stroke-linejoin="round"/>
     </g>
 
-    <!-- ====== الميدالية الفضية (3 نجوم) ====== -->
+    <!-- ====== الميدالية الفضية (القاعدة فقط، النجوم بتنحط فوقها) ====== -->
     <g id="medalSilver">
       <polygon points="30,0 56,0 76,66 50,66" fill="url(#gRibbonBlue)"/>
       <polygon points="90,0 64,0 44,66 70,66" fill="url(#gRibbonBlueDark)"/>
       <ellipse cx="60" cy="158" rx="36" ry="5" fill="#000000" fill-opacity=".18"/>
       <circle cx="60" cy="104" r="45" fill="url(#gSilverRing)"/>
       <circle cx="60" cy="104" r="38" fill="url(#gSilver)" stroke="#8793A4" stroke-width="1.5"/>
-      <circle cx="60" cy="104" r="32" fill="none" stroke="#FFFFFF" stroke-opacity=".75" stroke-width="1.6" stroke-dasharray="2 4.2"/>
-      <g transform="translate(50,72) scale(.2)"><use href="#starFaceted"/></g>
-      <text x="60" y="128" text-anchor="middle" font-family="Cairo, Inter, Arial, sans-serif" font-size="36" font-weight="900" fill="#6F7B8C" stroke="#FFFFFF" stroke-width="1" stroke-opacity=".85">3</text>
-      <path d="M30,92 A32,32 0 0 1 56,71" fill="none" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="60" cy="104" r="33" fill="#3B4556" fill-opacity=".38"/>
+      <circle cx="60" cy="104" r="35.5" fill="none" stroke="#FFFFFF" stroke-opacity=".75" stroke-width="1.4" stroke-dasharray="2 4.2"/>
+      <path d="M30,92 A32,32 0 0 1 56,71" fill="none" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="3" stroke-linecap="round"/>
     </g>
 
-    <!-- ====== الميدالية الذهبية (6 نجوم) ====== -->
+    <!-- ====== الميدالية الذهبية (القاعدة فقط) ====== -->
     <g id="medalGold">
       <polygon points="30,0 56,0 76,66 50,66" fill="url(#gRibbonRed)"/>
       <polygon points="90,0 64,0 44,66 70,66" fill="url(#gRibbonRedDark)"/>
       <ellipse cx="60" cy="158" rx="36" ry="5" fill="#000000" fill-opacity=".18"/>
       <circle cx="60" cy="104" r="45" fill="url(#gGoldRing)"/>
       <circle cx="60" cy="104" r="38" fill="url(#gGold)" stroke="#B87400" stroke-width="1.5"/>
-      <circle cx="60" cy="104" r="32" fill="none" stroke="#FFF6C2" stroke-opacity=".8" stroke-width="1.6" stroke-dasharray="2 4.2"/>
-      <g transform="translate(50,72) scale(.2)"><use href="#starFaceted"/></g>
-      <text x="60" y="128" text-anchor="middle" font-family="Cairo, Inter, Arial, sans-serif" font-size="36" font-weight="900" fill="#8A5300" stroke="#FFF3B0" stroke-width="1" stroke-opacity=".85">6</text>
-      <path d="M30,92 A32,32 0 0 1 56,71" fill="none" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="60" cy="104" r="33" fill="#6B3D00" fill-opacity=".45"/>
+      <circle cx="60" cy="104" r="35.5" fill="none" stroke="#FFF6C2" stroke-opacity=".8" stroke-width="1.4" stroke-dasharray="2 4.2"/>
+      <path d="M30,92 A32,32 0 0 1 56,71" fill="none" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="3" stroke-linecap="round"/>
     </g>
 
-    <!-- ====== الكأس (10 نجوم) ====== -->
+    <!-- ====== الكأس (القاعدة فقط) ====== -->
     <g id="cupTrophy">
       <ellipse cx="80" cy="177" rx="54" ry="6" fill="#000000" fill-opacity=".2"/>
       <path d="M40,34 C6,32 6,86 46,92" fill="none" stroke="url(#gCupHandle)" stroke-width="9" stroke-linecap="round"/>
@@ -102,43 +86,30 @@
       <ellipse cx="80" cy="124" rx="19" ry="6" fill="url(#gCupMid)"/>
       <path d="M32,22 H128 V56 C128,92 108,112 80,112 C52,112 32,92 32,56 Z" fill="url(#gCupBowl)"/>
       <rect x="26" y="14" width="108" height="14" rx="7" fill="url(#gCupRim)"/>
-      <path d="M44,34 C44,70 56,92 72,100" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
-      <circle cx="80" cy="58" r="24" fill="#FFF3B0" fill-opacity=".35"/>
-      <g transform="translate(58,36) scale(.44)"><use href="#starFaceted"/></g>
+      <rect x="34" y="40" width="92" height="26" rx="13" fill="#6B3D00" fill-opacity=".45"/>
+      <path d="M44,74 C48,88 58,98 70,104" fill="none" stroke="#FFFFFF" stroke-opacity=".5" stroke-width="6" stroke-linecap="round"/>
       <rect x="58" y="155" width="44" height="12" rx="3" fill="url(#gCupRim)"/>
     </g>
 
-    <!-- ====== السلة: الجزء الخلفي (الجسم + المقبض + فتحة السلة) ====== -->
-    <g id="basketBack">
-      <ellipse cx="120" cy="186" rx="90" ry="8" fill="#000000" fill-opacity=".18"/>
-      <g clip-path="url(#basketClip)">
-        <rect x="0" y="40" width="240" height="170" fill="url(#wicker)"/>
-        <rect x="0" y="40" width="240" height="170" fill="url(#gBasketShade)"/>
-      </g>
-      <path d="M42,168 Q120,198 198,168" fill="none" stroke="#6E3F17" stroke-width="5" stroke-linecap="round"/>
-
-      <!-- المقبض: نص بيضاوي بيطلع عامودي من طرفي السلة، بنفس لون القش -->
-      <path d="M15,50 A105,84 0 0 1 225,50" fill="none" stroke="#6E3F17" stroke-width="13"/>
-      <path d="M15,50 A105,84 0 0 1 225,50" fill="none" stroke="#C98A4B" stroke-width="9"/>
-      <path d="M15,50 A105,84 0 0 1 225,50" fill="none" stroke="#8C5427" stroke-opacity=".6" stroke-width="9" stroke-dasharray="2.4 4.6"/>
-      <path d="M15,50 A105,84 0 0 1 225,50" fill="none" stroke="#F2C48A" stroke-opacity=".55" stroke-width="2" transform="translate(0,-2.2)"/>
-
-      <ellipse cx="120" cy="52" rx="108" ry="39" fill="url(#gBasketRim)"/>
-      <ellipse cx="120" cy="52" rx="99" ry="33" fill="url(#gBasketInside)"/>
+    <!-- ====== النسخ الكاملة (بنجومها المعبّاة): بتنعرض كبيرة لما تكتمل ====== -->
+    <g id="medalSilverFull">
+      <use href="#medalSilver"/>
+      <use href="#starFaceted" transform="translate(28,97) scale(.22)"/>
+      <use href="#starFaceted" transform="translate(49,88) scale(.22)"/>
+      <use href="#starFaceted" transform="translate(70,97) scale(.22)"/>
     </g>
-
-    <!-- ====== السلة: الحافة الأمامية + ربطات المقبض (بتنرسم فوق النجوم) ====== -->
-    <g id="basketFront">
-      <path d="M12,52 A108,39 0 0 0 228,52" fill="none" stroke="url(#gBasketRim)" stroke-width="9" stroke-linecap="round"/>
-      <rect x="4" y="34" width="22" height="34" rx="6" fill="url(#gBasketRim)" stroke="#6E3F17" stroke-width="2"/>
-      <path d="M6,42H24M6,51H24M6,60H24" stroke="#6E3F17" stroke-opacity=".5" stroke-width="1.4"/>
-      <rect x="214" y="34" width="22" height="34" rx="6" fill="url(#gBasketRim)" stroke="#6E3F17" stroke-width="2"/>
-      <path d="M216,42H234M216,51H234M216,60H234" stroke="#6E3F17" stroke-opacity=".5" stroke-width="1.4"/>
+    <g id="medalGoldFull">
+      <use href="#medalGold"/>
+      <use href="#starFaceted" transform="translate(28,97) scale(.22)"/>
+      <use href="#starFaceted" transform="translate(49,88) scale(.22)"/>
+      <use href="#starFaceted" transform="translate(70,97) scale(.22)"/>
     </g>
-
-    <!-- ====== السلة: الحافة الأمامية (بتنرسم فوق النجوم) ====== -->
-    <g id="basketFront">
-      <path d="M12,52 A108,39 0 0 0 228,52" fill="none" stroke="url(#gBasketRim)" stroke-width="9" stroke-linecap="round"/>
+    <g id="cupFull">
+      <use href="#cupTrophy"/>
+      <use href="#starFaceted" transform="translate(36,42) scale(.2)"/>
+      <use href="#starFaceted" transform="translate(59,42) scale(.2)"/>
+      <use href="#starFaceted" transform="translate(82,42) scale(.2)"/>
+      <use href="#starFaceted" transform="translate(105,42) scale(.2)"/>
     </g>
   </defs>
 </svg>
