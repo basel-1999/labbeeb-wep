@@ -64,6 +64,12 @@
             align-items: center;
             justify-content: center;
         }
+
+                /* ⭐ بطاقة الإنجازات */
+        .ach-locked { filter: grayscale(.9) opacity(.55); }
+        .ach-current { filter: drop-shadow(0 0 8px rgba(255,190,0,.9)); }
+        .ach-done { filter: drop-shadow(0 0 5px rgba(255,215,90,.7)); }
+
     </style>
 </head>
 <body class="pb-32">
@@ -136,6 +142,17 @@
                     <p data-i18n="free_trial_card_desc" class="text-xs sm:text-sm text-white/90 mt-1">استكشف منصة لبيب مع 20 دقيقة مجانية لكل المواد. (متاحة لمرة واحدة فقط)</p>
                 </div>
             </div>
+        </div>
+
+
+                <!-- ⭐ بطاقة الإنجازات -->
+        <div id="achievementsCard" class="bg-white p-4 sm:p-5 rounded-2xl border-[1.5px] border-accentGold/40 shadow-sm mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 data-i18n="achievements_title" class="text-sm sm:text-base font-bold text-textDark">إنجازاتي</h3>
+                <span id="achievementsTotal" class="flex items-center gap-1 text-sm font-bold text-accentGold"></span>
+            </div>
+            <div id="achievementsTrophies" class="flex items-end justify-center gap-4 sm:gap-10"></div>
+            <p id="achievementsHint" class="text-center text-[11px] sm:text-xs text-gray-500 mt-4"></p>
         </div>
 
         <!-- New Class Request Section -->
@@ -479,6 +496,12 @@
                 select_date_time: "الرجاء اختيار تاريخ ووقت الحصة",
                  free_trial_card_title: "🚀 ابدأ بحصتك التجريبية المجانية الآن!",
                 free_trial_card_desc: "استكشف منصة لبيب مع 20 دقيقة مجانية لكل المواد. (متاحة لمرة واحدة فقط)",
+                achievements_title: "إنجازاتي",
+                achievements_total_label: "مجموع النجوم",
+                achievements_next: "الهدف القادم:",
+                achievements_silver: "الميدالية الفضية",
+                achievements_gold: "الميدالية الذهبية",
+                achievements_cup: "الكأس",
                 booking_notes_label: "ملاحظات للحصة (اختياري):",
                 booking_notes_placeholder: "اكتب أي تفاصيل تود إخبار المعلم بها...",
                 preferred_teacher_label: "هل تفضل طلب معلم معين؟",
@@ -590,6 +613,12 @@
                 select_date_time: "Please select the session date and time",
                 free_trial_card_title: "🚀 Start Your Free Trial Session Now!",
                 free_trial_card_desc: "Explore Labeeb Platform with 20 free minutes for all subjects. (Available only once)",
+                achievements_title: "My Achievements",
+                achievements_total_label: "Total stars",
+                achievements_next: "Next goal:",
+                achievements_silver: "Silver Medal",
+                achievements_gold: "Gold Medal",
+                achievements_cup: "The Cup",
                 booking_notes_label: "Notes for the session (optional):",
                 booking_notes_placeholder: "Write any details you want to tell the teacher...",
                 preferred_teacher_label: "Do you prefer a specific teacher?",
@@ -791,6 +820,95 @@
             }
         }
 
+
+                // ==========================================
+        // ⭐ بطاقة الإنجازات (النجوم والميداليات والكؤوس)
+        // ==========================================
+        const ACH_SPRITE = '/static/images/rewards/rewards.svg';
+        const ACH_NS = 'http://www.w3.org/2000/svg';
+        const ACH_ITEMS = [
+            { base: 'medalSilver', vb: [120, 170], first: 1, count: 3, size: 22, width: 76, pos: [[28, 97], [49, 88], [70, 97]], label: 'achievements_silver' },
+            { base: 'medalGold',   vb: [120, 170], first: 4, count: 3, size: 22, width: 76, pos: [[28, 97], [49, 88], [70, 97]], label: 'achievements_gold' },
+            { base: 'cupTrophy',   vb: [160, 190], first: 7, count: 4, size: 20, width: 92, pos: [[36, 42], [59, 42], [82, 42], [105, 42]], label: 'achievements_cup', isCup: true }
+        ];
+
+        function achUse(id, transform) {
+            const u = document.createElementNS(ACH_NS, 'use');
+            u.setAttribute('href', `${ACH_SPRITE}#${id}`);
+            if (transform) u.setAttribute('transform', transform);
+            return u;
+        }
+
+        function renderAchievements(totalStars) {
+            const box = document.getElementById('achievementsTrophies');
+            if (!box) return;
+
+            const total = Number(totalStars) || 0;
+            const position = total % 10;          // نجوم الدورة الحالية (0..9)
+            const cups = Math.floor(total / 10);  // الكؤوس المكتسبة
+            const ofWord = currentLang === 'en' ? 'of' : 'من';
+
+            box.innerHTML = '';
+            let currentAssigned = false;
+            let hint = '';
+
+            ACH_ITEMS.forEach((it) => {
+                const filled = Math.max(0, Math.min(it.count, position - (it.first - 1)));
+                let state = 'locked';
+                if (filled >= it.count) {
+                    state = 'done';
+                } else if (!currentAssigned) {
+                    state = 'current';
+                    currentAssigned = true;
+                    hint = `${t('achievements_next')} ${t(it.label)} (${filled} ${ofWord} ${it.count})`;
+                }
+
+                const cell = document.createElement('div');
+                cell.className = 'flex flex-col items-center gap-1';
+
+                const wrap = document.createElement('div');
+                wrap.className = 'ach-' + state;
+                wrap.style.position = 'relative';
+                wrap.style.width = it.width + 'px';
+
+                const svg = document.createElementNS(ACH_NS, 'svg');
+                svg.setAttribute('viewBox', `0 0 ${it.vb[0]} ${it.vb[1]}`);
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.display = 'block';
+                svg.appendChild(achUse(it.base));
+                it.pos.forEach((p, i) => {
+                    svg.appendChild(achUse(i < filled ? 'starFaceted' : 'starOutline', `translate(${p[0]},${p[1]}) scale(${it.size / 100})`));
+                });
+                wrap.appendChild(svg);
+
+                if (it.isCup && cups > 0) {
+                    const badge = document.createElement('div');
+                    badge.className = 'absolute bg-white border-2 border-accentGold rounded-full px-2 text-[11px] font-black text-amber-800 shadow';
+                    badge.style.top = '-4px';
+                    badge.style.left = '-10px';
+                    badge.innerText = `×${cups}`;
+                    wrap.appendChild(badge);
+                }
+
+                const label = document.createElement('span');
+                label.className = 'text-[11px] sm:text-xs font-bold text-gray-600';
+                label.innerText = t(it.label);
+
+                cell.appendChild(wrap);
+                cell.appendChild(label);
+                box.appendChild(cell);
+            });
+
+            const totalEl = document.getElementById('achievementsTotal');
+            if (totalEl) {
+                totalEl.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 100 100"><use href="${ACH_SPRITE}#starFaceted"/></svg><span>${total}</span>`;
+                totalEl.title = t('achievements_total_label');
+            }
+            const hintEl = document.getElementById('achievementsHint');
+            if (hintEl) hintEl.innerText = hint;
+        }
+
         function listenToWallet() {
             if (!currentUser) return;
             db.collection('users').doc(currentUser.uid).onSnapshot((doc) => {
@@ -800,6 +918,7 @@
                     document.getElementById('pointsBalance').innerText = `${points} ${pointsWord}`;
                     const timeEl = document.getElementById('pointsTimeEquivalent');
                     if (timeEl) timeEl.innerText = `(${formatPointsAsTime(points)})`;
+                    renderAchievements(doc.data().totalStars || 0);
                 }
             });
         }
