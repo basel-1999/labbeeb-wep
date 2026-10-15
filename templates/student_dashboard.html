@@ -112,6 +112,11 @@
                 </svg>
                 <span id="notifBadge" class="hidden absolute top-0 right-0 bg-red-600 text-white text-[9px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
             </button>
+
+            <!-- زر تسجيل الخروج -->
+            <button onclick="logout()" title="تسجيل الخروج / Logout" class="shrink-0 p-1 text-gray-500 hover:text-red-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
         </div>
 
     </div>
@@ -502,6 +507,7 @@
                 achievements_silver: "الميدالية الفضية",
                 achievements_gold: "الميدالية الذهبية",
                 achievements_cup: "الكأس",
+                logout_confirm: "هل تريد تسجيل الخروج من حسابك؟",
                 booking_notes_label: "ملاحظات للحصة (اختياري):",
                 booking_notes_placeholder: "اكتب أي تفاصيل تود إخبار المعلم بها...",
                 preferred_teacher_label: "هل تفضل طلب معلم معين؟",
@@ -619,6 +625,7 @@
                 achievements_silver: "Silver Medal",
                 achievements_gold: "Gold Medal",
                 achievements_cup: "The Cup",
+                logout_confirm: "Do you want to log out of your account?",
                 booking_notes_label: "Notes for the session (optional):",
                 booking_notes_placeholder: "Write any details you want to tell the teacher...",
                 preferred_teacher_label: "Do you prefer a specific teacher?",
@@ -1796,6 +1803,13 @@
             }
         }
 
+                // 🚪 تسجيل الخروج
+        async function logout() {
+            if (!confirm(t('logout_confirm'))) return;
+            try { await auth.signOut(); } catch (e) { console.error(e); }
+            window.location.href = '/';
+        }
+        
         // Snackbar Utility
         function showSnackBar(text, color) {
             const snackbar = document.createElement('div');

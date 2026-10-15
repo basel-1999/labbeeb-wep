@@ -16,6 +16,7 @@ import json
 from datetime import datetime, timezone
 import httpx
 import asyncio
+import re
 
 load_dotenv()
 
@@ -710,7 +711,132 @@ async def register_teacher(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء الحفظ: {str(e)}")
 
+# ==========================================
+# 🔑 استرجاع كلمة مرور المعلم عبر SMS
+# ==========================================
+class ResetPrecheckRequest(BaseModel):
+    email: str
+    phone: str
 
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    phoneIdToken: str
+    newPassword: str
+
+
+# عدّاد محاولات فاشلة بالذاكرة (بيتصفّر لما السيرفر يعيد التشغيل): 5 محاولات كل 15 دقيقة لكل إيميل
+_reset_failures = {}
+RESET_MAX_FAILURES = 5
+RESET_WINDOW_SECONDS = 900
+
+
+def _reset_now() -> float:
+    return datetime.now(timezone.utc).timestamp()
+
+
+def _reset_blocked(email: str) -> bool:
+    key = email.strip().lower()
+    recent = [t for t in _reset_failures.get(key, []) if _reset_now() - t < RESET_WINDOW_SECONDS]
+    _reset_failures[key] = recent
+    return len(recent) >= RESET_MAX_FAILURES
+
+
+def _reset_register_failure(email: str):
+    key = email.strip().lower()
+    _reset_failures.setdefault(key, []).append(_reset_now())
+
+
+def _norm_phone(p) -> str:
+    return re.sub(r'[\s\-()]', '', (p or '').strip())
+
+
+def _find_teacher_by_email(email: str):
+    """يرجع (uid, بيانات الحساب) لو الإيميل لمعلم، وإلا None"""
+    try:
+        user_record = auth.get_user_by_email(email.strip().lower())
+    except (auth.UserNotFoundError, ValueError):
+        return None
+    snap = db.collection('users').document(user_record.uid).get()
+    if not snap.exists:
+        return None
+    data = snap.to_dict()
+    if data.get('role') != 'teacher':
+        return None
+    return user_record.uid, data
+
+
+@router.post("/api/teacher/reset-precheck")
+async def reset_precheck(payload: ResetPrecheckRequest):
+    """بيتأكد إنه الإيميل والرقم لنفس حساب المعلم، قبل ما نبعت أي رسالة SMS (بيوفر تكلفة الرسائل)"""
+    if _reset_blocked(payload.email):
+        raise HTTPException(status_code=429, detail="محاولات كثيرة. حاول بعد 15 دقيقة.")
+    try:
+        found = _find_teacher_by_email(payload.email)
+        ok = False
+        if found:
+            stored = _norm_phone(found[1].get('phone'))
+            ok = bool(stored) and stored == _norm_phone(payload.phone)
+        if not ok:
+            _reset_register_failure(payload.email)
+        return {"ok": ok}
+    except Exception as e:
+        print(f"❌ ERROR in reset_precheck: {e}")
+        return {"ok": False}
+
+
+@router.post("/api/teacher/reset-password")
+async def reset_teacher_password(payload: ResetPasswordRequest):
+    """تغيير كلمة المرور بعد التحقق من رمز SMS (توكن Firebase للهاتف)"""
+    def fail():
+        _reset_register_failure(payload.email)
+        return HTTPException(status_code=400, detail="تعذر تغيير كلمة المرور. تأكد من البيانات وأعد المحاولة.")
+
+    if _reset_blocked(payload.email):
+        raise HTTPException(status_code=429, detail="محاولات كثيرة. حاول بعد 15 دقيقة.")
+
+    if not re.match(r'^(?=.*[0-9])(?=.*[a-zA-Z]).{8,}$', payload.newPassword):
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تتكون من 8 خانات على الأقل وتحتوي على أحرف وأرقام.")
+
+    try:
+        # 1) التوكن لازم يكون حقيقي، من تسجيل دخول بالهاتف، وحديث (10 دقائق)
+        try:
+            decoded = auth.verify_id_token(payload.phoneIdToken)
+        except Exception:
+            raise fail()
+        if decoded.get('firebase', {}).get('sign_in_provider') != 'phone':
+            raise fail()
+        verified_phone = decoded.get('phone_number')
+        if not verified_phone or (_reset_now() - decoded.get('auth_time', 0)) > 600:
+            raise fail()
+
+        # 2) الحساب لازم يكون معلم، ورقمه المسجل هو نفسه الرقم اللي تم التحقق منه
+        found = _find_teacher_by_email(payload.email)
+        if not found:
+            raise fail()
+        teacher_uid, teacher_data = found
+        if _norm_phone(teacher_data.get('phone')) != _norm_phone(verified_phone):
+            raise fail()
+
+        # 3) تغيير كلمة المرور وإنهاء كل الجلسات القديمة
+        auth.update_user(teacher_uid, password=payload.newPassword)
+        auth.revoke_refresh_tokens(teacher_uid)
+
+        # 4) سجل تدقيق (ما حدا بيقراه من المتصفح، بس من لوحة Firebase أو الأدمن)
+        db.collection('password_resets').add({
+            'teacherId': teacher_uid,
+            'method': 'sms',
+            'createdAt': firestore.SERVER_TIMESTAMP
+        })
+
+        _reset_failures.pop(payload.email.strip().lower(), None)
+        return {"message": "تم تغيير كلمة المرور بنجاح"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in reset_teacher_password: {e}")
+        raise HTTPException(status_code=500, detail="خطأ داخلي في السيرفر.")
 
 # ==========================================
 # ✏️ طلب تعديل بيانات المعلم (يحتاج موافقة الإدارة)

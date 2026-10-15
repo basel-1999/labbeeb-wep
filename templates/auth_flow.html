@@ -667,6 +667,7 @@
 
         function toggleLoading(state) {
             isLoading = state;
+            if (state) authFlowBusy = true;
             document.getElementById('btnText').classList.toggle('hidden', state);
             document.getElementById('btnSpinner').classList.toggle('hidden', !state);
             document.getElementById('primaryBtn').disabled = state;
@@ -1146,6 +1147,33 @@ function sendOtp(rawPhone) {
                 completeStudentProfile();
             }
         }
+
+        // ==========================================
+        // 🔐 إبقاء المستخدم داخل حسابه (الجلسة محفوظة بالمتصفح لحد ما يضغط تسجيل خروج)
+        // ==========================================
+        let authFlowBusy = false;
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        (function restoreSavedSession() {
+            const unsub = auth.onAuthStateChanged(async (user) => {
+                unsub(); // بنفحص الجلسة المحفوظة مرة وحدة عند فتح الصفحة بس
+                if (!user || authFlowBusy) return;
+                try {
+                    const snap = await db.collection('users').doc(user.uid).get();
+                    if (!snap.exists) return;
+                    const d = snap.data();
+                    if (d.role === 'teacher') {
+                        window.location.replace('/teacher-dashboard?name=' + encodeURIComponent(d.name || 'معلم لبيب'));
+                    } else if (d.role === 'student') {
+                        if (d.name && d.name.trim() !== '' && d.name !== 'طالب لبيب') {
+                            window.location.replace('/student-dashboard?uid=' + user.uid + '&name=' + encodeURIComponent(d.name));
+                        } else if (role === 'student') {
+                            goToStep(4); // مسجّل دخول بس ما كمّل بياناته
+                        }
+                    }
+                } catch (e) { console.error('Restore session failed:', e); }
+            });
+        })();
     </script>
 </body>
 </html>

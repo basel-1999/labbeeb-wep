@@ -86,6 +86,9 @@
 </head>
 <body class="text-textDark">
 
+    <!-- شاشة تحميل قصيرة أثناء فحص الجلسة المحفوظة -->
+    <div id="autoLoginOverlay" style="position:fixed;inset:0;z-index:9999;background:#F4EFE6;display:flex;align-items:center;justify-content:center;font-family:'Cairo',sans-serif;font-weight:700;color:#4E6B45;font-size:18px;">جاري التحميل...</div>
+
     <!-- 1. الجزء الرئيسي العلوي (الترحيب + معرض الصور المتغيرة) -->
     <div class="min-h-screen flex items-center justify-center p-6 lg:p-10">
         <div class="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-16 max-w-[1250px] w-full">
@@ -269,6 +272,54 @@
             void showcaseImageElement.offsetWidth; // Trigger reflow
             showcaseImageElement.classList.add('fade-in');
         }, 2000); // كل ثانيتين
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        // 🔐 لو في جلسة محفوظة: تحويل مباشر للوحة المستخدم بدون تسجيل دخول من جديد
+        (function () {
+            const overlay = document.getElementById('autoLoginOverlay');
+            const hideOverlay = () => { if (overlay) overlay.style.display = 'none'; };
+            const safety = setTimeout(hideOverlay, 4000);
+
+            try {
+                firebase.initializeApp({
+                    apiKey: "AIzaSyAO-ziORrLtFb5bgS_byXNzLyDB5VIeLLI",
+                    authDomain: "labeeb-app-2026.firebaseapp.com",
+                    projectId: "labeeb-app-2026",
+                    storageBucket: "labeeb-app-2026.firebasestorage.app",
+                    messagingSenderId: "201953565667",
+                    appId: "1:201953565667:web:4cee64be63f85e19a99ed6"
+                });
+                const auth = firebase.auth();
+                const db = firebase.firestore();
+
+                const unsub = auth.onAuthStateChanged(async (user) => {
+                    unsub();
+                    let routed = false;
+                    try {
+                        if (user) {
+                            const snap = await db.collection('users').doc(user.uid).get();
+                            if (snap.exists) {
+                                const d = snap.data();
+                                if (d.role === 'teacher') {
+                                    window.location.replace('/teacher-dashboard?name=' + encodeURIComponent(d.name || 'معلم لبيب'));
+                                    routed = true;
+                                } else if (d.role === 'student' && d.name && d.name.trim() !== '' && d.name !== 'طالب لبيب') {
+                                    window.location.replace('/student-dashboard?uid=' + user.uid + '&name=' + encodeURIComponent(d.name));
+                                    routed = true;
+                                }
+                            }
+                        }
+                    } catch (e) { console.error('Auto login check failed:', e); }
+                    if (!routed) { clearTimeout(safety); hideOverlay(); }
+                });
+            } catch (e) {
+                console.error(e);
+                hideOverlay();
+            }
+        })();
     </script>
 </body>
 </html>
