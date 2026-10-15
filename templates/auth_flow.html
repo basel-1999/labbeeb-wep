@@ -117,7 +117,10 @@
                     <input type="email" id="teacherEmail" placeholder="example@email.com" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                     
                     <label class="text-sm font-bold block mb-2">كلمة المرور</label>
-                    <input type="password" id="teacherPassword" placeholder="********" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <input type="password" id="teacherPassword" placeholder="********" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                    <div class="text-left mb-2">
+                        <button type="button" onclick="openPasswordReset()" class="text-accentOrange font-bold text-xs underline">نسيت كلمة المرور؟</button>
+                    </div>
 
                     <div id="teacherSignupLink" class="text-center mt-5 hidden">
                         <button onclick="goToStep(2)" class="text-accentOrange font-bold text-sm underline">ليس لدي حساب؟ أكمل بيانات إنشاء حساب معلم</button>
@@ -164,8 +167,20 @@
                         <input type="password" id="signupPassword" placeholder="********" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
                     </div>
                     <div>
-                        <label class="text-sm font-bold block mb-1">رقم الموبايل</label>
-                        <input type="tel" id="signupPhone" placeholder="5xxxxxxxx" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+                        <label class="text-sm font-bold block mb-1">رقم الموبايل (بيُستخدم لاسترجاع كلمة المرور)</label>
+                        <div class="flex items-center bg-beigeCard rounded-xl overflow-hidden">
+                            <select id="signupCountryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
+                                <option value="+974">قطر +974</option>
+                                <option value="+966">السعودية +966</option>
+                                <option value="+970">فلسطين +970</option>
+                                <option value="+971">الإمارات +971</option>
+                                <option value="+965">الكويت +965</option>
+                                <option value="+962">الأردن +962</option>
+                                <option value="+20">مصر +20</option>
+                            </select>
+                            <div class="h-5 w-px bg-gray-300 mx-1"></div>
+                            <input type="tel" id="signupPhone" placeholder="5xxxxxxxx" class="bg-transparent py-3 px-2 flex-1 focus:outline-none text-sm">
+                        </div>
                     </div>
                     <div>
                         <label class="text-sm font-bold block mb-1">الاسم رباعي بالكامل</label>
@@ -354,6 +369,61 @@
                         <button type="button" id="langBtnAr" onclick="selectStudentLanguage('ar')" class="flex-1 py-2 border rounded-xl text-sm font-bold bg-oliveGreen text-white border-oliveGreen">العربية</button>
                         <button type="button" id="langBtnEn" onclick="selectStudentLanguage('en')" class="flex-1 py-2 border rounded-xl text-sm font-bold bg-white text-textDark border-gray-300">English (International)</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Teacher Password Reset (SMS) -->
+            <div id="step-5" class="step-content hidden-step">
+                <h2 class="text-xl font-bold mb-2">استرجاع كلمة المرور</h2>
+
+                <!-- المرحلة 1: التحقق من البيانات وإرسال الرمز -->
+                <div id="resetStageRequest">
+                    <p class="text-sm text-gray-500 mb-5 leading-relaxed">أدخل بريدك الإلكتروني ورقم جوالك المسجل بحسابك، وسنرسل لك رمز تحقق عبر رسالة نصية.</p>
+
+                    <label class="text-sm font-bold block mb-2">البريد الإلكتروني</label>
+                    <input type="email" id="resetEmail" placeholder="example@email.com" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+
+                    <label class="text-sm font-bold block mb-2">رقم الجوال المسجل</label>
+                    <div class="flex items-center bg-beigeCard rounded-xl overflow-hidden mb-5">
+                        <select id="resetCountryCode" class="bg-transparent py-3 px-2 font-bold text-sm focus:outline-none">
+                            <option value="+974">قطر +974</option>
+                            <option value="+966">السعودية +966</option>
+                            <option value="+970">فلسطين +970</option>
+                            <option value="+971">الإمارات +971</option>
+                            <option value="+965">الكويت +965</option>
+                            <option value="+962">الأردن +962</option>
+                            <option value="+20">مصر +20</option>
+                        </select>
+                        <div class="h-5 w-px bg-gray-300 mx-1"></div>
+                        <input type="tel" id="resetPhone" placeholder="5xxxxxxxx" class="bg-transparent py-3 px-2 flex-1 focus:outline-none text-sm">
+                    </div>
+
+                    <button type="button" id="resetSendBtn" data-label="إرسال رمز التحقق" onclick="sendResetCode()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition disabled:opacity-60">إرسال رمز التحقق</button>
+                </div>
+
+                <!-- المرحلة 2: الرمز وكلمة المرور الجديدة -->
+                <div id="resetStageVerify" class="hidden">
+                    <p class="text-sm text-gray-500 mb-5 leading-relaxed">أرسلنا رمزاً من 6 أرقام إلى جوالك. أدخله مع كلمة المرور الجديدة.</p>
+
+                    <label class="text-sm font-bold block mb-2">رمز التحقق</label>
+                    <input type="text" id="resetOtp" inputmode="numeric" maxlength="6" dir="ltr" placeholder="••••••" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-center text-xl tracking-widest font-bold mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+
+                    <label class="text-sm font-bold block mb-2">كلمة المرور الجديدة</label>
+                    <input type="password" id="resetNewPassword" placeholder="8 خانات على الأقل (أحرف وأرقام)" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+
+                    <label class="text-sm font-bold block mb-2">تأكيد كلمة المرور</label>
+                    <input type="password" id="resetConfirmPassword" placeholder="********" class="w-full bg-beigeCard rounded-xl py-3 px-4 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-oliveGreen">
+
+                    <button type="button" id="resetSubmitBtn" data-label="تغيير كلمة المرور" onclick="submitResetPassword()" class="w-full bg-oliveGreen text-white font-bold py-3 rounded-xl hover:bg-oliveLight transition disabled:opacity-60">تغيير كلمة المرور</button>
+
+                    <div class="text-center mt-4">
+                        <span id="resetTimerText" class="text-gray-500 text-sm"></span>
+                        <button type="button" id="resetResendBtn" onclick="resendResetCode()" class="hidden text-accentOrange font-bold text-sm">إعادة إرسال الرمز</button>
+                    </div>
+                </div>
+
+                <div class="text-center mt-5">
+                    <button type="button" onclick="goToStep(0)" class="text-gray-500 text-sm underline">العودة لتسجيل الدخول</button>
                 </div>
             </div>
 
@@ -629,7 +699,9 @@
             else if (step === 3) btnText.innerText = ''; // Hide button on step 3
             else btnText.innerText = 'استمرار للمرحلة التالية';
 
-            document.getElementById('primaryBtn').style.display = step === 3 ? 'none' : 'flex';
+            document.getElementById('primaryBtn').style.display = (step === 3 || step === 5) ? 'none' : 'flex';
+            const progressBox = document.getElementById('progressBarContainer');
+            if (progressBox && role === 'teacher') progressBox.classList.toggle('hidden', step === 5);
         }
 
         function goToStep(step) {
@@ -638,7 +710,7 @@
         }
 
         function previousStep() {
-            if (currentStep === 1 || currentStep === 2 || currentStep === 3 || currentStep === 4) {
+            if (currentStep === 1 || currentStep === 2 || currentStep === 3 || currentStep === 4 || currentStep === 5) {
                 goToStep(0);
             } else {
                 window.location.href = '/';
@@ -1072,7 +1144,10 @@ function sendOtp(rawPhone) {
             try {
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
-                const contactPhone = normalizePhone(document.getElementById('signupPhone').value);
+                const contactPhone = normalizePhoneWithCode(
+                    document.getElementById('signupPhone').value,
+                    document.getElementById('signupCountryCode').value
+                );
                 await registerTeacherDirectly(user, contactPhone);
             } catch (error) {
                 console.error('Signup Error:', error);
@@ -1174,6 +1249,170 @@ function sendOtp(rawPhone) {
                 } catch (e) { console.error('Restore session failed:', e); }
             });
         })();
+
+        // ==========================================
+        // 🔑 استرجاع كلمة مرور المعلم عبر SMS
+        // ==========================================
+        function normalizePhoneWithCode(rawPhone, code) {
+            let cleaned = (rawPhone || '').trim().replace(/[\s\-()]/g, '');
+            if (cleaned.startsWith('+')) return cleaned;
+            if (cleaned.startsWith('00')) return '+' + cleaned.substring(2);
+            if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+            return `${code}${cleaned}`;
+        }
+
+        let resetApp = null;
+        let resetAuth = null;
+        let resetVerifier = null;
+        let resetConfirmation = null;
+        let resetTimer = null;
+        let resetEmailValue = '';
+
+        // نسخة Firebase منفصلة لتأكيد ملكية الرقم بدون التأثير على جلسة المستخدم الرئيسية
+        function getResetAuth() {
+            if (!resetAuth) {
+                resetApp = firebase.initializeApp(firebaseConfig, 'phone-reset');
+                resetAuth = resetApp.auth();
+                resetAuth.setPersistence(firebase.auth.Auth.Persistence.NONE).catch(() => {});
+            }
+            return resetAuth;
+        }
+
+        function setResetBtn(id, busy, busyLabel) {
+            const b = document.getElementById(id);
+            if (!b) return;
+            b.disabled = busy;
+            b.innerText = busy ? busyLabel : (b.dataset.label || b.innerText);
+        }
+
+        function openPasswordReset() {
+            const typed = document.getElementById('teacherEmail').value.trim();
+            if (typed) document.getElementById('resetEmail').value = typed;
+            document.getElementById('resetStageRequest').classList.remove('hidden');
+            document.getElementById('resetStageVerify').classList.add('hidden');
+            goToStep(5);
+        }
+
+        function startResetTimer(seconds) {
+            clearInterval(resetTimer);
+            const txt = document.getElementById('resetTimerText');
+            const btn = document.getElementById('resetResendBtn');
+            btn.classList.add('hidden');
+            txt.classList.remove('hidden');
+            let left = seconds;
+            txt.innerText = `إعادة إرسال الرمز خلال ${left} ثانية`;
+            resetTimer = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(resetTimer);
+                    txt.classList.add('hidden');
+                    btn.classList.remove('hidden');
+                } else {
+                    txt.innerText = `إعادة إرسال الرمز خلال ${left} ثانية`;
+                }
+            }, 1000);
+        }
+
+        async function sendResetCode() {
+            const email = document.getElementById('resetEmail').value.trim();
+            const rawPhone = document.getElementById('resetPhone').value.trim();
+            const code = document.getElementById('resetCountryCode').value;
+            if (!email || !rawPhone) {
+                showSnackBar('الرجاء إدخال البريد الإلكتروني ورقم الجوال', '#D97706');
+                return;
+            }
+            const phone = normalizePhoneWithCode(rawPhone, code);
+
+            setResetBtn('resetSendBtn', true, 'جاري التحقق...');
+            try {
+                // 1) نتأكد إنه الإيميل والرقم لنفس حساب المعلم قبل ما نبعت أي رسالة
+                const pre = await fetch('/api/teacher/reset-precheck', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, phone })
+                });
+                if (pre.status === 429) throw new Error('محاولات كثيرة. حاول بعد 15 دقيقة.');
+                const preData = await pre.json().catch(() => ({ ok: false }));
+                if (!preData.ok) throw new Error('البريد الإلكتروني أو رقم الجوال غير مطابق لبيانات حساب معلم.');
+
+                // 2) إرسال رمز SMS
+                const ra = getResetAuth();
+                ra.languageCode = 'ar';
+                if (resetVerifier) { try { resetVerifier.clear(); } catch (e) {} resetVerifier = null; }
+                document.getElementById('recaptcha-container').innerHTML = '';
+                resetVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' }, resetApp);
+                resetConfirmation = await ra.signInWithPhoneNumber(phone, resetVerifier);
+
+                resetEmailValue = email;
+                document.getElementById('resetStageRequest').classList.add('hidden');
+                document.getElementById('resetStageVerify').classList.remove('hidden');
+                startResetTimer(60);
+                showSnackBar('تم إرسال رمز التحقق إلى جوالك 📩', '#4E6B45');
+            } catch (e) {
+                console.error('Reset send code error:', e);
+                let msg = e.message || 'تعذر إرسال الرمز.';
+                if (e.code === 'auth/too-many-requests') msg = 'محاولات كثيرة من هذا الجهاز. حاول لاحقاً.';
+                else if (e.code === 'auth/invalid-phone-number') msg = 'رقم الجوال غير صالح.';
+                else if (e.code === 'auth/quota-exceeded') msg = 'تعذر إرسال الرسائل حالياً، تواصل مع الإدارة.';
+                else if (e.code === 'auth/network-request-failed') msg = 'حدث خطأ في الاتصال بالشبكة.';
+                else if (e.code) msg = 'تعذر إرسال الرمز: ' + (e.message || e.code);
+                showSnackBar(msg, '#D97706');
+                if (resetVerifier) { try { resetVerifier.clear(); } catch (x) {} resetVerifier = null; }
+            } finally {
+                setResetBtn('resetSendBtn', false);
+            }
+        }
+
+        function resendResetCode() { sendResetCode(); }
+
+        async function submitResetPassword() {
+            const otp = document.getElementById('resetOtp').value.trim();
+            const p1 = document.getElementById('resetNewPassword').value;
+            const p2 = document.getElementById('resetConfirmPassword').value;
+
+            if (otp.length !== 6) { showSnackBar('الرجاء إدخال رمز التحقق كاملاً (6 أرقام)', '#D97706'); return; }
+            if (!/^(?=.*[0-9])(?=.*[a-zA-Z]).{8,}$/.test(p1)) {
+                showSnackBar('كلمة المرور يجب أن تتكون من 8 خانات على الأقل وتحتوي على أحرف وأرقام.', '#D97706');
+                return;
+            }
+            if (p1 !== p2) { showSnackBar('كلمتا المرور غير متطابقتين', '#D97706'); return; }
+            if (!resetConfirmation) { showSnackBar('انتهت الجلسة، أعد إرسال الرمز.', '#D97706'); return; }
+
+            setResetBtn('resetSubmitBtn', true, 'جاري التغيير...');
+            try {
+                const cred = await resetConfirmation.confirm(otp);
+                const phoneToken = await cred.user.getIdToken();
+                await getResetAuth().signOut();
+
+                const res = await fetch('/api/teacher/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: resetEmailValue, phoneIdToken: phoneToken, newPassword: p1 })
+                });
+                if (!res.ok) {
+                    let msg = 'تعذر تغيير كلمة المرور.';
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    throw new Error(msg);
+                }
+
+                clearInterval(resetTimer);
+                ['resetOtp', 'resetNewPassword', 'resetConfirmPassword'].forEach(id => { document.getElementById(id).value = ''; });
+                document.getElementById('teacherEmail').value = resetEmailValue;
+                document.getElementById('teacherPassword').value = '';
+                resetConfirmation = null;
+                showSnackBar('تم تغيير كلمة المرور بنجاح ✅ سجّل دخولك بكلمة المرور الجديدة', '#4E6B45');
+                goToStep(0);
+            } catch (e) {
+                console.error('Reset password error:', e);
+                let msg = e.message || 'تعذر تغيير كلمة المرور.';
+                if (e.code === 'auth/invalid-verification-code') msg = 'رمز التحقق غير صحيح.';
+                else if (e.code === 'auth/code-expired') msg = 'انتهت صلاحية الرمز، أعد إرسال رمز جديد.';
+                else if (e.code === 'auth/network-request-failed') msg = 'حدث خطأ في الاتصال بالشبكة.';
+                showSnackBar(msg, '#D97706');
+            } finally {
+                setResetBtn('resetSubmitBtn', false);
+            }
+        }
     </script>
 </body>
 </html>
