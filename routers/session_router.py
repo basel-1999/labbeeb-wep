@@ -509,22 +509,42 @@ async def award_star(sessionId: str, uid: str = Depends(get_current_user)):
             'createdAt': firestore.SERVER_TIMESTAMP
         })
 
-        # إشعار للطالب عند الكأس
-        if milestone == 'cup':
-            try:
-                lang = (student_ref.get().to_dict() or {}).get('preferredLanguage', 'ar')
-                if lang == 'en':
-                    title, body = 'Congratulations! You earned a cup 🏆', 'You completed 10 stars. Keep shining!'
-                else:
-                    title, body = 'مبروك! حصلت على كأس 🏆', 'أكملت 10 نجوم، واصل تألقك!'
+        # 🔔 إشعارات الطالب: نجمة جديدة، وإذا اكتملت ميدالية أو كأس بيوصله إشعار ثاني
+        try:
+            lang = (student_ref.get().to_dict() or {}).get('preferredLanguage', 'ar')
+            raw_name = ((session_snap.to_dict() or {}).get('teacherName') or '').strip()
+            teacher_name = re.sub(r'^(أ\.|الأستاذ|Mr\.)\s*', '', raw_name).strip()
+
+            if lang == 'en':
+                star_body = f"Teacher {teacher_name} awarded you a star." if teacher_name else "Your teacher awarded you a star."
+                texts = {
+                    'star': ('New star ⭐', star_body),
+                    'silver': ('Silver Medal 🥈', 'You earned a Silver Medal! You collected 3 stars.'),
+                    'gold': ('Gold Medal 🥇', 'You earned a Gold Medal! You collected 6 stars.'),
+                    'cup': ('Champion Cup 🏆', 'You earned the Cup! You collected 10 stars.'),
+                }
+            else:
+                star_body = f"تم منحك نجمة من الأستاذ {teacher_name}." if teacher_name else "تم منحك نجمة من معلمك."
+                texts = {
+                    'star': ('نجمة جديدة ⭐', star_body),
+                    'silver': ('ميدالية فضية 🥈', 'لقد حصلت على ميدالية فضية! أكملت 3 نجوم.'),
+                    'gold': ('ميدالية ذهبية 🥇', 'لقد حصلت على ميدالية ذهبية! أكملت 6 نجوم.'),
+                    'cup': ('كأس البطل 🏆', 'لقد حصلت على كأس! أكملت 10 نجوم.'),
+                }
+
+            to_send = [texts['star']]
+            if milestone:
+                to_send.append(texts[milestone])
+
+            for title, body in to_send:
                 student_ref.collection('notifications').add({
                     'title': title,
                     'body': body,
                     'read': False,
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
-            except Exception as e:
-                print(f"Failed to send cup notification: {e}")
+        except Exception as e:
+            print(f"Failed to send reward notification: {e}")
 
         return {
             "total": total,
