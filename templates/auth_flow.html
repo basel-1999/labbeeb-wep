@@ -811,22 +811,58 @@
             if (currentStep === 2) document.getElementById('btnText').innerText = 'تقديم طلب الحساب للمراجعة ✨';
         }
 
-        async function uploadOneFile(file, folder, token) {
-            const fd = new FormData();
-            fd.append('file', file);
-            fd.append('folder', folder);
-            const res = await fetch('/api/cloudinary/upload', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: fd
-            });
-            let data = {};
-            try { data = await res.json(); } catch (e) {}
-            if (!res.ok || !data.url) throw new Error(data.detail || 'فشل رفع الملف');
-            return data.url;
+        // ضغط الصور قبل الرفع (PDF بيضل متل ما هو)
+        const COMPRESS_MAX_DIM = 1600;   // أكبر بُعد بالبكسل
+        const COMPRESS_QUALITY = 0.82;   // جودة JPEG
+
+        async function compressImage(file) {
+            if (!/^image\/(jpeg|png)$/.test(file.type)) return file;
+            try {
+                const bitmap = await createImageBitmap(file); // بيراعي اتجاه الصورة (EXIF)
+                const scale = Math.min(1, COMPRESS_MAX_DIM / Math.max(bitmap.width, bitmap.height));
+                const w = Math.round(bitmap.width * scale);
+                const h = Math.round(bitmap.height * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff'; // خلفية بيضاء عشان شفافية الـ PNG
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(bitmap, 0, 0, w, h);
+                if (bitmap.close) bitmap.close();
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', COMPRESS_QUALITY));
+                if (!blob || blob.size >= file.size) return file; // إذا ما صغّر، منستخدم الأصلي
+                const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                return new File([blob], newName, { type: 'image/jpeg' });
+            } catch (e) {
+                return file; // لو صار أي مشكلة، منرفع الأصلي
+            }
         }
 
-        // رفع كل الملفات المختارة (بعد ما صار في مستخدم مسجل دخول)
+        async function uploadOneFile(file, folder, token, retries = 2) {
+            file = await compressImage(file);
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    fd.append('folder', folder);
+                    const res = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: fd
+                    });
+                    let data = {};
+                    try { data = await res.json(); } catch (e) {}
+                    if (!res.ok || !data.url) throw new Error(data.detail || 'فشل رفع الملف');
+                    return data.url;
+                } catch (e) {
+                    const isNetwork = e instanceof TypeError; // Failed to fetch
+                    if (!isNetwork || attempt === retries) throw e;
+                    await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+                }
+            }
+        }
+
+        // رفع كل الملفات المختارة بنفس الوقت (بعد ما صار في مستخدم مسجل دخول)
         async function uploadRegistrationFiles(user) {
             const token = await user.getIdToken();
             const labels = { cert: 'الشهادة', id: 'الهوية', exp: 'شهادة الخبرة', advDeg: 'شهادة الدرجة العلمية' };
@@ -837,23 +873,28 @@
                 ['advDeg', advDegFile, 'advanced_degrees']
             ].filter(j => j[1]);
 
-            let done = 0;
-            for (const [type, file, folder] of jobs) {
-                const existing = { cert: certificateUrl, id: idUrl, exp: expCertUrl, advDeg: advDegUrl }[type];
-                if (existing) { done++; continue; } // انرفع بمحاولة سابقة، ما منعيده
+            const existingUrls = { cert: certificateUrl, id: idUrl, exp: expCertUrl, advDeg: advDegUrl };
+            const pending = jobs.filter(([type]) => !existingUrls[type]); // اللي انرفع بمحاولة سابقة ما منعيده
 
-                setSubmitProgress(`جاري رفع ${labels[type]} (${done + 1}/${jobs.length})...`);
-                let url;
+            let done = jobs.length - pending.length;
+            setSubmitProgress(`جاري رفع الملفات (${done}/${jobs.length})...`);
+
+            const results = await Promise.all(pending.map(async ([type, file, folder]) => {
                 try {
-                    url = await uploadOneFile(file, folder, token);
+                    const url = await uploadOneFile(file, folder, token);
+                    done++;
+                    setSubmitProgress(`جاري رفع الملفات (${done}/${jobs.length})...`);
+                    return [type, file, url];
                 } catch (e) {
                     throw new Error(`فشل رفع ${labels[type]}: ${e.message}`);
                 }
+            }));
+
+            for (const [type, file, url] of results) {
                 if (type === 'cert') { certificateUrl = url; certificateName = file.name; }
                 else if (type === 'id') { idUrl = url; idName = file.name; }
                 else if (type === 'exp') { expCertUrl = url; expCertName = file.name; }
                 else { advDegUrl = url; advDegName = file.name; }
-                done++;
             }
         }
 
