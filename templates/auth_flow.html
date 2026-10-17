@@ -46,6 +46,10 @@
             z-index: 9999;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             animation: slideUp 0.3s ease-out;
+            max-width: 92vw;
+            width: max-content;
+            text-align: center;
+            line-height: 1.7;
         }
         @keyframes slideUp {
             from { bottom: -50px; opacity: 0; }
@@ -754,9 +758,87 @@
             snackbar.style.backgroundColor = color;
             snackbar.innerText = text;
             document.body.appendChild(snackbar);
+            const duration = Math.min(10000, Math.max(3500, String(text).length * 90));
             setTimeout(() => {
                 snackbar.remove();
-            }, 3500);
+            }, duration);
+        }
+
+        // ==========================================
+        // 🧯 رسائل أخطاء واضحة (تحويل أي خطأ لسبب صريح بالعربي)
+        // ==========================================
+        const NETWORK_ERROR_MSG = 'تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت، وإذا الإنترنت شغال فالخادم ممكن يكون في وضع الخمول أو قيد إعادة التشغيل، انتظر دقيقة وحاول مرة أخرى.';
+
+        const ERROR_MESSAGES = {
+            // --- Firebase Auth: البريد وكلمة المرور
+            'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة، تأكد من كتابته بشكل سليم (مثال: name@example.com).',
+            'auth/missing-email': 'لم تدخل البريد الإلكتروني.',
+            'auth/missing-password': 'لم تدخل كلمة المرور.',
+            'auth/user-not-found': 'لا يوجد حساب مسجل بهذا البريد الإلكتروني، يرجى إنشاء حساب جديد.',
+            'auth/wrong-password': 'كلمة المرور غير صحيحة.',
+            'auth/invalid-credential': 'بيانات الدخول غير صحيحة: إما البريد غير مسجل أو كلمة المرور خاطئة.',
+            'auth/email-already-in-use': 'هذا البريد الإلكتروني مسجل مسبقاً، سجّل دخولك بدل إنشاء حساب جديد.',
+            'auth/weak-password': 'كلمة المرور ضعيفة، يجب أن تتكون من 8 خانات على الأقل وتحتوي على أحرف وأرقام.',
+            'auth/user-disabled': 'تم تعطيل هذا الحساب من قبل إدارة المنصة، تواصل مع الإدارة.',
+            'auth/requires-recent-login': 'هذه العملية تحتاج تسجيل دخول حديث، سجّل خروجك ثم ادخل مرة أخرى.',
+            'app/already-registered': 'هذا البريد مسجل كمعلم بالفعل، يرجى تسجيل الدخول.',
+            // --- Firebase Auth: الجوال والرمز
+            'auth/invalid-phone-number': 'رقم الجوال غير صالح، تأكد من الرقم ومن مفتاح الدولة.',
+            'auth/missing-phone-number': 'لم تدخل رقم الجوال.',
+            'auth/invalid-verification-code': 'رمز التحقق غير صحيح، تأكد من الأرقام وأعد المحاولة.',
+            'auth/missing-verification-code': 'لم تدخل رمز التحقق.',
+            'auth/invalid-verification-id': 'جلسة التحقق غير صالحة، أعد إرسال الرمز.',
+            'auth/code-expired': 'انتهت صلاحية رمز التحقق، أعد إرسال رمز جديد.',
+            'auth/session-expired': 'انتهت جلسة التحقق، أعد إرسال الرمز.',
+            'auth/captcha-check-failed': 'فشل التحقق الأمني (reCAPTCHA)، أعد تحميل الصفحة وحاول مرة أخرى.',
+            'auth/invalid-app-credential': 'فشل التحقق الأمني للتطبيق، أعد تحميل الصفحة وحاول مرة أخرى.',
+            'auth/quota-exceeded': 'تم تجاوز الحد المسموح لإرسال الرسائل النصية حالياً، حاول لاحقاً أو تواصل مع الإدارة.',
+            // --- Firebase Auth: عام
+            'auth/too-many-requests': 'تم حظر الطلبات مؤقتاً من هذا الجهاز بسبب محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى.',
+            'auth/network-request-failed': 'فشل الاتصال بالإنترنت. تأكد من اتصالك وحاول مرة أخرى.',
+            'auth/operation-not-allowed': 'هذه الطريقة في التسجيل معطّلة حالياً، تواصل مع الإدارة.',
+            'auth/unauthorized-domain': 'هذا الموقع غير مصرّح له باستخدام خدمة تسجيل الدخول، تواصل مع الإدارة.',
+            'auth/user-token-expired': 'انتهت جلسة الدخول، سجّل دخولك من جديد.',
+            'auth/internal-error': 'حدث خطأ داخلي في خدمة المصادقة، حاول مرة أخرى بعد قليل.',
+            'auth/web-storage-unsupported': 'متصفحك يمنع حفظ البيانات (الكوكيز/التخزين)، فعّلها أو جرّب متصفحاً آخر.',
+            // --- Firestore
+            'permission-denied': 'ليس لديك صلاحية لتنفيذ هذه العملية (رفضتها قواعد أمان قاعدة البيانات). تواصل مع الإدارة.',
+            'unauthenticated': 'لم يتم التحقق من هويتك، سجّل دخولك من جديد.',
+            'unavailable': 'قاعدة البيانات غير متاحة حالياً، تأكد من الإنترنت وحاول بعد قليل.',
+            'deadline-exceeded': 'انتهت مهلة الاتصال بقاعدة البيانات، حاول مرة أخرى.',
+            'resource-exhausted': 'تم تجاوز الحد المسموح للطلبات على قاعدة البيانات، حاول لاحقاً.',
+            'not-found': 'البيانات المطلوبة غير موجودة.',
+            'already-exists': 'هذه البيانات موجودة مسبقاً.',
+            'failed-precondition': 'تعذر تنفيذ العملية بسبب حالة البيانات الحالية.',
+            'aborted': 'تم إيقاف العملية بسبب تعارض، حاول مرة أخرى.',
+            'cancelled': 'تم إلغاء العملية.'
+        };
+
+        // ctx: 'login' | 'signup' | 'otp' | 'generic'
+        function getErrorMessage(error, fallback = 'حدث خطأ', ctx = 'generic') {
+            const code = error && error.code ? String(error.code) : '';
+            const rawMsg = error && error.message ? String(error.message) : '';
+
+            if (ctx === 'login' && ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found'].includes(code)) {
+                return 'بيانات الدخول غير صحيحة: إما أنه لا يوجد حساب بهذا البريد الإلكتروني، أو كلمة المرور خاطئة. إذا ما عندك حساب أنشئ حساباً جديداً، وإذا نسيت كلمة المرور استخدم "نسيت كلمة المرور".';
+            }
+            if (ctx === 'signup' && ['auth/invalid-credential', 'auth/wrong-password'].includes(code)) {
+                return 'هذا البريد مسجل مسبقاً بكلمة مرور مختلفة. سجّل دخولك بكلمة المرور الصحيحة أو استخدم "نسيت كلمة المرور".';
+            }
+            if (ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
+
+            // فشل شبكة (fetch بيرمي TypeError)
+            if (error instanceof TypeError || /failed to fetch|networkerror|load failed|network request failed/i.test(rawMsg)) {
+                return NETWORK_ERROR_MSG;
+            }
+            // رسائل عربية جاهزة من الكود نفسه أو من السيرفر
+            if (/[\u0600-\u06FF]/.test(rawMsg)) return rawMsg;
+
+            // غير معروف: منعرض السبب التقني الحقيقي بدل رسالة عامة
+            const tech = (code || rawMsg).slice(0, 150);
+            return tech
+                ? `${fallback}. السبب التقني: ${tech}`
+                : `${fallback}. لم تصل أي تفاصيل إضافية عن السبب، تأكد من اتصالك وحاول مرة أخرى.`;
         }
 
         // ==========================================
@@ -838,6 +920,20 @@
             }
         }
 
+        const UPLOAD_STATUS_MSG = {
+            400: 'الخادم رفض الطلب (بيانات الملف غير صالحة)',
+            401: 'لم يتم التحقق من هويتك أو انتهت الجلسة، أعد المحاولة',
+            403: 'ليس لديك صلاحية رفع الملفات',
+            413: 'حجم الملف أكبر من المسموح به على الخادم، جرّب ملفاً أصغر',
+            415: 'نوع الملف غير مدعوم من الخادم',
+            422: 'الخادم رفض الملف (بيانات غير صالحة)',
+            429: 'محاولات رفع كثيرة، انتظر قليلاً ثم حاول مجدداً',
+            500: 'حدث خطأ داخلي في الخادم أثناء معالجة الملف',
+            502: 'الخادم غير متاح حالياً (قد يكون في وضع الخمول أو قيد إعادة التشغيل)، انتظر دقيقة وحاول مجدداً',
+            503: 'الخادم غير متاح حالياً (قد يكون في وضع الخمول أو قيد إعادة التشغيل)، انتظر دقيقة وحاول مجدداً',
+            504: 'الخادم تأخر بالرد (انتهت المهلة)، حاول مرة أخرى'
+        };
+
         async function uploadOneFile(file, folder, token, retries = 2) {
             file = await compressImage(file);
             for (let attempt = 0; attempt <= retries; attempt++) {
@@ -845,18 +941,35 @@
                     const fd = new FormData();
                     fd.append('file', file);
                     fd.append('folder', folder);
-                    const res = await fetch('/api/cloudinary/upload', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: fd
-                    });
+
+                    let res;
+                    try {
+                        res = await fetch('/api/cloudinary/upload', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: fd
+                        });
+                    } catch (netErr) {
+                        const err = new Error(NETWORK_ERROR_MSG);
+                        err.retriable = true;
+                        throw err;
+                    }
+
                     let data = {};
                     try { data = await res.json(); } catch (e) {}
-                    if (!res.ok || !data.url) throw new Error(data.detail || 'فشل رفع الملف');
+
+                    if (!res.ok || !data.url) {
+                        let detail = '';
+                        if (typeof data.detail === 'string') detail = data.detail;
+                        else if (Array.isArray(data.detail)) detail = data.detail.map(d => d.msg || '').filter(Boolean).join('، ');
+                        const statusMsg = UPLOAD_STATUS_MSG[res.status] || `فشل الرفع (رمز الخطأ ${res.status})`;
+                        const err = new Error(detail ? `${statusMsg} — السبب من الخادم: ${detail}` : statusMsg);
+                        err.retriable = [502, 503, 504].includes(res.status);
+                        throw err;
+                    }
                     return data.url;
                 } catch (e) {
-                    const isNetwork = e instanceof TypeError; // Failed to fetch
-                    if (!isNetwork || attempt === retries) throw e;
+                    if (!e.retriable || attempt === retries) throw e;
                     await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
                 }
             }
@@ -955,7 +1068,7 @@ function sendOtp(rawPhone) {
                 }).catch((error) => {
                     console.error('Firebase Auth Send OTP Error:', error);
                     toggleLoading(false);
-                    showSnackBar(`تعذر إرسال الرمز: ${error.message}`, '#D97706');
+                    showSnackBar(getErrorMessage(error, 'تعذر إرسال رمز التحقق', 'otp'), '#D97706');
                 });
         }
 
@@ -1049,7 +1162,7 @@ function sendOtp(rawPhone) {
             } catch (error) {
                 console.error('Verification Error:', error);
                 toggleLoading(false);
-                showSnackBar(`خطأ في التحقق: ${error.message || 'رمز التحقق غير صحيح، حاول مجدداً'}`, '#D97706');
+                showSnackBar(getErrorMessage(error, 'تعذر التحقق من الرمز', 'otp'), '#D97706');
             }
         }
 
@@ -1089,7 +1202,7 @@ function sendOtp(rawPhone) {
                 showSnackBar('تم تقديم طلب التسجيل بنجاح ✅ سيتم مراجعة بياناتك قريباً', '#4E6B45');
             } catch (error) {
                 toggleLoading(false);
-                showSnackBar(`حدث خطأ أثناء التسجيل: ${error.message}`, '#D97706');
+                showSnackBar(getErrorMessage(error, 'حدث خطأ أثناء التسجيل'), '#D97706');
             }
         }
 
@@ -1118,7 +1231,7 @@ function sendOtp(rawPhone) {
             } catch (error) {
                 console.error('Complete Profile Error:', error);
                 toggleLoading(false);
-                showSnackBar(`حدث خطأ أثناء حفظ بياناتك: ${error.message}`, '#ef4444');
+                showSnackBar(getErrorMessage(error, 'حدث خطأ أثناء حفظ بياناتك'), '#ef4444');
             }
         }
 
@@ -1155,29 +1268,7 @@ function sendOtp(rawPhone) {
             } catch (error) {
                 console.error('Login Error:', error);
                 toggleLoading(false);
-                let errorMsg = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
-                switch (error.code) {
-                    case 'auth/invalid-email':
-                        errorMsg = 'صيغة البريد الإلكتروني غير صحيحة.';
-                        break;
-                    case 'auth/user-not-found':
-                        errorMsg = 'لا يوجد حساب بهذا البريد الإلكتروني، يرجى إنشاء حساب جديد.';
-                        break;
-                    case 'auth/wrong-password':
-                    case 'auth/invalid-credential':
-                        errorMsg = 'بيانات الدخول غير صحيحة. تأكد من البريد الإلكتروني وكلمة المرور.';
-                        break;
-                    case 'auth/user-disabled':
-                        errorMsg = 'تم تعطيل هذا الحساب من قبل إدارة المنصة.';
-                        break;
-                    case 'auth/too-many-requests':
-                        errorMsg = 'تم حظر الوصول مؤقتاً بسبب محاولات دخول خاطئة كثيرة. حاول لاحقاً.';
-                        break;
-                    case 'auth/network-request-failed':
-                        errorMsg = 'حدث خطأ في الاتصال بالشبكة. تأكد من اتصالك بالإنترنت.';
-                        break;
-                }
-                showSnackBar(errorMsg, '#D97706');
+showSnackBar(getErrorMessage(error, 'تعذر تسجيل الدخول', 'login'), '#D97706');
             }
         }
 
@@ -1232,34 +1323,7 @@ function sendOtp(rawPhone) {
                 console.error('Signup Error:', error);
                 toggleLoading(false);
                 restoreSubmitLabel();
-                let errorMsg = error.code
-                    ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.'
-                    : (error.message || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
-                switch (error.code) {
-                    case 'app/already-registered':
-                        errorMsg = 'هذا البريد مسجل كمعلم بالفعل. يرجى تسجيل الدخول.';
-                        break;
-                    case 'auth/wrong-password':
-                    case 'auth/invalid-credential':
-                        errorMsg = 'هذا البريد مسجل مسبقاً بكلمة مرور مختلفة. سجّل دخولك أو استخدم "نسيت كلمة المرور".';
-                        break;
-                    case 'auth/weak-password':
-                        errorMsg = 'كلمة المرور ضعيفة، يجب أن تتكون من 6 أحرف على الأقل.';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMsg = 'صيغة البريد الإلكتروني غير صحيحة.';
-                        break;
-                    case 'auth/network-request-failed':
-                        errorMsg = 'حدث خطأ في الاتصال بالشبكة. تأكد من اتصالك بالإنترنت.';
-                        break;
-                    case 'auth/operation-not-allowed':
-                        errorMsg = 'تم تعطيل التسجيل بالبريد الإلكتروني مؤقتاً. تواصل مع الإدارة.';
-                        break;
-                    case 'auth/too-many-requests':
-                        errorMsg = 'محاولات كثيرة. حاول لاحقاً.';
-                        break;
-                }
-                showSnackBar(errorMsg, '#D97706');
+showSnackBar(getErrorMessage(error, 'تعذر إنشاء الحساب', 'signup'), '#D97706');
             }
         }
 
@@ -1438,13 +1502,7 @@ function sendOtp(rawPhone) {
                 showSnackBar('تم إرسال رمز التحقق إلى جوالك 📩', '#4E6B45');
             } catch (e) {
                 console.error('Reset send code error:', e);
-                let msg = e.message || 'تعذر إرسال الرمز.';
-                if (e.code === 'auth/too-many-requests') msg = 'محاولات كثيرة من هذا الجهاز. حاول لاحقاً.';
-                else if (e.code === 'auth/invalid-phone-number') msg = 'رقم الجوال غير صالح.';
-                else if (e.code === 'auth/quota-exceeded') msg = 'تعذر إرسال الرسائل حالياً، تواصل مع الإدارة.';
-                else if (e.code === 'auth/network-request-failed') msg = 'حدث خطأ في الاتصال بالشبكة.';
-                else if (e.code) msg = 'تعذر إرسال الرمز: ' + (e.message || e.code);
-                showSnackBar(msg, '#D97706');
+showSnackBar(getErrorMessage(e, 'تعذر إرسال الرمز'), '#D97706');
                 if (resetVerifier) { try { resetVerifier.clear(); } catch (x) {} resetVerifier = null; }
             } finally {
                 setResetBtn('resetSendBtn', false);
@@ -1492,11 +1550,7 @@ function sendOtp(rawPhone) {
                 goToStep(0);
             } catch (e) {
                 console.error('Reset password error:', e);
-                let msg = e.message || 'تعذر تغيير كلمة المرور.';
-                if (e.code === 'auth/invalid-verification-code') msg = 'رمز التحقق غير صحيح.';
-                else if (e.code === 'auth/code-expired') msg = 'انتهت صلاحية الرمز، أعد إرسال رمز جديد.';
-                else if (e.code === 'auth/network-request-failed') msg = 'حدث خطأ في الاتصال بالشبكة.';
-                showSnackBar(msg, '#D97706');
+showSnackBar(getErrorMessage(e, 'تعذر تغيير كلمة المرور'), '#D97706');
             } finally {
                 setResetBtn('resetSubmitBtn', false);
             }
