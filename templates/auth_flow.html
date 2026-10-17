@@ -289,7 +289,7 @@
                         <div id="certIcon" class="text-accentOrange">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                         </div>
-                        <span id="certText" class="text-sm text-gray-700">اختر الشهادة لرفعها مباشرة</span>
+                        <span id="certText" class="text-sm text-gray-700">اختر ملف الشهادة (PDF أو صورة)</span>
                     </div>
 
                     <!-- Advanced Degree Certificate Upload (يظهر فقط إذا ماجستير/دكتوراه) -->
@@ -309,7 +309,7 @@
                         <div id="idIcon" class="text-accentOrange">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </div>
-                        <span id="idText" class="text-sm text-gray-700">اختر الهوية الشخصية أو جواز السفر لرفعها</span>
+                        <span id="idText" class="text-sm text-gray-700">اختر الهوية الشخصية أو جواز السفر (PDF أو صورة)</span>
                     </div>
 
                     <!-- Experience Certificate Upload -->
@@ -318,7 +318,7 @@
                         <div id="expIcon" class="text-accentOrange">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                         </div>
-                        <span id="expText" class="text-sm text-gray-700">رفع أقوى شهادة خبرة (اضغط لاختيار ملف شهادة الخبرة)</span>
+                        <span id="expText" class="text-sm text-gray-700">اختر أقوى شهادة خبرة (PDF أو صورة)</span>
                     </div>
                 </div>
             </div>
@@ -435,6 +435,8 @@
 
         </div>
     </main>
+
+    <script src="/static/js/password_toggle.js"></script>
 
     <script>
         // ==========================================
@@ -587,6 +589,7 @@
                 document.getElementById('advDegText').classList.remove('text-oliveGreen', 'font-bold');
                 advDegUrl = null;
                 advDegName = '';
+                advDegFile = null;
             }
         }
 
@@ -759,83 +762,98 @@
         // ==========================================
         // ☁️ Cloudinary Upload Logic (Calls FastAPI)
         // ==========================================
-        async function uploadFile(type) {
+        const MAX_UPLOAD_MB = 10;
+        const ALLOWED_UPLOAD_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+        let certFile = null, idFile = null, expFile = null, advDegFile = null;
+
+        // اختيار ملف: بنحفظه بالذاكرة بس. الرفع الفعلي بيصير عند الإرسال بعد إنشاء الحساب
+        // (الاسم "uploadFile" ضلّ زي ما هو عشان أزرار الصفحة ما تتغيّر)
+        function uploadFile(type) {
             const inputMap = { cert: 'certInput', id: 'idInput', exp: 'expInput', advDeg: 'advDegInput' };
             const textMap = { cert: 'certText', id: 'idText', exp: 'expText', advDeg: 'advDegText' };
             const iconMap = { cert: 'certIcon', id: 'idIcon', exp: 'expIcon', advDeg: 'advDegIcon' };
-            const folderMap = { cert: 'certificates', id: 'identity_documents', exp: 'experience_certificates', advDeg: 'advanced_degrees' };
 
-            const fileInput = document.getElementById(inputMap[type]);
-            const file = fileInput.files[0];
+            const input = document.getElementById(inputMap[type]);
+            const file = input.files[0];
             if (!file) return;
 
-            const user = auth.currentUser;
-            if (!user) {
-                showSnackBar('يجب تسجيل الدخول أولاً لرفع الملفات', '#D97706');
+            if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
+                input.value = '';
+                showSnackBar('نوع الملف غير مدعوم. اختر PDF أو صورة JPG/PNG.', '#D97706');
+                return;
+            }
+            if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+                input.value = '';
+                showSnackBar(`حجم الملف كبير. الحد الأقصى ${MAX_UPLOAD_MB} ميجابايت.`, '#D97706');
                 return;
             }
 
+            if (type === 'cert') { certFile = file; certificateUrl = null; }
+            else if (type === 'id') { idFile = file; idUrl = null; }
+            else if (type === 'exp') { expFile = file; expCertUrl = null; }
+            else { advDegFile = file; advDegUrl = null; }
+
             const textEl = document.getElementById(textMap[type]);
-            const loadingLabels = { cert: 'جاري رفع الشهادة...', id: 'جاري رفع الهوية / جواز السفر...', exp: 'جاري رفع شهادة الخبرة...', advDeg: 'جاري رفع شهادة الدرجة العلمية...' };
-            textEl.innerText = loadingLabels[type];
+            textEl.innerText = `✓ ${file.name}`;
+            textEl.classList.add('text-oliveGreen', 'font-bold');
+            const iconEl = document.getElementById(iconMap[type]);
+            iconEl.classList.remove('text-accentOrange', 'text-accentGold');
+            iconEl.classList.add('text-oliveGreen');
+        }
 
-            if (type === 'cert') isProcessingFile = true;
-            else if (type === 'id') isProcessingIdFile = true;
-            else if (type === 'exp') isProcessingExpFile = true;
-            else isProcessingAdvDegFile = true;
+        function setSubmitProgress(text) {
+            const el = document.getElementById('btnText');
+            el.classList.remove('hidden');
+            el.innerText = text;
+        }
 
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', folderMap[type]);
+        function restoreSubmitLabel() {
+            if (currentStep === 2) document.getElementById('btnText').innerText = 'تقديم طلب الحساب للمراجعة ✨';
+        }
 
-            try {
-                const token = await user.getIdToken();
-                const response = await fetch('/api/cloudinary/upload', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-                const data = await response.json();
-                
-                if (data.url) {
-                    if (type === 'cert') { certificateUrl = data.url; certificateName = file.name; }
-                    else if (type === 'id') { idUrl = data.url; idName = file.name; }
-                    else if (type === 'exp') { expCertUrl = data.url; expCertName = file.name; }
-                    else { advDegUrl = data.url; advDegName = file.name; }
+        async function uploadOneFile(file, folder, token) {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('folder', folder);
+            const res = await fetch('/api/cloudinary/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: fd
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok || !data.url) throw new Error(data.detail || 'فشل رفع الملف');
+            return data.url;
+        }
 
-                    const successLabels = {
-                        cert: `تم رفع الشهادة: ${file.name}`,
-                        id: `تم رفع الهوية: ${file.name}`,
-                        exp: `تم رفع شهادة الخبرة: ${file.name}`,
-                        advDeg: `تم رفع شهادة الدرجة العلمية: ${file.name}`
-                    };
-                    textEl.innerText = successLabels[type];
-                    textEl.classList.add('text-oliveGreen', 'font-bold');
-                    document.getElementById(iconMap[type]).classList.replace('text-accentOrange', 'text-oliveGreen');
-                    const successMsgs = {
-                        cert: 'تم رفع الشهادة بنجاح 📄',
-                        id: 'تم رفع الهوية أو جواز السفر بنجاح 🪪',
-                        exp: 'تم رفع شهادة الخبرة بنجاح 🏅',
-                        advDeg: 'تم رفع شهادة الدرجة العلمية بنجاح 🎓'
-                    };
-                    showSnackBar(successMsgs[type], '#4E6B45');
-                } else {
-                    throw new Error(data.detail || 'Upload failed');
+        // رفع كل الملفات المختارة (بعد ما صار في مستخدم مسجل دخول)
+        async function uploadRegistrationFiles(user) {
+            const token = await user.getIdToken();
+            const labels = { cert: 'الشهادة', id: 'الهوية', exp: 'شهادة الخبرة', advDeg: 'شهادة الدرجة العلمية' };
+            const jobs = [
+                ['cert', certFile, 'certificates'],
+                ['id', idFile, 'identity_documents'],
+                ['exp', expFile, 'experience_certificates'],
+                ['advDeg', advDegFile, 'advanced_degrees']
+            ].filter(j => j[1]);
+
+            let done = 0;
+            for (const [type, file, folder] of jobs) {
+                const existing = { cert: certificateUrl, id: idUrl, exp: expCertUrl, advDeg: advDegUrl }[type];
+                if (existing) { done++; continue; } // انرفع بمحاولة سابقة، ما منعيده
+
+                setSubmitProgress(`جاري رفع ${labels[type]} (${done + 1}/${jobs.length})...`);
+                let url;
+                try {
+                    url = await uploadOneFile(file, folder, token);
+                } catch (e) {
+                    throw new Error(`فشل رفع ${labels[type]}: ${e.message}`);
                 }
-            } catch (error) {
-                const failLabels = {
-                    cert: 'فشل رفع الشهادة',
-                    id: 'فشل رفع الهوية',
-                    exp: 'فشل رفع شهادة الخبرة',
-                    advDeg: 'فشل رفع شهادة الدرجة العلمية'
-                };
-                textEl.innerText = failLabels[type];
-                showSnackBar(`فشل رفع الملف: ${error.message}`, '#D97706');
-            } finally {
-                if (type === 'cert') isProcessingFile = false;
-                else if (type === 'id') isProcessingIdFile = false;
-                else if (type === 'exp') isProcessingExpFile = false;
-                else isProcessingAdvDegFile = false;
+                if (type === 'cert') { certificateUrl = url; certificateName = file.name; }
+                else if (type === 'id') { idUrl = url; idName = file.name; }
+                else if (type === 'exp') { expCertUrl = url; expCertName = file.name; }
+                else { advDegUrl = url; advDegName = file.name; }
+                done++;
             }
         }
 
@@ -1124,16 +1142,15 @@ function sendOtp(rawPhone) {
 
         // ✨ دالة إنشاء حساب معلم جديد بالإيميل
         async function createTeacherAccount() {
-            // ✨ قراءة الإيميل والباسوورد مباشرة من الحقول داخل الدالة
             const email = document.getElementById('signupEmail')?.value.trim();
             const password = document.getElementById('signupPassword')?.value;
-            
+
             if (!email || !password) {
                 showSnackBar('الرجاء إدخال البريد الإلكتروني وكلمة المرور بشكل صحيح', '#D97706');
                 return;
             }
 
-            // ✨ التحقق من قوة كلمة المرور (8 خانات على الأقل، أحرف وأرقام)
+            // التحقق من قوة كلمة المرور (8 خانات على الأقل، أحرف وأرقام)
             const passwordRegex = /^(?=.*[0-9])(?=.*[a-zA-Z]).{8,}$/;
             if (!passwordRegex.test(password)) {
                 showSnackBar('كلمة المرور يجب أن تتكون من 8 خانات على الأقل وتحتوي على أحرف وأرقام.', '#D97706');
@@ -1142,20 +1159,48 @@ function sendOtp(rawPhone) {
 
             toggleLoading(true);
             try {
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const user = userCredential.user;
+                // 1) إنشاء الحساب، أو متابعة تسجيل ناقص لنفس الإيميل من محاولة سابقة فشلت
+                let user;
+                try {
+                    user = (await auth.createUserWithEmailAndPassword(email, password)).user;
+                } catch (err) {
+                    if (err.code !== 'auth/email-already-in-use') throw err;
+                    const cred = await auth.signInWithEmailAndPassword(email, password); // كلمة سر غلط => بيرمي خطأ
+                    const snap = await db.collection('users').doc(cred.user.uid).get();
+                    if (snap.exists && snap.data().role) {
+                        await auth.signOut();
+                        const alreadyErr = new Error('already registered');
+                        alreadyErr.code = 'app/already-registered';
+                        throw alreadyErr;
+                    }
+                    user = cred.user; // تسجيل ناقص: بنكمّله
+                }
+
+                // 2) رفع الملفات (هلق في مستخدم مسجل دخول)
+                await uploadRegistrationFiles(user);
+
+                // 3) حفظ بيانات المعلم
+                setSubmitProgress('جاري حفظ بياناتك...');
                 const contactPhone = normalizePhoneWithCode(
                     document.getElementById('signupPhone').value,
                     document.getElementById('signupCountryCode').value
                 );
                 await registerTeacherDirectly(user, contactPhone);
+                restoreSubmitLabel();
             } catch (error) {
                 console.error('Signup Error:', error);
                 toggleLoading(false);
-                let errorMsg = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+                restoreSubmitLabel();
+                let errorMsg = error.code
+                    ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.'
+                    : (error.message || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
                 switch (error.code) {
-                    case 'auth/email-already-in-use':
-                        errorMsg = 'هذا البريد الإلكتروني مستخدم بالفعل. يرجى تسجيل الدخول.';
+                    case 'app/already-registered':
+                        errorMsg = 'هذا البريد مسجل كمعلم بالفعل. يرجى تسجيل الدخول.';
+                        break;
+                    case 'auth/wrong-password':
+                    case 'auth/invalid-credential':
+                        errorMsg = 'هذا البريد مسجل مسبقاً بكلمة مرور مختلفة. سجّل دخولك أو استخدم "نسيت كلمة المرور".';
                         break;
                     case 'auth/weak-password':
                         errorMsg = 'كلمة المرور ضعيفة، يجب أن تتكون من 6 أحرف على الأقل.';
@@ -1169,11 +1214,13 @@ function sendOtp(rawPhone) {
                     case 'auth/operation-not-allowed':
                         errorMsg = 'تم تعطيل التسجيل بالبريد الإلكتروني مؤقتاً. تواصل مع الإدارة.';
                         break;
+                    case 'auth/too-many-requests':
+                        errorMsg = 'محاولات كثيرة. حاول لاحقاً.';
+                        break;
                 }
                 showSnackBar(errorMsg, '#D97706');
             }
         }
-
 
         function handlePrimaryButton() {
             if (isLoading) return;
@@ -1206,11 +1253,11 @@ function sendOtp(rawPhone) {
                     !selectedTeachingLanguage ||
                     selectedDevices.length === 0 ||
                     !selectedAcademicDegree ||
-                    !certificateUrl || !idUrl || !expCertUrl) {
+                    !certFile || !idFile || !expFile) {
                     showSnackBar('الرجاء إدخال كافة الحقول واختيار لغة التدريس والأجهزة والدرجة العلمية ورفع الشهادة والهوية وشهادة الخبرة المطلوبة', '#D97706');
                     return;
                 }
-                if ((selectedAcademicDegree === 'ماجستير' || selectedAcademicDegree === 'دكتوراه') && !advDegUrl) {
+                if ((selectedAcademicDegree === 'ماجستير' || selectedAcademicDegree === 'دكتوراه') && !advDegFile) {
                     showSnackBar('يرجى رفع ملف شهادة الدرجة العلمية العليا (الماجستير/الدكتوراه)', '#D97706');
                     return;
                 }
