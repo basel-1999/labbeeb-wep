@@ -854,7 +854,7 @@
             if (/[\u0600-\u06FF]/.test(rawMsg)) return rawMsg;
 
             // غير معروف: منعرض السبب التقني الحقيقي بدل رسالة عامة
-            const tech = (code || rawMsg).slice(0, 150);
+            const tech = ((error && error.name ? error.name + ': ' : '') + (rawMsg || code)).slice(0, 150);
             return tech
                 ? `${fallback}. السبب التقني: ${tech}`
                 : `${fallback}. لم تصل أي تفاصيل إضافية عن السبب، تأكد من اتصالك وحاول مرة أخرى.`;
@@ -1220,8 +1220,10 @@ function sendOtp(rawPhone) {
                 document.getElementById('pendingMsg').innerText = `أهلاً بك يا أستاذ ${document.getElementById('fullName').value.trim()} في منصة لبيب. تم رفع شهادتك وهويتك وحفظ طلبك في قاعدة البيانات، وستصلك رسالة فور تفعيل الحساب من الإدارة.`;
                 showSnackBar('تم تقديم طلب التسجيل بنجاح ✅ سيتم مراجعة بياناتك قريباً', '#4E6B45');
             } catch (error) {
+                console.error('registerTeacherDirectly failed:', error.code, error.message,
+                    '| uid:', user && user.uid, '| currentUser:', auth.currentUser && auth.currentUser.uid);
                 toggleLoading(false);
-                showSnackBar(getErrorMessage(error, 'حدث خطأ أثناء التسجيل'), '#D97706');
+                showSnackBar('(حفظ البيانات) ' + getErrorMessage(error, 'حدث خطأ أثناء التسجيل'), '#D97706');
             }
         }
 
@@ -1291,6 +1293,23 @@ showSnackBar(getErrorMessage(error, 'تعذر تسجيل الدخول', 'login')
             }
         }
 
+                // نتأكد إنه جلسة Firebase شغالة وعندها توكن صالح قبل أي رفع أو كتابة (مع إعادة محاولة)
+        async function ensureSignedIn(user) {
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
+                        await auth.updateCurrentUser(user);
+                    }
+                    await auth.currentUser.getIdToken(true);
+                    return;
+                } catch (e) {
+                    console.warn('ensureSignedIn retry', attempt + 1, e);
+                    if (attempt === 2) throw e;
+                    await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+                }
+            }
+        }
+
         // ✨ دالة إنشاء حساب معلم جديد بالإيميل
         async function createTeacherAccount() {
             const email = document.getElementById('signupEmail')?.value.trim();
@@ -1309,6 +1328,7 @@ showSnackBar(getErrorMessage(error, 'تعذر تسجيل الدخول', 'login')
             }
 
             toggleLoading(true);
+            let stage = 'إنشاء الحساب';
             try {
                 // 1) إنشاء الحساب، أو متابعة تسجيل ناقص لنفس الإيميل من محاولة سابقة فشلت
                 let user;
@@ -1328,9 +1348,13 @@ showSnackBar(getErrorMessage(error, 'تعذر تسجيل الدخول', 'login')
                 }
 
                 // 2) رفع الملفات (هلق في مستخدم مسجل دخول)
+                stage = 'رفع الملفات';
+                await ensureSignedIn(user);
                 await uploadRegistrationFiles(user);
 
                 // 3) حفظ بيانات المعلم
+                stage = 'حفظ البيانات';
+                await ensureSignedIn(user);
                 setSubmitProgress('جاري حفظ بياناتك...');
                 const contactPhone = normalizePhoneWithCode(
                     document.getElementById('signupPhone').value,
@@ -1342,7 +1366,7 @@ showSnackBar(getErrorMessage(error, 'تعذر تسجيل الدخول', 'login')
                 console.error('Signup Error:', error);
                 toggleLoading(false);
                 restoreSubmitLabel();
-showSnackBar(getErrorMessage(error, 'تعذر إنشاء الحساب', 'signup'), '#D97706');
+showSnackBar(getErrorMessage(error, 'تعذر إنشاء الحساب (المرحلة: ' + stage + ')', 'signup'), '#D97706');
             }
         }
 

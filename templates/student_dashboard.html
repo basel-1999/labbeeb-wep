@@ -1348,8 +1348,7 @@
 
         async function loadPreviousTeachers() {
             const select = document.getElementById('preferredTeacherSelect');
-            
-            // التأكد أولاً من تسجيل الدخول وجلب المستخدم الحالي
+
             const user = currentUser || auth.currentUser;
             if (!user) {
                 select.innerHTML = `<option value="">${t('wait_user_data')}</option>`;
@@ -1357,53 +1356,37 @@
             }
 
             select.innerHTML = `<option value="">${t('loading_teachers')}</option>`;
-            
+
             try {
                 const snapshot = await db.collection('sessions')
                     .where('studentId', '==', user.uid)
                     .get();
 
-                const teacherIds = new Set();
-                
-                if (snapshot.empty) {
-                    select.innerHTML = `<option value="">${t('no_previous_teachers')}</option>`;
-                    return;
-                }
-
+                // الاسم بيجي من وثيقة الحصة نفسها، فما منحتاج نقرأ ملفات المعلمين
+                const teachers = new Map();
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     if (data.teacherId && ['completed', 'accepted', 'active'].includes(data.status)) {
-                        teacherIds.add(data.teacherId);
+                        teachers.set(data.teacherId, data.teacherName || data.teacher || data.instructorName || t('default_teacher_name'));
                     }
                 });
 
-                if (teacherIds.size === 0) {
+                if (teachers.size === 0) {
                     select.innerHTML = `<option value="">${t('no_previous_teachers')}</option>`;
                     return;
                 }
 
                 select.innerHTML = `<option value="">${t('select_teacher_option')}</option>`;
-                
-                for (const id of teacherIds) {
-                    const userDoc = await db.collection('users').doc(id).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        let rawName = userData.fullName || userData.name || userData.displayName || t('default_teacher_name');
-                        
-                        // إزالة أي بادئة عربية أو إنجليزية سابقة
-                        rawName = rawName.replace(/^(أ\.|Mr\.|T\.)\s*/, '').trim();
-                        // إضافة بادئة مناسبة للغة الحالية
-                        const prefix = currentLang === 'en' ? 'Mr. ' : 'أ. ';
-                        const formattedName = `${prefix}${rawName}`;
-                        
-                        const option = document.createElement('option');
-                        option.value = JSON.stringify({ id: id, name: formattedName });
-                        option.innerText = formattedName;
-                        select.appendChild(option);
-                    }
-                }
-
-            } catch(e) {
+                const prefix = currentLang === 'en' ? 'Mr. ' : 'أ. ';
+                teachers.forEach((rawName, id) => {
+                    const cleaned = String(rawName).replace(/^(أ\.|Mr\.|T\.)\s*/, '').trim();
+                    const formattedName = `${prefix}${cleaned}`;
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({ id: id, name: formattedName });
+                    option.innerText = formattedName;
+                    select.appendChild(option);
+                });
+            } catch (e) {
                 console.error("Error loading previous teachers:", e);
                 select.innerHTML = `<option value="">${t('error_loading_teachers')}</option>`;
             }
@@ -1809,7 +1792,7 @@
             try { await auth.signOut(); } catch (e) { console.error(e); }
             window.location.href = '/';
         }
-        
+
         // Snackbar Utility
         function showSnackBar(text, color) {
             const snackbar = document.createElement('div');
