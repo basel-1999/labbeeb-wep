@@ -1191,6 +1191,7 @@ function sendOtp(rawPhone) {
                     uid: user.uid,
                     name: document.getElementById('fullName').value.trim(),
                     phone: phone,
+                    email: user.email || '',
                     role: 'teacher',
                     country: document.getElementById('country').value,
                     city: document.getElementById('city').value,
