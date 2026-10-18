@@ -1549,6 +1549,88 @@
             }
         }
 
+
+                // 🖼️ ضغط صورة الإيصال قبل الرفع (بيصغّرها من ~5MB لأقل من 500KB)
+        async function compressImageFile(file, maxDim = 1600, quality = 0.82) {
+            if (!/^image\/(jpeg|png)$/.test(file.type)) return file;
+            try {
+                const bitmap = await createImageBitmap(file);
+                const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+                const w = Math.round(bitmap.width * scale);
+                const h = Math.round(bitmap.height * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const c = canvas.getContext('2d');
+                c.fillStyle = '#fff';
+                c.fillRect(0, 0, w, h);
+                c.drawImage(bitmap, 0, 0, w, h);
+                if (bitmap.close) bitmap.close();
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
+                if (!blob || blob.size >= file.size) return file;
+                return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+            } catch (e) {
+                return file; // لو صار أي خطأ نرفع الأصلي
+            }
+        }
+
+        // ☁️ رفع الإيصال مع إعادة محاولة ورسائل خطأ واضحة
+        async function uploadReceiptWithRetry(file, token, retries = 2) {
+            const en = currentLang === 'en';
+            const netMsg = en
+                ? 'Could not reach the server. Check your internet connection. If it is fine, the server may be waking up; wait a minute and try again.'
+                : 'تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت، وإذا كان سليماً فالخادم ممكن يكون في وضع الخمول، انتظر دقيقة وحاول مرة أخرى.';
+            const statusMsgs = en ? {
+                401: 'Your session expired, please log in again.',
+                413: 'The image is too large for the server, try a smaller one.',
+                415: 'This image type is not supported.',
+                500: 'The server had an internal error while processing the image.',
+                502: 'The server is unavailable right now, try again in a minute.',
+                503: 'The server is unavailable right now, try again in a minute.',
+                504: 'The server took too long to respond, try again.'
+            } : {
+                401: 'انتهت جلستك، سجّل دخولك من جديد.',
+                413: 'حجم الصورة كبير على الخادم، جرّب صورة أصغر.',
+                415: 'نوع الصورة غير مدعوم.',
+                500: 'حدث خطأ داخلي في الخادم أثناء معالجة الصورة.',
+                502: 'الخادم غير متاح حالياً، حاول بعد دقيقة.',
+                503: 'الخادم غير متاح حالياً، حاول بعد دقيقة.',
+                504: 'الخادم تأخر بالرد، حاول مرة أخرى.'
+            };
+            const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+            file = await compressImageFile(file);
+
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                let res;
+                try {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    fd.append('folder', 'recharge_receipts');
+                    res = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: fd
+                    });
+                } catch (e) {
+                    if (attempt === retries) throw new Error(netMsg);
+                    await wait(3000 * (attempt + 1));
+                    continue;
+                }
+
+                let data = {};
+                try { data = await res.json(); } catch (e) {}
+                if (res.ok && data.url) return data.url;
+
+                if ([502, 503, 504].includes(res.status) && attempt < retries) {
+                    await wait(3000 * (attempt + 1));
+                    continue;
+                }
+                const detail = typeof data.detail === 'string' ? data.detail : '';
+                const base = statusMsgs[res.status] || (en ? `Upload failed (code ${res.status}).` : `فشل رفع الصورة (رمز الخطأ ${res.status}).`);
+                throw new Error(detail ? `${base} (${detail})` : base);
+            }
+        }
+
         async function submitRecharge() {
             const refNum = document.getElementById('referenceNumber').value.trim();
             const fileInput = document.getElementById('receiptImage');
@@ -1564,18 +1646,8 @@
                 const token = await currentUser.getIdToken();
                 const packageVal = document.querySelector('input[name="bankPackage"]:checked').value;
                 const [pointsCount, packageTitle] = packageVal.split('|');
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                formData.append('folder', 'recharge_receipts');
 
-                const uploadRes = await fetch('/api/cloudinary/upload', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-                const uploadData = await uploadRes.json();
-
-                if (!uploadData.url) throw new Error(t('upload_image_failed'));
+                const receiptUrl = await uploadReceiptWithRetry(fileInput.files[0], token);
 
                 await db.collection('recharge_requests').add({
                     studentId: currentUser.uid,
@@ -1583,7 +1655,7 @@
                     packageTitle: packageTitle,
                     pointsCount: parseInt(pointsCount),
                     referenceNumber: refNum,
-                    receiptImageUrl: uploadData.url,
+                    receiptImageUrl: receiptUrl,
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
