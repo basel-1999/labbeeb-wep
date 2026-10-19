@@ -117,6 +117,9 @@
             #rewardCaption { position: absolute; left: 0; right: 0; top: calc(44% + min(190px, 28vh)); text-align: center; font-weight: 900; font-size: clamp(22px, 4vw, 40px); color: #fff; text-shadow: 0 3px 12px rgba(0,0,0,.6), 0 0 24px rgba(255,200,0,.6); opacity: 0; }
             .reward-particle { position: absolute; left: 50%; top: 44%; pointer-events: none; }
             #awardStarBtn:disabled { opacity: .5; cursor: not-allowed; }
+            
+            /* 💬 سهم الإرسال: بيتجه حسب لغة الصفحة */
+            html[lang="en"] #sendArrow { transform: scaleX(-1); }
 
         </style>
     </head>
@@ -327,6 +330,15 @@
                 <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
             </div>
 
+
+
+                        <!-- زر إظهار المحادثة (بيظهر بس لما المحادثة تكون مخفية) مع عدّاد الرسائل -->
+            <button id="chatShowBtn" onclick="toggleChat()" style="display:none" class="absolute top-14 end-3 z-40 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-full px-3 py-2 shadow-lg items-center gap-2 text-xs">
+                <span>💬</span>
+                <span data-i18n-l="show_chat">المحادثة</span>
+                <span id="chatUnreadBadge" style="display:none" class="bg-red-600 text-white rounded-full min-w-[20px] h-5 px-1 text-[11px] items-center justify-center">0</span>
+            </button>
+
             <!-- Chat Panel -->
             <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative">
                 <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
@@ -334,6 +346,9 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         <h3 data-i18n-l="live_chat" class="font-bold text-sm">الدردشة الحية</h3>
                     </div>
+                    <button onclick="toggleChat()" data-i18n-l-title="hide_chat" title="إخفاء المحادثة" class="p-1 hover:bg-white/10 rounded text-white/70">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
                 <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-3">
                     <div data-i18n-l="session_started" class="text-center text-xs text-white/50 bg-white/10 rounded-full py-1 px-2 inline-block">بدأت الجلسة بنجاح.</div>
@@ -378,8 +393,8 @@
                         </button>
                         <input type="file" id="fileInput" class="hidden" onchange="uploadChatFile(event)" accept="image/*,.pdf,.doc,.docx,.txt">
                         <input type="text" id="chatInput" onkeydown="handleChatEnter(event)" data-i18n-l-placeholder="type_message" placeholder="اكتب رسالة..." class="flex-1 bg-[#2C2C2C] text-white text-xs rounded-lg px-3 py-2 focus:outline-none placeholder-white/30">
-                        <button onclick="sendMessage()" data-i18n-l="send_btn" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-3 py-2 rounded-lg transition text-xs flex items-center justify-center">
-                            إرسال
+                        <button onclick="sendMessage()" data-i18n-l-title="send_btn" title="إرسال" class="bg-amber-500 hover:bg-amber-600 text-black p-2 rounded-lg transition flex items-center justify-center">
+                            <svg id="sendArrow" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                         </button>
                     </div>
                 </div>
@@ -482,6 +497,8 @@
                     uploading_file: "جاري رفع الملف... يرجى الانتظار.",
                     type_message: "اكتب رسالة...",
                     send_btn: "إرسال",
+                    show_chat: "المحادثة",
+                    hide_chat: "إخفاء المحادثة",
                     end_session_title: "إنهاء الجلسة",
                     end_session_confirm: "هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟",
                     cancel_btn: "إلغاء",
@@ -579,6 +596,8 @@
                     uploading_file: "Uploading file... please wait.",
                     type_message: "Type a message...",
                     send_btn: "Send",
+                    show_chat: "Chat",
+                    hide_chat: "Hide chat",
                     end_session_title: "End Session",
                     end_session_confirm: "Are you sure you want to close this session and save the board summary?",
                     cancel_btn: "Cancel",
@@ -671,6 +690,10 @@
                 });
                 document.querySelectorAll('[data-i18n-l-placeholder]').forEach((el) => {
                     el.setAttribute('placeholder', tl(el.getAttribute('data-i18n-l-placeholder')));
+                });
+
+                                document.querySelectorAll('[data-i18n-l-title]').forEach((el) => {
+                    el.setAttribute('title', tl(el.getAttribute('data-i18n-l-title')));
                 });
             }
 
@@ -2668,6 +2691,43 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // ==========================================
             // 💬 Chat
             // ==========================================
+
+
+                        // ==========================================
+            // 💬 إخفاء/إظهار المحادثة + عدّاد + صوت إشعار
+            // ==========================================
+            let isInitialChatLoad = true;
+
+            function updateUnreadBadge() {
+                const badge = document.getElementById('chatUnreadBadge');
+                if (!badge) return;
+                badge.innerText = unreadMessages > 99 ? '99+' : unreadMessages;
+                badge.style.display = unreadMessages > 0 ? 'flex' : 'none';
+            }
+
+            function toggleChat() {
+                isChatOpen = !isChatOpen;
+                document.getElementById('chatPanel').style.display = isChatOpen ? '' : 'none';
+                document.getElementById('chatShowBtn').style.display = isChatOpen ? 'none' : 'flex';
+                if (isChatOpen) {
+                    unreadMessages = 0;
+                    updateUnreadBadge();
+                    const c = document.getElementById('chatMessages');
+                    c.scrollTop = c.scrollHeight;
+                }
+                // السبورة تغيّر عرضها: نعيد ضبط القماش ونرسم الرسومات من جديد
+                resizeCanvas();
+                renderCurrentPageStrokes();
+            }
+
+            // 🔔 صوت استقبال رسالة (نغمتين قصيرتين مولّدتين بالكود)
+            function playChatSound() {
+                try {
+                    rewardTone(880, 0, 0.14, 'sine', 0.14);
+                    rewardTone(1175, 0.13, 0.2, 'sine', 0.14);
+                } catch (e) {}
+            }
+
             function toggleEmojiPicker() {
                 const picker = document.getElementById('emojiPicker');
                 picker.style.display = (picker.style.display === 'none' || picker.style.display === '') ? 'grid' : 'none';
@@ -2720,6 +2780,25 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
             function listenToChat() {
                 db.collection('sessions').doc(sessionId).collection('messages').orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
+                                        // 🔔 رسائل جديدة من الطرف الآخر: صوت + عدّاد (بعد التحميل الأول فقط)
+                    if (isInitialChatLoad) {
+                        isInitialChatLoad = false;
+                    } else {
+                        let incoming = 0;
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type !== 'added') return;
+                            const fromTeacher = change.doc.data().sender === 'teacher';
+                            const mine = (isTeacher && fromTeacher) || (!isTeacher && !fromTeacher);
+                            if (!mine) incoming++;
+                        });
+                        if (incoming > 0) {
+                            playChatSound();
+                            if (!isChatOpen) {
+                                unreadMessages += incoming;
+                                updateUnreadBadge();
+                            }
+                        }
+                    }
                     const container = document.getElementById('chatMessages');
                     container.innerHTML = '';
                     snapshot.forEach((doc) => {
