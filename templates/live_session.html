@@ -2208,7 +2208,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
         // ---------- زر المعلم ----------
         function updateStarQuota() {
             const q = rwEl('starQuota');
-            if (q) q.innerText = `${starsAwardedInSession}/${starsLimit}`;
+            if (q) q.innerText = `${starsAwardedInSession}`;
         }
 
         function startStarCooldown(seconds) {
@@ -2234,10 +2234,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
         async function awardStar() {
             if (!isTeacher || !currentUser) return;
-            if (starsAwardedInSession >= starsLimit) {
-                showSnackBar(tl('reward_limit_reached'), 'orange');
-                return;
-            }
+
             const btn = rwEl('awardStarBtn');
             if (btn && btn.disabled) return;
             if (btn) btn.disabled = true;

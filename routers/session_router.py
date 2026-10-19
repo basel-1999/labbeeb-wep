@@ -454,9 +454,6 @@ def _award_star_txn(transaction, session_ref, student_ref, teacher_uid):
         raise HTTPException(status_code=400, detail="يمكن منح النجوم فقط أثناء الحصة النشطة.")
 
     awarded = int(s.get('starsAwarded', 0))
-    if awarded >= STARS_PER_SESSION_LIMIT:
-        raise HTTPException(status_code=429, detail=f"وصلت للحد الأقصى ({STARS_PER_SESSION_LIMIT} نجوم) لهذه الحصة.")
-
     last_star_at = s.get('lastStarAt')
     if last_star_at is not None:
         elapsed = (datetime.now(timezone.utc) - last_star_at).total_seconds()
