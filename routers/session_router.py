@@ -37,6 +37,12 @@ STARS_PER_SESSION_LIMIT = 3   # أقصى عدد نجوم يمنحها المعل
 STAR_COOLDOWN_SECONDS = 10    # الفاصل بين كل نجمة والتي بعدها
 STARS_PER_BASKET = 10         # كل 10 نجوم = كأس وبتفضى السلة
 
+
+# 🎓 المقابلة التجريبية للمعلم
+TRIAL_INTERVIEW_SECONDS = 900   # 15 دقيقة بالضبط
+TRIAL_MIN_SECONDS_TO_COMPLETE = 870   # حد أدنى للقبول (فيه سماح 30 ثانية لفرق الساعات)
+CLOUDINARY_CLOUD = os.getenv("CLOUDINARY_CLOUD_NAME", "f4t8ayoq")
+
 # إعداد Cloudinary باستخدام متغيرات البيئة (أكثر أماناً)
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -282,6 +288,10 @@ async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_u
         if session_data.get('isFreeTrial'):
             return {"message": "جلسة تجريبية مجانية، لا يتم الخصم", "pointsDeducted": 0}
 
+        # 🎓 مقابلة تجريبية للمعلم: ما في طالب ولا خصم
+        if session_data.get('isTrialInterview'):
+            return {"message": "مقابلة تجريبية للمعلم، لا يتم الخصم", "pointsDeducted": 0}
+
         now_utc = datetime.now(timezone.utc)
         log_ts = now_utc.strftime('%H:%M:%S')
 
@@ -472,6 +482,34 @@ def _award_star_txn(transaction, session_ref, student_ref, teacher_uid):
     })
     return total, awarded + 1
 
+@firestore.transactional
+def _award_star_trial_txn(transaction, session_ref, teacher_uid):
+    """نجمة تجريبية بالمقابلة: بتنعد بالجلسة بس، بدون أي طالب"""
+    snap = session_ref.get(transaction=transaction)
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+    s = snap.to_dict() or {}
+
+    if s.get('teacherId') != teacher_uid or not s.get('isTrialInterview'):
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
+    if s.get('status') != 'active':
+        raise HTTPException(status_code=400, detail="المقابلة غير نشطة.")
+
+    awarded = int(s.get('starsAwarded', 0))
+    if awarded >= STARS_PER_SESSION_LIMIT:
+        raise HTTPException(status_code=429, detail=f"وصلت للحد الأقصى ({STARS_PER_SESSION_LIMIT} نجوم) لهذه الحصة.")
+
+    last_star_at = s.get('lastStarAt')
+    if last_star_at is not None:
+        elapsed = (datetime.now(timezone.utc) - last_star_at).total_seconds()
+        if elapsed < STAR_COOLDOWN_SECONDS:
+            raise HTTPException(status_code=429, detail="انتظر ثواني قبل منح نجمة أخرى.")
+
+    transaction.update(session_ref, {
+        'starsAwarded': awarded + 1,
+        'lastStarAt': firestore.SERVER_TIMESTAMP
+    })
+    return awarded + 1
 
 @router.post("/api/session/award-star/{sessionId}")
 async def award_star(sessionId: str, uid: str = Depends(get_current_user)):
@@ -481,9 +519,29 @@ async def award_star(sessionId: str, uid: str = Depends(get_current_user)):
         if not session_snap.exists:
             raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
 
+
+        # 🎓 مقابلة تجريبية: النجوم بتنعد بالجلسة بس (ما في طالب حقيقي)
+        if (session_snap.to_dict() or {}).get('isTrialInterview'):
+            awarded = _award_star_trial_txn(db.transaction(), session_ref, uid)
+            t_pos = awarded % STARS_PER_BASKET
+            t_milestone = 'cup' if t_pos == 0 else ('gold' if t_pos == 6 else ('silver' if t_pos == 3 else None))
+            session_ref.collection('rewards').add({
+                'total': awarded,
+                'milestone': t_milestone,
+                'teacherId': uid,
+                'createdAt': firestore.SERVER_TIMESTAMP
+            })
+            return {
+                "total": awarded,
+                "starsAwarded": awarded,
+                "starsLimit": STARS_PER_SESSION_LIMIT,
+                "milestone": t_milestone
+            }
+
         student_id = session_snap.to_dict().get('studentId')
         if not student_id:
             raise HTTPException(status_code=400, detail="لا يوجد طالب بهذه الحصة.")
+        
         student_ref = db.collection('users').document(student_id)
 
         total, awarded = _award_star_txn(db.transaction(), session_ref, student_ref, uid)
@@ -621,6 +679,11 @@ async def accept_session(
         # 🛡️ فلترة ذكية (Smart Routing Security): التأكد من أن المعلم يدرس هذه المادة والمرحلة
         user_ref = db.collection('users').document(uid)
         user_snap = user_ref.get()
+        if (not user_snap.exists
+                or user_snap.to_dict().get('role') != 'teacher'
+                or user_snap.to_dict().get('status') != 'approved'):
+            raise HTTPException(status_code=403, detail="حسابك غير معتمد لقبول الطلبات بعد.")
+
         if user_snap.exists:
             teacher_data = user_snap.to_dict()
             teacher_subjects = teacher_data.get('subjects', [])
@@ -728,6 +791,163 @@ async def register_teacher(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء الحفظ: {str(e)}")
 
+# ==========================================
+# 🎓 المقابلة التجريبية للمعلم (15 دقيقة، طالب وهمي، تسجيل فيديو)
+# ==========================================
+def _get_trial_session(session_id: str, teacher_uid: str):
+    """يرجع (مرجع الجلسة، بياناتها) بشرط إنها مقابلة تجريبية تخص هالمعلم"""
+    ref = db.collection('sessions').document(session_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+    data = snap.to_dict() or {}
+    if not data.get('isTrialInterview') or data.get('teacherId') != teacher_uid:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
+    return ref, data
+
+
+class TrialCompleteRequest(BaseModel):
+    videoUrl: str
+
+
+@router.post("/api/teacher/trial/start")
+async def start_trial_interview(uid: str = Depends(get_current_user)):
+    """إنشاء جلسة مقابلة تجريبية للمعلم (بدون طالب)"""
+    try:
+        teacher_ref = db.collection('users').document(uid)
+        snap = teacher_ref.get()
+        if not snap.exists:
+            raise HTTPException(status_code=404, detail="الحساب غير موجود.")
+        teacher = snap.to_dict() or {}
+        if teacher.get('role') != 'teacher':
+            raise HTTPException(status_code=403, detail="هذا الإجراء للمعلمين فقط.")
+        if teacher.get('status') != 'trial':
+            raise HTTPException(status_code=400, detail="المقابلة متاحة فقط للمعلم التجريبي.")
+
+        # أي محاولة سابقة ما انتهت بتنلغي
+        old_sessions = db.collection('sessions') \
+            .where('teacherId', '==', uid) \
+            .where('isTrialInterview', '==', True) \
+            .stream()
+        for old in old_sessions:
+            if (old.to_dict() or {}).get('status') in ('active', 'interrupted'):
+                old.reference.update({'status': 'cancelled', 'cancelledAt': firestore.SERVER_TIMESTAMP})
+
+        name = teacher.get('name') or 'معلم'
+        session_ref = db.collection('sessions').document()
+        session_ref.set({
+            'studentId': None,
+            'studentName': 'طالب وهمي',
+            'teacherId': uid,
+            'assignedTeacherId': uid,
+            'teacherName': name,
+            'teacher': name,
+            'instructorName': name,
+            'subject': 'مقابلة تجريبية',
+            'topic': 'مقابلة تجريبية',
+            'grade': 'غير محدد',
+            'language': 'ar',
+            'status': 'active',
+            'isTrialInterview': True,
+            'isFreeTrial': False,
+            'studentJoinedAt': None,
+            'teacherJoinedAt': None,
+            'timerStartedAt': None,
+            'pointsDeducted': 0,
+            'lastDeductionAt': None,
+            'bookingType': 'now',
+            'starsAwarded': 0,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'audioRecordingUrl': None,
+            'boardPdfUrl': None,
+        })
+        return {"sessionId": session_ref.id, "studentName": "طالب وهمي"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in start_trial_interview: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/teacher/trial/begin/{sessionId}")
+async def begin_trial_interview(sessionId: str, uid: str = Depends(get_current_user)):
+    """بدء عدّاد الـ 15 دقيقة (بوقت السيرفر). بيشتغل مرة وحدة لكل مقابلة."""
+    try:
+        session_ref, s = _get_trial_session(sessionId, uid)
+        if s.get('status') != 'active':
+            raise HTTPException(status_code=400, detail="هذه المقابلة لم تعد نشطة، ابدأ مقابلة جديدة.")
+        if s.get('timerStartedAt') is not None:
+            raise HTTPException(status_code=400, detail="بدأت هذه المقابلة مسبقاً، ابدأ مقابلة جديدة.")
+        session_ref.update({'timerStartedAt': firestore.SERVER_TIMESTAMP})
+        return {"durationSeconds": TRIAL_INTERVIEW_SECONDS}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in begin_trial_interview: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/teacher/trial/complete/{sessionId}")
+async def complete_trial_interview(sessionId: str, payload: TrialCompleteRequest, uid: str = Depends(get_current_user)):
+    """حفظ المقابلة بعد رفع الفيديو: المعلم بيصير 'interviewed'"""
+    try:
+        session_ref, s = _get_trial_session(sessionId, uid)
+        teacher_ref = db.collection('users').document(uid)
+        teacher = (teacher_ref.get().to_dict() or {})
+
+        # لو انحفظت مسبقاً (إعادة إرسال) منرجع نجاح
+        if teacher.get('status') == 'interviewed' and teacher.get('interviewSessionId') == sessionId:
+            return {"message": "المقابلة محفوظة مسبقاً"}
+        if teacher.get('status') != 'trial':
+            raise HTTPException(status_code=400, detail="لا يمكن حفظ المقابلة بحالة حسابك الحالية.")
+
+        started = s.get('timerStartedAt')
+        if started is None:
+            raise HTTPException(status_code=400, detail="لم تبدأ المقابلة بعد.")
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        if elapsed < TRIAL_MIN_SECONDS_TO_COMPLETE:
+            raise HTTPException(status_code=400, detail="لم تكتمل مدة المقابلة (15 دقيقة) بعد.")
+
+        video_url = (payload.videoUrl or '').strip()
+        if not video_url.startswith(f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/video/"):
+            raise HTTPException(status_code=400, detail="رابط الفيديو غير صالح.")
+
+        batch = db.batch()
+        batch.update(teacher_ref, {
+            'status': 'interviewed',
+            'interviewVideoUrl': video_url,
+            'interviewSessionId': sessionId,
+            'interviewCompletedAt': firestore.SERVER_TIMESTAMP,
+        })
+        batch.update(session_ref, {
+            'status': 'completed',
+            'completedAt': firestore.SERVER_TIMESTAMP,
+        })
+        batch.commit()
+        return {"message": "تم حفظ المقابلة بنجاح"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in complete_trial_interview: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/teacher/trial/cancel/{sessionId}")
+async def cancel_trial_interview(sessionId: str, uid: str = Depends(get_current_user)):
+    """إلغاء المقابلة (بدون حفظ). المعلم بيضل 'trial' وبيعيدها."""
+    try:
+        session_ref, s = _get_trial_session(sessionId, uid)
+        if s.get('status') in ('active', 'interrupted'):
+            session_ref.update({'status': 'cancelled', 'cancelledAt': firestore.SERVER_TIMESTAMP})
+        return {"message": "تم إلغاء المقابلة"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in cancel_trial_interview: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+    
 # ==========================================
 # 🔑 استرجاع كلمة مرور المعلم عبر SMS
 # ==========================================
