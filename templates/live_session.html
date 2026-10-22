@@ -443,6 +443,29 @@
             </div>
         </div>
 
+
+                <!-- 🎓 المقابلة التجريبية: الرسائل الإرشادية -->
+        <div id="trialGuide" style="display:none;position:fixed;inset:0;z-index:9000;">
+            <div id="trialSpot" style="position:fixed;left:50%;top:50%;width:0;height:0;border-radius:14px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.75);transition:all .3s ease;"></div>
+            <div id="trialGuideCard" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,460px);background:#fff;color:#1E241B;border-radius:20px;padding:24px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.45);">
+                <p id="trialGuideStep" style="font-size:12px;color:#9CA3AF;font-weight:700;margin-bottom:10px;"></p>
+                <p id="trialGuideText" style="font-size:20px;font-weight:800;line-height:1.8;"></p>
+                <p id="trialGuideStrong" style="display:none;font-size:24px;font-weight:900;color:#4E6B45;margin-top:10px;"></p>
+                <button id="trialGuideNext" onclick="trialGuideNext()" style="margin-top:20px;background:#D97706;color:#fff;font-weight:800;padding:10px 32px;border-radius:12px;font-size:15px;cursor:pointer;">التالي</button>
+            </div>
+        </div>
+
+        <!-- 🎓 المقابلة التجريبية: رسائل المنع والأخطاء -->
+        <div id="trialNotice" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:16px;">
+            <div style="background:#fff;color:#1E241B;border-radius:20px;padding:24px;max-width:460px;width:100%;text-align:center;">
+                <p id="trialNoticeText" style="font-size:16px;font-weight:700;line-height:1.9;margin-bottom:18px;"></p>
+                <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                    <button id="trialNoticePrimary" style="background:#D97706;color:#fff;font-weight:800;padding:10px 24px;border-radius:12px;cursor:pointer;"></button>
+                    <button id="trialNoticeSecondary" style="display:none;background:#E5E7EB;color:#1E241B;font-weight:800;padding:10px 24px;border-radius:12px;cursor:pointer;"></button>
+                </div>
+            </div>
+        </div>
+
         <!-- Hidden Audio Elements -->
         <audio id="sound_happy" src="/static/sounds/happy.mp3"></audio>
         <audio id="sound_sad" src="/static/sounds/sad.mp3"></audio>
@@ -859,13 +882,15 @@
                     currentUser = user;
                     try {
                         const sessionSnap = await db.collection('sessions').doc(sessionId).get();
-                        applyLanguageLive(sessionSnap.exists ? (sessionSnap.data().language || 'ar') : 'ar');
+                        const sd = sessionSnap.exists ? sessionSnap.data() : {};
+                        isTrialInterview = !!sd.isTrialInterview && isTeacher;   // 🎓 مقابلة تجريبية للمعلم
+                        applyLanguageLive(isTrialInterview ? 'ar' : (sd.language || 'ar'));
                     } catch (e) {
                         applyLanguageLive('ar');
                     }
                     initUI();
                     initCanvas();
-                    initAgora();
+                    if (isTrialInterview) { initTrialInterview(); } else { initAgora(); }
                     registerSessionJoin();
                     listenToSyncedTimer();
                     listenToWhiteboard();
@@ -2343,6 +2368,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 timerUnsub = db.collection('sessions').doc(sessionId).onSnapshot((doc) => {
                     if (!doc.exists) return;
                     const data = doc.data();
+                    if (isTrialInterview) { handleTrialTimerSnapshot(data); return; } // 🎓 المقابلة التجريبية
                     isFreeTrialSession = !!data.isFreeTrial; // ✨ تحديث حالة التجريبية
                     
                     // ✨ إظهار شارة الحصة التجريبية المضيئة للطرفين
@@ -2504,6 +2530,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             async function toggleScreenShare() {
+                if (isTrialInterview) { trialToggleScreenShareDemo(); return; }
                 try {
                     if (!isScreenSharing) {
                         // 🔐 فحص الصلاحية: الطالب ما بيقدر يشارك إلا لو المعلم سمح
@@ -2949,6 +2976,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
             
             function confirmEndSession() {
+                if (isTrialInterview) { trialCancelFlow(); return; }
                 if (isTeacher) { openModal('endSessionModal'); return; }
                 (async () => {
                     try {
@@ -2991,6 +3019,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
         }
 
         async function finalizeAndUpload() {
+            if (isTrialInterview) { return trialUploadAndComplete(); }
             document.getElementById('endModalRetry').classList.add('hidden');
             try {
                 updateProgress(0.60, tl('uploading_audio'));
@@ -3044,6 +3073,486 @@ function handleDoubleClick(e) { if (!canDraw()) return;
         }
             
             function updateProgress(val, text) { document.getElementById('progressBar').style.width = `${val * 100}%`; document.getElementById('progressPercent').innerText = `${Math.round(val * 100)}%`; document.getElementById('progressStatus').innerText = text; }
+
+        // ==========================================
+        // 🎓 المقابلة التجريبية للمعلم (15 دقيقة، طالب وهمي، تسجيل شاشة وصوت)
+        // ==========================================
+        const TRIAL_SECONDS = 900;
+        const TRIAL_VIDEO_PRESET = 'labeeb_interview_unsigned';
+
+        // 📝 نصوص الرسائل (عدّل أي نص من هون)
+        const TRIAL_GUIDE_STEPS = [
+            { text: 'سيتم تسجيل شاشتك وصوتك طوال المقابلة. أغلق أي نوافذ أو برامج شخصية قبل البدء.' },
+            { text: 'مدة المقابلة 15 دقيقة فقط' },
+            { text: 'أنت تتحدث مع طالب وهمي، ولا يوجد طالب فعلي' },
+            { text: 'قبل البدء تذكّر أن تجهّز الكتاب الوزاري للمادة والصف' },
+            { text: 'هنا تقوم بمشاركة شاشتك للطالب', target: ['screenShareBtn'] },
+            { text: 'لا تضيّع الوقت بالتعريف عن نفسك' },
+            { text: 'استخدم مبدأ التلعيب عن طريق منح النجوم للطالب عند إجابته غير المتوقعة', target: ['awardStarBtn'] },
+            { text: 'اشرح ووجّه الأسئلة للطالب، ولا تُهمل دور الطالب' },
+            { text: 'استخدم الألوان في الكتابة على السبورة' },
+            { text: 'يمكن للطالب الكتابة على نفس السبورة التي ستظهر أمامك، لا تنسَ ذلك. ويمكنك أيضاً السماح للطالب بمشاركة شاشته.', target: ['allowStudentDrawBtn', 'allowStudentScreenShareBtn'] },
+            { text: 'نحن معك، لا عليك. قدّم الأفضل لنتشرّف بك ضمن طاقم المعلمين.', strong: 'لبيب تتمنى لكم التوفيق' }
+        ];
+
+        let isTrialInterview = false;
+        let trialPhase = 'idle';   // idle → init → guide → starting → running → finishing → done | aborted
+        let trialGuideIndex = 0;
+        let trialMicStream = null;
+        let trialDisplayStream = null;
+        let trialRecorder = null;
+        let trialChunks = [];
+        let trialBlob = null;
+        let trialVideoUrl = null;
+        let trialLocalStartMs = 0;
+        let trialCountdownTimer = null;
+        let trialTickWorker = null;
+
+        function tvEl(id) { return document.getElementById(id); }
+
+        function updateTrialTimerUI(left) {
+            const el = tvEl('timerDisplay');
+            el.innerText = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+            el.classList.toggle('text-red-400', left <= 60);
+            el.classList.toggle('text-amber-400', left > 60);
+        }
+
+        function showTrialNotice(text, primary, secondary) {
+            tvEl('trialNoticeText').innerText = text;
+            const p = tvEl('trialNoticePrimary');
+            const s = tvEl('trialNoticeSecondary');
+            p.innerText = primary.label;
+            p.onclick = primary.fn;
+            if (secondary) {
+                s.style.display = 'inline-block';
+                s.innerText = secondary.label;
+                s.onclick = secondary.fn;
+            } else {
+                s.style.display = 'none';
+            }
+            tvEl('trialNotice').style.display = 'flex';
+        }
+
+        function hideTrialNotice() { tvEl('trialNotice').style.display = 'none'; }
+
+        function trialGoDashboard() {
+            authToken = null; // عشان ما ينبعت "interrupt" عند مغادرة الصفحة
+            window.removeEventListener('beforeunload', finalizeBeforeUnloadWarning);
+            window.location.href = '/teacher-dashboard';
+        }
+
+        async function trialCallCancel() {
+            try {
+                const token = await currentUser.getIdToken();
+                await fetch(`/api/teacher/trial/cancel/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    keepalive: true
+                });
+            } catch (e) { console.warn('Trial cancel failed:', e); }
+        }
+
+        function stopTrialStreams() {
+            [trialDisplayStream, trialMicStream].forEach((s) => {
+                if (s) s.getTracks().forEach((t) => { try { t.onended = null; t.stop(); } catch (e) {} });
+            });
+            trialDisplayStream = null;
+            trialMicStream = null;
+        }
+
+        function trialStopTimers() {
+            clearInterval(trialCountdownTimer);
+            trialCountdownTimer = null;
+            if (trialTickWorker) {
+                try { trialTickWorker.postMessage('stop'); trialTickWorker.terminate(); } catch (e) {}
+                trialTickWorker = null;
+            }
+        }
+
+        // إيقاف التسجيل وإهماله (بدون حفظ)
+        function trialDiscardRecording() {
+            trialStopTimers();
+            if (trialRecorder) {
+                try {
+                    trialRecorder.ondataavailable = null;
+                    trialRecorder.onstop = null;
+                    if (trialRecorder.state !== 'inactive') trialRecorder.stop();
+                } catch (e) {}
+                trialRecorder = null;
+            }
+            trialChunks = [];
+            stopTrialStreams();
+        }
+
+        async function trialCancelFlow() {
+            if (!confirm('سيتم إلغاء المقابلة وحذف التسجيل، وتعيدها لاحقاً من لوحتك. هل أنت متأكد؟')) return;
+            trialPhase = 'aborted';
+            trialDiscardRecording();
+            await trialCallCancel();
+            trialGoDashboard();
+        }
+
+        async function trialAbort(message) {
+            if (['finishing', 'done', 'aborted'].includes(trialPhase)) return;
+            trialPhase = 'aborted';
+            tvEl('trialGuide').style.display = 'none';
+            trialDiscardRecording();
+            await trialCallCancel();
+            showTrialNotice(message, { label: 'العودة للوحة', fn: trialGoDashboard });
+        }
+
+        // لو انفتحت صفحة مقابلة بدأت مسبقاً (تحديث صفحة): ما منقدر نكمل التسجيل
+        function handleTrialTimerSnapshot(data) {
+            if (!data.timerStartedAt) return;
+            if (trialPhase === 'init' || trialPhase === 'guide') {
+                trialAbort('هذه المقابلة بدأت مسبقاً ولا يمكن استكمالها بعد تحديث الصفحة. ابدأ مقابلة جديدة من لوحتك.');
+            }
+        }
+
+        // ---------- التهيئة ----------
+        async function initTrialInterview() {
+            trialPhase = 'init';
+            tvEl('chatPanel').style.display = 'none';
+            tvEl('muteBtn').style.display = 'none';
+            tvEl('endSessionText').innerText = 'إلغاء المقابلة';
+            const badge = tvEl('freeTrialLiveBadge');
+            if (badge) { badge.innerText = '🎓 مقابلة تجريبية'; badge.style.display = 'block'; }
+            updateTrialTimerUI(TRIAL_SECONDS);
+
+            document.addEventListener('keydown', (e) => { if (trialPhase === 'guide' && e.key === 'Enter') trialGuideNext(); });
+            window.addEventListener('resize', () => { if (trialPhase === 'guide') trialRenderGuideStep(); });
+
+            const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+            if (!supported) {
+                showTrialNotice('هذا المتصفح أو الجهاز لا يدعم تسجيل الشاشة. افتح المقابلة من متصفح كروم أو إيدج على جهاز حاسوب.',
+                    { label: 'العودة للوحة', fn: trialCancelAndGo });
+                return;
+            }
+            await trialRequestMic();
+        }
+
+        async function trialCancelAndGo() {
+            trialPhase = 'aborted';
+            trialDiscardRecording();
+            await trialCallCancel();
+            trialGoDashboard();
+        }
+
+        async function trialRequestMic() {
+            hideTrialNotice();
+            try {
+                trialMicStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+            } catch (e) {
+                console.warn('Mic permission failed:', e);
+                showTrialNotice('تعذر الوصول للميكروفون. اسمح للمتصفح باستخدام الميكروفون (أيقونة القفل بجانب الرابط) ثم أعد المحاولة.',
+                    { label: 'إعادة المحاولة', fn: trialRequestMic },
+                    { label: 'العودة للوحة', fn: trialCancelAndGo });
+                return;
+            }
+            trialPhase = 'guide';
+            trialGuideIndex = 0;
+            tvEl('trialGuide').style.display = 'block';
+            trialRenderGuideStep();
+        }
+
+        // ---------- الرسائل الإرشادية ----------
+        function trialRenderGuideStep() {
+            const step = TRIAL_GUIDE_STEPS[trialGuideIndex];
+            const card = tvEl('trialGuideCard');
+            const spot = tvEl('trialSpot');
+            const isLast = trialGuideIndex === TRIAL_GUIDE_STEPS.length - 1;
+
+            tvEl('trialGuideStep').innerText = `${trialGuideIndex + 1} / ${TRIAL_GUIDE_STEPS.length}`;
+            tvEl('trialGuideText').innerText = step.text;
+            const strong = tvEl('trialGuideStrong');
+            strong.style.display = step.strong ? 'block' : 'none';
+            strong.innerText = step.strong || '';
+            tvEl('trialGuideNext').innerText = isLast ? 'ابدأ المقابلة' : 'التالي';
+
+            // مكان العنصر المقصود (لو الرسالة مربوطة بزر)
+            let rect = null;
+            (step.target || []).forEach((id) => {
+                const el = tvEl(id);
+                if (!el) return;
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 && r.height === 0) return;
+                rect = rect
+                    ? { left: Math.min(rect.left, r.left), top: Math.min(rect.top, r.top), right: Math.max(rect.right, r.right), bottom: Math.max(rect.bottom, r.bottom) }
+                    : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+            });
+
+            if (!rect) {
+                spot.style.left = '50%'; spot.style.top = '50%';
+                spot.style.width = '0px'; spot.style.height = '0px';
+                spot.style.boxShadow = '0 0 0 9999px rgba(0,0,0,.75)';
+                card.style.transform = 'translate(-50%,-50%)';
+                card.style.left = '50%'; card.style.top = '50%';
+            } else {
+                const pad = 8;
+                spot.style.left = (rect.left - pad) + 'px';
+                spot.style.top = (rect.top - pad) + 'px';
+                spot.style.width = (rect.right - rect.left + pad * 2) + 'px';
+                spot.style.height = (rect.bottom - rect.top + pad * 2) + 'px';
+                spot.style.boxShadow = '0 0 0 4px #FBBF24, 0 0 0 9999px rgba(0,0,0,.75)';
+
+                card.style.transform = 'none';
+                const cw = card.offsetWidth;
+                const ch = card.offsetHeight;
+                const cx = (rect.left + rect.right) / 2;
+                const left = Math.min(Math.max(12, cx - cw / 2), window.innerWidth - cw - 12);
+                let top = rect.bottom + pad + 16;
+                if (top + ch > window.innerHeight - 12) top = Math.max(12, rect.top - pad - 16 - ch);
+                card.style.left = left + 'px';
+                card.style.top = top + 'px';
+            }
+        }
+
+        function trialGuideNext() {
+            if (trialPhase !== 'guide') return;
+            if (trialGuideIndex < TRIAL_GUIDE_STEPS.length - 1) {
+                trialGuideIndex++;
+                trialRenderGuideStep();
+            } else {
+                trialStartInterview();
+            }
+        }
+
+        // ---------- بدء المقابلة ----------
+        async function trialStartInterview() {
+            if (trialPhase !== 'guide') return;
+            const nextBtn = tvEl('trialGuideNext');
+            nextBtn.disabled = true;
+            trialPhase = 'starting';
+
+            // 1) تسجيل الشاشة (لازم تنطلب من ضغطة المستخدم)
+            let display;
+            try {
+                display = await navigator.mediaDevices.getDisplayMedia({
+                    video: { displaySurface: 'monitor', frameRate: { ideal: 10, max: 15 }, width: { max: 1280 }, height: { max: 720 } },
+                    audio: false
+                });
+            } catch (e) {
+                trialPhase = 'guide';
+                nextBtn.disabled = false;
+                showSnackBar('لازم تشارك شاشتك لتبدأ المقابلة. اختر "الشاشة بالكامل" ثم اضغط مشاركة.', 'orange');
+                return;
+            }
+
+            const vTrack = display.getVideoTracks()[0];
+            const surface = (vTrack && vTrack.getSettings) ? vTrack.getSettings().displaySurface : null;
+            if (surface && surface !== 'monitor') {
+                display.getTracks().forEach((t) => t.stop());
+                trialPhase = 'guide';
+                nextBtn.disabled = false;
+                showSnackBar('اخترت نافذة أو تبويب فقط. اختر "الشاشة بالكامل" عشان يظهر كل شي بالتسجيل.', 'orange');
+                return;
+            }
+            trialDisplayStream = display;
+
+            // 2) بدء العدّاد بالسيرفر (مرة وحدة)
+            try {
+                const token = await currentUser.getIdToken();
+                const res = await fetch(`/api/teacher/trial/begin/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    let msg = 'تعذر بدء المقابلة';
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    throw new Error(msg);
+                }
+            } catch (e) {
+                display.getTracks().forEach((t) => t.stop());
+                trialDisplayStream = null;
+                trialPhase = 'guide';
+                nextBtn.disabled = false;
+                showSnackBar(`${e.message}`, 'red');
+                return;
+            }
+
+            // 3) التسجيل والعدّاد
+            try {
+                trialStartRecording();
+            } catch (e) {
+                console.error('Recorder start failed:', e);
+                await trialAbort('تعذر بدء التسجيل على هذا المتصفح. جرّب متصفح كروم أو إيدج على جهاز حاسوب.');
+                return;
+            }
+
+            vTrack.onended = () => {
+                if (trialPhase === 'running') {
+                    trialAbort('توقفت مشاركة الشاشة قبل انتهاء المقابلة، فتم إلغاء هذه المحاولة. أعد المقابلة من لوحتك.');
+                }
+            };
+            trialLocalStartMs = Date.now();
+            trialPhase = 'running';
+            tvEl('trialGuide').style.display = 'none';
+            window.addEventListener('beforeunload', finalizeBeforeUnloadWarning);
+            trialStartCountdown();
+            showSnackBar('بدأت المقابلة. بالتوفيق! 🎓', 'green');
+        }
+
+        // ---------- التسجيل ----------
+        function trialPickMime() {
+            const list = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm', 'video/mp4'];
+            return list.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+        }
+
+        function trialStartRecording() {
+            const stream = new MediaStream([...trialDisplayStream.getVideoTracks(), ...trialMicStream.getAudioTracks()]);
+            const opts = { videoBitsPerSecond: 500000, audioBitsPerSecond: 48000 }; // 15 دقيقة تقريباً 60 ميجا
+            const mime = trialPickMime();
+            if (mime) opts.mimeType = mime;
+            trialRecorder = new MediaRecorder(stream, opts);
+            trialChunks = [];
+            trialRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) trialChunks.push(e.data); };
+            trialRecorder.onerror = (e) => {
+                console.error('MediaRecorder error:', e);
+                if (trialPhase === 'running') trialAbort('حدث خطأ بالتسجيل، فتم إلغاء هذه المحاولة. أعد المقابلة من لوحتك.');
+            };
+            trialRecorder.start(5000);
+        }
+
+        function trialStopRecording() {
+            return new Promise((resolve) => {
+                if (!trialRecorder || trialRecorder.state === 'inactive') { resolve(); return; }
+                trialRecorder.onstop = () => resolve();
+                try { trialRecorder.requestData(); } catch (e) {}
+                trialRecorder.stop();
+            });
+        }
+
+        // ---------- العدّاد (بـ Worker عشان ما يتباطأ لما تكون الصفحة بالخلفية) ----------
+        function trialStartCountdown() {
+            const tick = () => {
+                if (trialPhase !== 'running') return;
+                const elapsed = Math.floor((Date.now() - trialLocalStartMs) / 1000);
+                const left = Math.max(0, TRIAL_SECONDS - elapsed);
+                updateTrialTimerUI(left);
+                if (left <= 0) trialFinish();
+            };
+            tick();
+            try {
+                const code = 'var id=null;onmessage=function(e){if(e.data==="start"){id=setInterval(function(){postMessage(1)},500)}else{clearInterval(id)}}';
+                trialTickWorker = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
+                trialTickWorker.onmessage = tick;
+                trialTickWorker.postMessage('start');
+            } catch (e) {
+                trialCountdownTimer = setInterval(tick, 500);
+            }
+        }
+
+        // ---------- نهاية المقابلة: إيقاف التسجيل ثم الرفع والحفظ ----------
+        async function trialFinish() {
+            if (trialPhase !== 'running') return;
+            trialPhase = 'finishing';
+            isFinalizingSession = true;
+            trialStopTimers();
+
+            openModal('endSessionModal');
+            tvEl('endModalContent').classList.add('hidden');
+            tvEl('endModalProgress').classList.remove('hidden');
+            updateProgress(0.05, 'جاري إيقاف التسجيل...');
+
+            await trialStopRecording();
+            const mime = ((trialRecorder && trialRecorder.mimeType) || 'video/webm').split(';')[0];
+            stopTrialStreams();
+            trialBlob = new Blob(trialChunks, { type: mime });
+            await trialUploadAndComplete();
+        }
+
+        function uploadInterviewVideo(blob, onProgress) {
+            return new Promise((resolve, reject) => {
+                const fd = new FormData();
+                const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+                fd.append('file', blob, `interview_${sessionId}.${ext}`);
+                fd.append('upload_preset', TRIAL_VIDEO_PRESET);
+                fd.append('folder', 'teacher_interviews');
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`);
+                xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+                xhr.onload = () => {
+                    let data = {};
+                    try { data = JSON.parse(xhr.responseText); } catch (e) {}
+                    if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) resolve(data.secure_url);
+                    else reject(new Error((data.error && data.error.message) ? data.error.message : `فشل رفع الفيديو (رمز ${xhr.status})`));
+                };
+                xhr.onerror = () => reject(new Error('تعذر الاتصال بخدمة رفع الفيديو. تأكد من الإنترنت.'));
+                xhr.send(fd);
+            });
+        }
+
+        async function trialUploadAndComplete() {
+            tvEl('endModalRetry').classList.add('hidden');
+            try {
+                if (!trialBlob || trialBlob.size < 1000) throw new Error('التسجيل فارغ أو تالف.');
+
+                if (!trialVideoUrl) {
+                    updateProgress(0.1, 'جاري رفع الفيديو... 0%');
+                    trialVideoUrl = await uploadInterviewVideo(trialBlob, (p) => {
+                        updateProgress(0.1 + 0.8 * p, `جاري رفع الفيديو... ${Math.round(p * 100)}%`);
+                    });
+                }
+
+                updateProgress(0.95, 'جاري حفظ المقابلة...');
+                const token = await currentUser.getIdToken();
+                const res = await fetch(`/api/teacher/trial/complete/${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoUrl: trialVideoUrl })
+                });
+                if (!res.ok) {
+                    let msg = 'تعذر حفظ المقابلة.';
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    throw new Error(msg);
+                }
+
+                updateProgress(1, 'تم حفظ المقابلة بنجاح! جاري تحويلك...');
+                trialPhase = 'done';
+                setTimeout(trialGoDashboard, 800);
+            } catch (e) {
+                console.error('Trial upload/complete failed:', e);
+                showFinalizeError(e.message);
+                const rd = tvEl('endModalRetry');
+                rd.classList.add('gap-3');
+                if (!tvEl('trialDownloadBtn') && trialBlob) {
+                    const b = document.createElement('button');
+                    b.id = 'trialDownloadBtn';
+                    b.className = 'bg-white/10 text-white font-bold px-4 py-2 rounded-lg text-sm';
+                    b.innerText = 'حفظ نسخة على جهازي';
+                    b.onclick = trialDownloadCopy;
+                    rd.prepend(b);
+                }
+            }
+        }
+
+        function trialDownloadCopy() {
+            if (!trialBlob) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(trialBlob);
+            a.download = `interview_${sessionId}.${trialBlob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        // ---------- زر مشاركة الشاشة (تدريب): التسجيل أصلاً بياخد الشاشة كاملة ----------
+        function trialToggleScreenShareDemo() {
+            if (trialPhase !== 'running') { showSnackBar('ابدأ المقابلة أولاً', 'orange'); return; }
+            if (!isScreenSharing && screenShareAllowedForStudent) {
+                showSnackBar(tl('screen_share_teacher_active'), 'orange');
+                return;
+            }
+            isScreenSharing = !isScreenSharing;
+            updateScreenShareUI();
+            showSnackBar(
+                isScreenSharing ? 'تدريب: هكذا تشارك شاشتك للطالب. المقابلة تُسجَّل بالكامل.' : tl('screen_share_stopped'),
+                isScreenSharing ? 'green' : 'orange'
+            );
+        }
 
             // ==========================================
             // 🛠️ Utilities

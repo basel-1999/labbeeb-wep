@@ -65,6 +65,8 @@
             align-items: center;
             justify-content: center;
         }
+        /* 🔒 لوحة مقفلة (معلم تجريبي أو تمت مقابلته) */
+        .locked-ui { pointer-events: none; user-select: none; filter: grayscale(1); opacity: .4; }
     </style>
 </head>
 <body class="pb-20">
@@ -103,7 +105,7 @@
                 </button>
 
                 <!-- زر الإعدادات -->
-                <button onclick="window.location.href='/teacher-settings'" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-full ml-2" title="إعدادات الحساب">
+                <button id="settingsBtn" onclick="window.location.href='/teacher-settings'" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-full ml-2" title="إعدادات الحساب">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -230,6 +232,19 @@
             </button>
         </div>
 
+                <!-- State 3.5: معلم تجريبي (بطاقة المقابلة) -->
+        <div id="trialCard" class="hidden max-w-2xl mx-auto mb-8">
+            <div id="trialCardBox" class="bg-white rounded-3xl shadow-md border-2 border-accentOrange/40 p-6 sm:p-8 text-center transition">
+                <div class="bg-accentOrange/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-accentOrange" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </div>
+                <h2 id="trialCardTitle" class="text-xl font-bold text-textDark mb-2"></h2>
+                <p id="trialCardDesc" class="text-sm text-gray-500 leading-relaxed mb-6"></p>
+                <button id="trialStartBtn" onclick="startTrialInterview()" class="bg-accentOrange text-white font-bold px-8 py-3 rounded-xl hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed"></button>
+                <p id="trialUnsupportedMsg" class="hidden text-xs text-red-600 font-bold mt-4 leading-relaxed"></p>
+            </div>
+        </div>
+
         <!-- State 4: Approved Dashboard -->
         <div id="dashboardView" class="hidden">
             <div class="bg-white border border-oliveGreen/30 rounded-2xl p-4 flex items-center mb-8">
@@ -345,7 +360,17 @@
                 portal_subtitle: "بوابة المعلم",
                 status_new: "حساب جديد",
                 status_pending: "قيد المراجعة",
-                status_approved: "معلم معتمد",
+                status_approved: "معلم معتمد لدى منصة لبيب",
+                status_trial: "معلم تجريبي",
+                trial_card_title: "أهلاً بك في منصة لبيب 🎉",
+                trial_card_desc: "تم قبول تسجيلك. الخطوة الأخيرة هي مقابلة قصيرة مدتها 15 دقيقة مع طالب وهمي، تُسجَّل بالصوت والشاشة وتراجعها الإدارة لاعتماد حسابك. تأكد من وجود ميكروفون ومن أنك تستخدم جهاز حاسوب.",
+                trial_start_btn: "اضغط هنا لمقابلة المعلم",
+                trial_preparing: "جاري التحضير...",
+                trial_done_title: "تمت مقابلتك ✅",
+                trial_done_desc: "استلمنا مقابلتك وهي قيد المراجعة من الإدارة. ستُفتح لك كل الخيارات فور اعتماد حسابك.",
+                trial_done_btn: "تمت المقابلة",
+                trial_unsupported: "المقابلة تحتاج جهاز حاسوب (لابتوب أو مكتبي) لأنها تتطلب تسجيل الشاشة. افتح حسابك من حاسوب لإجرائها.",
+                trial_start_failed: "تعذر بدء المقابلة",
                 tab_pending: "طلبات جديدة",
                 tab_ready: "جاهزة الآن",
                 tab_upcoming: "مجدولة",
@@ -442,7 +467,17 @@
                 portal_subtitle: "Teacher Portal",
                 status_new: "New Account",
                 status_pending: "Under Review",
-                status_approved: "Approved Teacher",
+                status_approved: "Certified Labeeb Teacher",
+                status_trial: "Trial Teacher",
+                trial_card_title: "Welcome to Labeeb Platform 🎉",
+                trial_card_desc: "Your registration was accepted. The last step is a short 15-minute interview with an imaginary student, recorded with audio and screen and reviewed by the administration before your account is certified. Make sure you have a microphone and are using a computer.",
+                trial_start_btn: "Click here to meet the teacher",
+                trial_preparing: "Preparing...",
+                trial_done_title: "Your interview is done ✅",
+                trial_done_desc: "We received your interview and the administration is reviewing it. All options will unlock once your account is certified.",
+                trial_done_btn: "Interview completed",
+                trial_unsupported: "The interview needs a computer (laptop or desktop) because it requires screen recording. Open your account from a computer to take it.",
+                trial_start_failed: "Could not start the interview",
                 tab_pending: "New Requests",
                 tab_ready: "Ready Now",
                 tab_upcoming: "Scheduled",
@@ -773,32 +808,92 @@
             });
         }
 
+        function setDashboardLocked(lock) {
+            const dv = document.getElementById('dashboardView');
+            dv.classList.toggle('locked-ui', lock);
+            if (lock) dv.setAttribute('inert', ''); else dv.removeAttribute('inert');
+        }
+
+        function setSettingsLocked(lock) {
+            const b = document.getElementById('settingsBtn');
+            if (!b) return;
+            b.disabled = lock;
+            b.classList.toggle('opacity-40', lock);
+            b.classList.toggle('pointer-events-none', lock);
+        }
+
+        // بطاقة المقابلة: state = 'trial' أو 'interviewed'
+        function renderTrialCard(state) {
+            const done = state === 'interviewed';
+            const box = document.getElementById('trialCardBox');
+            const btn = document.getElementById('trialStartBtn');
+            const note = document.getElementById('trialUnsupportedMsg');
+            const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder);
+
+            document.getElementById('trialCard').classList.remove('hidden');
+            document.getElementById('trialCardTitle').innerText = done ? tt('trial_done_title') : tt('trial_card_title');
+            document.getElementById('trialCardDesc').innerText = done ? tt('trial_done_desc') : tt('trial_card_desc');
+
+            box.classList.toggle('grayscale', done);
+            box.classList.toggle('opacity-60', done);
+            btn.classList.toggle('bg-accentOrange', !done);
+            btn.classList.toggle('hover:bg-orange-600', !done);
+            btn.classList.toggle('bg-gray-400', done);
+
+            if (done) {
+                btn.disabled = true;
+                btn.innerText = tt('trial_done_btn');
+                note.classList.add('hidden');
+            } else if (!supported) {
+                btn.disabled = true;
+                btn.innerText = tt('trial_start_btn');
+                note.innerText = tt('trial_unsupported');
+                note.classList.remove('hidden');
+            } else {
+                btn.disabled = false;
+                btn.innerText = tt('trial_start_btn');
+                note.classList.add('hidden');
+            }
+        }
+
         function updateStatusUI(status) {
             document.getElementById('loadingView').classList.add('hidden');
-            
+            ['registrationForm', 'pendingApproval', 'dashboardView', 'trialCard'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            setDashboardLocked(false);
+
             const statusText = document.getElementById('teacherStatusDisplay');
-            
+            statusText.classList.remove('text-gray-500', 'text-green-600', 'text-accentOrange');
+
             if (status === 'approved') {
                 statusText.innerText = tt('status_approved');
-                statusText.classList.remove('text-gray-500', 'text-accentOrange');
                 statusText.classList.add('text-green-600');
                 document.getElementById('dashboardView').classList.remove('hidden');
+                setSettingsLocked(false);
+            } else if (status === 'trial' || status === 'interviewed') {
+                // معلم تجريبي: كل شي رمادي ومقفل ما عدا بطاقة المقابلة
+                statusText.innerText = tt('status_trial');
+                statusText.classList.add('text-accentOrange');
+                document.getElementById('dashboardView').classList.remove('hidden');
+                setDashboardLocked(true);
+                setSettingsLocked(true);
+                renderTrialCard(status);
             } else if (status === 'pending_approval' || status === 'pending_profile_update') {
-                // ✨ إذا كان قيد المراجعة بسبب التسجيل أو بسبب تعديل البيانات
                 statusText.innerText = status === 'pending_profile_update' ? tt('status_pending_update') : tt('status_pending');
-                statusText.classList.remove('text-gray-500', 'text-green-600');
                 statusText.classList.add('text-accentOrange');
                 document.getElementById('pendingApproval').classList.remove('hidden');
-                
-                // تحديث رسالة الانتظار لتوضيح السبب
+                setSettingsLocked(false);
+
                 const pendingDesc = document.querySelector('[data-i18n-t="pending_desc"]');
-                if (status === 'pending_profile_update' && pendingDesc) {
-                    pendingDesc.innerText = tt('pending_update_desc');
+                if (pendingDesc) {
+                    pendingDesc.innerText = status === 'pending_profile_update' ? tt('pending_update_desc') : tt('pending_desc');
                 }
             } else {
                 statusText.innerText = tt('status_new');
                 statusText.classList.add('text-gray-500');
                 document.getElementById('registrationForm').classList.remove('hidden');
+                setSettingsLocked(false);
             }
         }
 
@@ -952,6 +1047,7 @@ function processSessions() {
 
     Object.values(allSessions).forEach((req) => {
         const data = req.data;
+        if (data.isTrialInterview) return; // مقابلة تجريبية: ما بتظهر بقوائم الحصص
         const status = data.status ?? 'pending';
         const isMySession = data.teacherId === currentUser.uid;
 
@@ -1364,6 +1460,32 @@ function processSessions() {
             }
         }
 
+                // 🎓 بدء المقابلة التجريبية: بيعمل جلسة بدون طالب وبيفتح غرفة الحصة
+        async function startTrialInterview() {
+            if (teacherStatus !== 'trial' || !currentUser) return;
+            const btn = document.getElementById('trialStartBtn');
+            btn.disabled = true;
+            btn.innerText = tt('trial_preparing');
+            try {
+                const token = await currentUser.getIdToken();
+                const res = await fetch('/api/teacher/trial/start', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    let msg = tt('trial_start_failed');
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    throw new Error(msg);
+                }
+                const data = await res.json();
+                window.location.href = `/live-session?sessionId=${encodeURIComponent(data.sessionId)}&role=teacher&studentName=${encodeURIComponent(data.studentName || 'طالب وهمي')}&mode=trial`;
+            } catch (e) {
+                console.error('Start trial interview failed:', e);
+                showSnackBar(`${tt('trial_start_failed')}: ${e.message}`, '#ef4444');
+                btn.disabled = false;
+                btn.innerText = tt('trial_start_btn');
+            }
+        }
 
         // 🚪 تسجيل الخروج
         async function logout() {

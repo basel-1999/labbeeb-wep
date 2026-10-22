@@ -67,11 +67,12 @@ service cloud.firestore {
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'points', 'role', 'status', 'isApproved', 'accountStatus', 'isAvailable',
           'hasUsedFreeTrial', 'pendingProfileUpdates', 'profileUpdateRequestedAt',
-          'totalStars'
+          'totalStars',
+          'interviewVideoUrl', 'interviewCompletedAt', 'interviewSessionId'
         ]) &&
-        // 2. المعلم المعتمد ما بيعدل بياناته الأكاديمية إلا عبر طلب تعديل للإدارة
+        // 2. المعلم (تجريبي، أو تمت مقابلته، أو معتمد) ما بيعدل بياناته الأكاديمية إلا عبر الإدارة
         (
-          resource.data.get('status', '') != 'approved' ||
+          !(resource.data.get('status', '') in ['approved', 'trial', 'interviewed']) ||
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'name', 'country', 'city',
             'subject', 'subjects', 'targetAge', 'teachingLanguage', 'experienceYears',
@@ -105,7 +106,7 @@ service cloud.firestore {
           'status', 'completedAt', 'endReason',
           'timerStartedAt', 'pointsDeducted', 'lastDeductionAt',
           'studentJoinedAt', 'teacherJoinedAt',
-          'starsAwarded', 'lastStarAt'
+          'starsAwarded', 'lastStarAt', 'isTrialInterview'
         ]) &&
         (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['drawingAllowedForStudent', 'screenShareAllowedForStudent']) ||
