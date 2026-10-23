@@ -948,6 +948,139 @@ async def cancel_trial_interview(sessionId: str, uid: str = Depends(get_current_
         print(f"❌ ERROR in cancel_trial_interview: {e}")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
     
+    # ==========================================
+# 💰 طلبات شحن الرصيد: الإدارة (admin) أو المسؤول المالي (finance)
+# ==========================================
+VALID_RECHARGE_POINTS = {6, 60, 120, 180}   # لازم تطابق الباقات المعروضة للطالب
+
+
+class RechargeRejectRequest(BaseModel):
+    reason: str = ""
+
+
+async def get_current_staff(uid: str = Depends(get_current_user)):
+    """مستخدم من الإدارة: admin (كل الصلاحيات) أو finance (طلبات الشحن فقط).
+    الدور بيجي من Firestore (مش من المتصفح)، وبنتأكد إنه الحساب مش معطّل."""
+    try:
+        fb_user = auth.get_user(uid)
+    except Exception:
+        raise HTTPException(status_code=401, detail="يجب تسجيل الدخول.")
+    if fb_user.disabled:
+        raise HTTPException(status_code=403, detail="هذا الحساب معطّل.")
+
+    snap = db.collection('users').document(uid).get()
+    data = (snap.to_dict() or {}) if snap.exists else {}
+    if data.get('role') not in ('admin', 'finance'):
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
+    return {"uid": uid, "role": data.get('role'), "name": data.get('name', '')}
+
+
+def _notify_recharge_result(student_id: str, approved: bool, points: int = 0, reason: str = ""):
+    """إشعار للطالب بنتيجة طلب الشحن (بلغته)"""
+    try:
+        student_ref = db.collection('users').document(student_id)
+        lang = (student_ref.get().to_dict() or {}).get('preferredLanguage', 'ar')
+        if approved:
+            if lang == 'en':
+                title, body = 'Balance topped up ✅', f'{points} points were added to your wallet after reviewing your transfer receipt.'
+            else:
+                title, body = 'تم شحن رصيدك ✅', f'تمت إضافة {points} نقطة إلى محفظتك بعد مراجعة إيصال التحويل.'
+        else:
+            if lang == 'en':
+                title = 'Top-up request not accepted'
+                body = 'Your top-up request was not accepted.' + (f' Reason: {reason}' if reason else ' Please contact support.')
+            else:
+                title = 'تعذر قبول طلب الشحن'
+                body = 'لم يتم قبول طلب الشحن.' + (f' السبب: {reason}' if reason else ' يرجى التواصل مع الدعم الفني.')
+        student_ref.collection('notifications').add({
+            'title': title,
+            'body': body,
+            'read': False,
+            'createdAt': firestore.SERVER_TIMESTAMP
+        })
+    except Exception as e:
+        print(f"Failed to send recharge notification: {e}")
+
+
+@firestore.transactional
+def _approve_recharge_txn(transaction, req_ref, staff_uid):
+    """قبول ذري: ما بيتكرر، وبيضيف النقاط بنفس العملية"""
+    req_snap = req_ref.get(transaction=transaction)
+    if not req_snap.exists:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود.")
+    req = req_snap.to_dict() or {}
+    if req.get('status') != 'pending':
+        raise HTTPException(status_code=400, detail="تمت معالجة هذا الطلب مسبقاً.")
+
+    points = req.get('pointsCount')
+    if not isinstance(points, (int, float)) or int(points) not in VALID_RECHARGE_POINTS:
+        raise HTTPException(status_code=400, detail="عدد النقاط بالطلب غير صالح. ارفض الطلب وتواصل مع الطالب.")
+    points = int(points)
+
+    student_id = req.get('studentId')
+    if not student_id:
+        raise HTTPException(status_code=400, detail="الطلب بدون طالب.")
+    student_ref = db.collection('users').document(student_id)
+    student_snap = student_ref.get(transaction=transaction)
+    if not student_snap.exists:
+        raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
+
+    current = student_snap.to_dict().get('points', 0) or 0
+    transaction.update(student_ref, {'points': current + points})
+    transaction.update(req_ref, {
+        'status': 'approved',
+        'approvedAt': firestore.SERVER_TIMESTAMP,
+        'approvedBy': staff_uid,
+    })
+    return student_id, points
+
+
+@firestore.transactional
+def _reject_recharge_txn(transaction, req_ref, staff_uid, reason):
+    req_snap = req_ref.get(transaction=transaction)
+    if not req_snap.exists:
+        raise HTTPException(status_code=404, detail="الطلب غير موجود.")
+    req = req_snap.to_dict() or {}
+    if req.get('status') != 'pending':
+        raise HTTPException(status_code=400, detail="تمت معالجة هذا الطلب مسبقاً.")
+    transaction.update(req_ref, {
+        'status': 'rejected',
+        'rejectedAt': firestore.SERVER_TIMESTAMP,
+        'rejectedBy': staff_uid,
+        'rejectReason': reason,
+    })
+    return req.get('studentId')
+
+
+@router.post("/api/admin/recharge/{requestId}/approve")
+async def approve_recharge(requestId: str, staff: dict = Depends(get_current_staff)):
+    try:
+        req_ref = db.collection('recharge_requests').document(requestId)
+        student_id, points = _approve_recharge_txn(db.transaction(), req_ref, staff['uid'])
+        _notify_recharge_result(student_id, True, points=points)
+        return {"message": "تم قبول الطلب وإضافة النقاط", "points": points}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in approve_recharge: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/admin/recharge/{requestId}/reject")
+async def reject_recharge(requestId: str, payload: RechargeRejectRequest, staff: dict = Depends(get_current_staff)):
+    try:
+        reason = (payload.reason or '').strip()[:300]
+        req_ref = db.collection('recharge_requests').document(requestId)
+        student_id = _reject_recharge_txn(db.transaction(), req_ref, staff['uid'], reason)
+        if student_id:
+            _notify_recharge_result(student_id, False, reason=reason)
+        return {"message": "تم رفض الطلب"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in reject_recharge: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+    
 # ==========================================
 # 🔑 استرجاع كلمة مرور المعلم عبر SMS
 # ==========================================

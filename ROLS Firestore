@@ -20,6 +20,13 @@ service cloud.firestore {
       );
     }
 
+    // مسؤول مالي: بيشوف طلبات الشحن فقط (حساب بإيميل وباسوورد بيعمله صاحب المنصة)
+    function isFinance() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance';
+    }
+
     function isSessionParticipant(sessionId) {
       let sessionPath = /databases/$(database)/documents/sessions/$(sessionId);
       return isAuthenticated() && (
@@ -159,7 +166,7 @@ service cloud.firestore {
 
     // --- 3. طلبات الشحن ---
     match /recharge_requests/{requestId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isFinance();
       allow create: if isAuthenticated() &&
         request.resource.data.studentId == request.auth.uid &&
         request.resource.data.status == 'pending';
