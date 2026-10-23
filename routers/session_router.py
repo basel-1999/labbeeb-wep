@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 import httpx
 import asyncio
 import re
+from urllib.parse import unquote
 
 load_dotenv()
 
@@ -1079,6 +1080,188 @@ async def reject_recharge(requestId: str, payload: RechargeRejectRequest, staff:
         raise
     except Exception as e:
         print(f"❌ ERROR in reject_recharge: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+    
+
+    # ==========================================
+# 👑 إدارة المعلمين (للأدمن فقط): قبول التسجيل، توثيق، إعادة المقابلة، حذف
+# ==========================================
+async def get_current_admin(uid: str = Depends(get_current_user)):
+    """الأدمن فقط (مش المسؤول المالي)"""
+    try:
+        fb_user = auth.get_user(uid)
+    except Exception:
+        raise HTTPException(status_code=401, detail="يجب تسجيل الدخول.")
+    if fb_user.disabled:
+        raise HTTPException(status_code=403, detail="هذا الحساب معطّل.")
+
+    claims = fb_user.custom_claims or {}
+    snap = db.collection('users').document(uid).get()
+    doc_role = (snap.to_dict() or {}).get('role') if snap.exists else None
+    if not (claims.get('admin') is True or claims.get('role') == 'admin' or doc_role == 'admin'):
+        raise HTTPException(status_code=403, detail="هذا الإجراء للإدارة فقط.")
+    return {"uid": uid}
+
+
+def _teacher_or_404(teacher_id: str):
+    ref = db.collection('users').document(teacher_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="حساب المعلم غير موجود.")
+    data = snap.to_dict() or {}
+    if data.get('role') != 'teacher':
+        raise HTTPException(status_code=400, detail="هذا الحساب ليس لمعلم.")
+    return ref, data
+
+
+def _cloudinary_destroy(url: str) -> bool:
+    """حذف ملف من Cloudinary من رابطه (محاولة فقط، ما بتوقف العملية لو فشلت)"""
+    try:
+        import cloudinary.uploader
+        m = re.search(r'/(image|video|raw)/upload/(?:v\d+/)?(.+)$', url or '')
+        if not m:
+            return False
+        rtype, public_id = m.group(1), unquote(m.group(2))
+        if rtype != 'raw':
+            public_id = re.sub(r'\.[A-Za-z0-9]+$', '', public_id)
+        res = cloudinary.uploader.destroy(public_id, resource_type=rtype, invalidate=True)
+        return res.get('result') == 'ok'
+    except Exception as e:
+        print(f"Cloudinary destroy failed for {url}: {e}")
+        return False
+
+
+def _delete_doc_tree(ref):
+    """حذف وثيقة مع كل مجموعاتها الفرعية"""
+    try:
+        db.recursive_delete(ref)
+        return
+    except Exception as e:
+        print(f"recursive_delete failed, falling back: {e}")
+    for sub in ('strokes', 'messages', 'animations', 'rewards', 'live', 'notifications'):
+        try:
+            for d in ref.collection(sub).stream():
+                d.reference.delete()
+        except Exception as e:
+            print(f"Failed deleting subcollection {sub}: {e}")
+    ref.delete()
+
+
+@router.post("/api/admin/teacher/{teacherId}/approve-registration")
+async def admin_approve_registration(teacherId: str, admin: dict = Depends(get_current_admin)):
+    """قبول تسجيل معلم جديد: بيصير 'معلم تجريبي' وبيعمل المقابلة"""
+    try:
+        ref, t = _teacher_or_404(teacherId)
+        if t.get('status') != 'pending_approval':
+            raise HTTPException(status_code=400, detail="حالة المعلم الحالية لا تسمح بقبول التسجيل.")
+        ref.update({
+            'status': 'trial',
+            'approvedAt': firestore.SERVER_TIMESTAMP,
+            'approvedBy': admin['uid'],
+        })
+        return {"message": "تم قبول التسجيل، المعلم الآن معلم تجريبي"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in admin_approve_registration: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/admin/teacher/{teacherId}/certify")
+async def admin_certify_teacher(teacherId: str, admin: dict = Depends(get_current_admin)):
+    """توثيق المعلم بعد مراجعة المقابلة: بيصير 'معلم معتمد' وبتفتح له كل الخيارات"""
+    try:
+        ref, t = _teacher_or_404(teacherId)
+        if t.get('status') != 'interviewed':
+            raise HTTPException(status_code=400, detail="يمكن توثيق المعلم فقط بعد إتمامه للمقابلة.")
+        ref.update({
+            'status': 'approved',
+            'isApproved': True,
+            'certifiedAt': firestore.SERVER_TIMESTAMP,
+            'certifiedBy': admin['uid'],
+        })
+        return {"message": "تم توثيق المعلم، الآن هو معلم معتمد لدى منصة لبيب"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in admin_certify_teacher: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/admin/teacher/{teacherId}/reset-interview")
+async def admin_reset_interview(teacherId: str, admin: dict = Depends(get_current_admin)):
+    """إعادة المقابلة: بيمسح الفيديو وبيرجع المعلم 'تجريبي' ليعيدها"""
+    try:
+        ref, t = _teacher_or_404(teacherId)
+        if t.get('status') != 'interviewed':
+            raise HTTPException(status_code=400, detail="إعادة المقابلة متاحة فقط للمعلم الذي أنهى مقابلته.")
+
+        video_url = t.get('interviewVideoUrl')
+        session_id = t.get('interviewSessionId')
+
+        ref.update({
+            'status': 'trial',
+            'interviewVideoUrl': firestore.DELETE_FIELD,
+            'interviewCompletedAt': firestore.DELETE_FIELD,
+            'interviewSessionId': firestore.DELETE_FIELD,
+            'interviewResetAt': firestore.SERVER_TIMESTAMP,
+            'interviewResetBy': admin['uid'],
+        })
+
+        if video_url:
+            _cloudinary_destroy(video_url)
+        if session_id:
+            _delete_doc_tree(db.collection('sessions').document(session_id))
+        return {"message": "تمت إعادة المقابلة، المعلم الآن يستطيع إعادتها"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in admin_reset_interview: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
+
+
+@router.post("/api/admin/teacher/{teacherId}/delete")
+async def admin_delete_teacher(teacherId: str, admin: dict = Depends(get_current_admin)):
+    """حذف المعلم نهائياً (كأنه ما سجّل): حساب الدخول، البيانات، المقابلة، والملفات"""
+    try:
+        ref, t = _teacher_or_404(teacherId)
+        if t.get('status') not in ('pending_approval', 'trial', 'interviewed'):
+            raise HTTPException(status_code=400, detail="لا يمكن حذف معلم معتمد من هنا.")
+
+        # كل روابط الملفات المرفوعة
+        urls = []
+        for k in ('certificateUrl', 'identityUrl', 'experienceCertificateUrl',
+                  'advancedDegreeCertificateUrl', 'interviewVideoUrl', 'photoURL'):
+            if t.get(k):
+                urls.append(t[k])
+        urls.extend(t.get('certificates') or [])
+        urls = list(dict.fromkeys(u for u in urls if isinstance(u, str) and 'res.cloudinary.com' in u))
+
+        # 1) حساب الدخول أول (عشان ما يقدر يدخل)
+        try:
+            auth.delete_user(teacherId)
+        except auth.UserNotFoundError:
+            pass
+
+        # 2) جلسات المقابلة
+        old = db.collection('sessions') \
+            .where('teacherId', '==', teacherId) \
+            .where('isTrialInterview', '==', True) \
+            .stream()
+        for s in old:
+            _delete_doc_tree(s.reference)
+
+        # 3) وثيقة المعلم
+        _delete_doc_tree(ref)
+
+        # 4) ملفات Cloudinary
+        deleted_files = sum(1 for u in urls if _cloudinary_destroy(u))
+
+        return {"message": "تم حذف المعلم نهائياً", "deletedFiles": deleted_files, "totalFiles": len(urls)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in admin_delete_teacher: {e}")
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {e}")
     
 # ==========================================
