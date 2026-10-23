@@ -1176,6 +1176,8 @@ async def admin_certify_teacher(teacherId: str, admin: dict = Depends(get_curren
             raise HTTPException(status_code=400, detail="يمكن توثيق المعلم فقط بعد إتمامه للمقابلة.")
         ref.update({
             'status': 'approved',
+            'accountStatus': 'approved',
+            'isAvailable': True,
             'isApproved': True,
             'certifiedAt': firestore.SERVER_TIMESTAMP,
             'certifiedBy': admin['uid'],
