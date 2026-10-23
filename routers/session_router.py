@@ -42,7 +42,7 @@ STARS_PER_BASKET = 10         # كل 10 نجوم = كأس وبتفضى السل�
 TRIAL_INTERVIEW_SECONDS = 900   # 15 دقيقة بالضبط
 TRIAL_MIN_SECONDS_TO_COMPLETE = 870   # حد أدنى للقبول (فيه سماح 30 ثانية لفرق الساعات)
 CLOUDINARY_CLOUD = os.getenv("CLOUDINARY_CLOUD_NAME", "f4t8ayoq")
-
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://labbeeb-wep.onrender.com").rstrip("/")
 # إعداد Cloudinary باستخدام متغيرات البيئة (أكثر أماناً)
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -1367,10 +1367,10 @@ async def create_tap_checkout(
                 "id": sourceId  # ✨ استخدام طريقة الدفع التي اختارها الطالب
             },
             "post": {
-                "url": "https://labeeb-wep.onrender.com/api/payment/webhook"
+                "url": f"{PUBLIC_BASE_URL}/api/payment/webhook"
             },
             "redirect": {
-                "url": "https://labeeb-wep.onrender.com/payment-success"
+                "url": f"{PUBLIC_BASE_URL}/payment-success"
             }
         }
 
