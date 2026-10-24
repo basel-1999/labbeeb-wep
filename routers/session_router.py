@@ -1380,6 +1380,8 @@ async def reset_teacher_password(payload: ResetPasswordRequest):
         # 4) سجل تدقيق (ما حدا بيقراه من المتصفح، بس من لوحة Firebase أو الأدمن)
         db.collection('password_resets').add({
             'teacherId': teacher_uid,
+            'teacherName': teacher_data.get('name', ''),
+            'email': payload.email.strip().lower(),
             'method': 'sms',
             'createdAt': firestore.SERVER_TIMESTAMP
         })
