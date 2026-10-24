@@ -27,6 +27,15 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance';
     }
 
+    // مين بيقدر يفتح طلبات الشحن: مسؤول مالي، أو أدمن أعطاه صاحب المنصة صلاحية canRecharge
+    function canRecharge() {
+      let uPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(uPath) && (
+        get(uPath).data.role == 'finance' ||
+        (get(uPath).data.role == 'admin' && get(uPath).data.get('canRecharge', false) == true)
+      );
+    }
+
     function isSessionParticipant(sessionId) {
       let sessionPath = /databases/$(database)/documents/sessions/$(sessionId);
       return isAuthenticated() && (
@@ -51,7 +60,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
 
-      allow create: if isAdmin() || (
+      // الأدمن ما بيقدر ينشئ حساب أدمن أو يعطي صلاحية canRecharge (هاد من Firebase Console بس)
+      allow create: if (isAdmin() &&
+        request.resource.data.get('role', '') != 'admin' &&
+        !('canRecharge' in request.resource.data)) || (
         isOwner(userId) &&
         request.resource.data.role in ['student', 'teacher'] &&
         request.resource.data.get('points', 0) == 0 &&
@@ -68,14 +80,17 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
-      allow update: if isAdmin() || (
+      // الأدمن ما بيقدر يغيّر role أو canRecharge (حتى ما حدا يعطي نفسه صلاحية الشحن)
+      allow update: if (isAdmin() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'canRecharge'])) || (
         isOwner(userId) &&
         // 1. حقول ما حدا بيعدلها من المتصفح (السيرفر ولوحة الأدمن فقط)
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'points', 'role', 'status', 'isApproved', 'accountStatus', 'isAvailable',
           'hasUsedFreeTrial', 'pendingProfileUpdates', 'profileUpdateRequestedAt',
           'totalStars',
-          'interviewVideoUrl', 'interviewCompletedAt', 'interviewSessionId'
+          'interviewVideoUrl', 'interviewCompletedAt', 'interviewSessionId',
+          'canRecharge'
         ]) &&
         // 2. المعلم (تجريبي، أو تمت مقابلته، أو معتمد) ما بيعدل بياناته الأكاديمية إلا عبر الإدارة
         (
@@ -166,12 +181,13 @@ service cloud.firestore {
 
     // --- 3. طلبات الشحن ---
     match /recharge_requests/{requestId} {
-      allow read: if isAdmin() || isFinance();
+      allow read: if canRecharge();
       allow create: if isAuthenticated() &&
         request.resource.data.studentId == request.auth.uid &&
         request.resource.data.status == 'pending';
       allow update, delete: if false;
     }
+
     // --- سجل استرجاع كلمات المرور (قراءة للأدمن فقط، والكتابة من السيرفر) ---
     match /password_resets/{logId} {
       allow read: if isAdmin();

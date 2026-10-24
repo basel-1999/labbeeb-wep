@@ -971,9 +971,11 @@ async def get_current_staff(uid: str = Depends(get_current_user)):
 
     snap = db.collection('users').document(uid).get()
     data = (snap.to_dict() or {}) if snap.exists else {}
-    if data.get('role') not in ('admin', 'finance'):
-        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
-    return {"uid": uid, "role": data.get('role'), "name": data.get('name', '')}
+    role = data.get('role')
+    allowed = role == 'finance' or (role == 'admin' and data.get('canRecharge') is True)
+    if not allowed:
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية على طلبات الشحن.")
+    return {"uid": uid, "role": role, "name": data.get('name', '')}
 
 
 def _notify_recharge_result(student_id: str, approved: bool, points: int = 0, reason: str = ""):
