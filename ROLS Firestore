@@ -36,6 +36,14 @@ service cloud.firestore {
       );
     }
 
+    // معلم معتمد فقط (هو الوحيد اللي بيشوف الطلبات المعلقة)
+    function isApprovedTeacher() {
+      let uPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(uPath) &&
+        get(uPath).data.role == 'teacher' &&
+        get(uPath).data.status == 'approved';
+    }
+
     function isSessionParticipant(sessionId) {
       let sessionPath = /databases/$(database)/documents/sessions/$(sessionId);
       return isAuthenticated() && (
@@ -92,6 +100,11 @@ service cloud.firestore {
           'interviewVideoUrl', 'interviewCompletedAt', 'interviewSessionId',
           'canRecharge'
         ]) &&
+        // لغة الطالب بتتحدد مرة وحدة (عند التسجيل)، وبعدها ما بتتغير من المتصفح لأنها بتحدد سعر الباقات
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['preferredLanguage']) ||
+          resource.data.get('preferredLanguage', '') == ''
+        ) &&
         // 2. المعلم (تجريبي، أو تمت مقابلته، أو معتمد) ما بيعدل بياناته الأكاديمية إلا عبر الإدارة
         (
           !(resource.data.get('status', '') in ['approved', 'trial', 'interviewed']) ||
@@ -115,7 +128,7 @@ service cloud.firestore {
         isAdmin() ||
         resource.data.studentId == request.auth.uid ||
         resource.data.teacherId == request.auth.uid ||
-        resource.data.status == 'pending'
+        (resource.data.status == 'pending' && isApprovedTeacher())
       );
 
       // الإنشاء يتم فقط عبر الباك-إند (Admin SDK) بعد فحص الرصيد

@@ -44,6 +44,7 @@ TRIAL_INTERVIEW_SECONDS = 900   # 15 دقيقة بالضبط
 TRIAL_MIN_SECONDS_TO_COMPLETE = 870   # حد أدنى للقبول (فيه سماح 30 ثانية لفرق الساعات)
 CLOUDINARY_CLOUD = os.getenv("CLOUDINARY_CLOUD_NAME", "f4t8ayoq")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://labbeeb-wep.onrender.com").rstrip("/")
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024   # أقصى حجم ملف عبر السيرفر
 # إعداد Cloudinary باستخدام متغيرات البيئة (أكثر أماناً)
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -132,6 +133,11 @@ async def create_session_request(
 
         user_data = user_snap.to_dict()
 
+        # 🔒 لغة الحصة بتنقرأ من ملف الطالب (مش من الطلب) عشان ما حدا يتلاعب بالسعر ونوع المعلم
+        session_language = user_data.get('preferredLanguage', 'ar')
+        if session_language not in ('ar', 'en'):
+            session_language = 'ar'
+
         # ✨ التحقق من الحصة التجريبية
         if isFreeTrial:
             if user_data.get('hasUsedFreeTrial', False):
@@ -170,7 +176,7 @@ async def create_session_request(
             'subject': subject,
             'topic': topic,
             'grade': grade,
-            'language': language,
+            'language': session_language,
             'status': 'pending',
             'studentJoinedAt': None,
             'teacherJoinedAt': None,
@@ -736,6 +742,13 @@ async def accept_session(
 
 @router.get("/api/session/pending")
 async def listen_to_pending_sessions(uid: str = Depends(get_current_user)):
+    # 🔒 الطلبات المعلقة فيها بيانات طلاب: بس للمعلم المعتمد أو الأدمن
+    caller_snap = db.collection('users').document(uid).get()
+    caller = caller_snap.to_dict() if caller_snap.exists else {}
+    is_approved_teacher = caller.get('role') == 'teacher' and caller.get('status') == 'approved'
+    if not (is_approved_teacher or caller.get('role') == 'admin'):
+        raise HTTPException(status_code=403, detail="غير مصرح لك بعرض الطلبات.")
+
     sessions_ref = db.collection('sessions').where('status', '==', 'pending')
     docs = sessions_ref.stream()
     
@@ -765,6 +778,13 @@ async def register_teacher(
     advancedDegreeCertificateUrl: str = Form(""),  # ✨ اختياري، فقط لو ماجستير/دكتوراه
     uid: str = Depends(get_current_user)
 ):
+    # 🔒 المسار للمعلم الجديد فقط: حساب مسجل أصلاً ما بيقدر يعيد كتابة دوره أو حالته
+    existing_snap = db.collection('users').document(uid).get()
+    existing = existing_snap.to_dict() if existing_snap.exists else {}
+    if existing.get('role') not in (None, '', 'teacher') or existing.get('status') in (
+            'pending_approval', 'trial', 'interviewed', 'approved', 'pending_profile_update'):
+        raise HTTPException(status_code=400, detail="تم تقديم بياناتك مسبقاً.")
+
     try:
         update_data = {
             'subject': subject,
@@ -1648,7 +1668,7 @@ async def tap_webhook(request: Request):
 
             # التأكد من صحة البيانات قبل شحن المحفظة
             points_count_str = str(points_count_str)
-            if student_id and points_count_str.isdigit() and int(points_count_str) > 0:
+            if student_id and points_count_str.isdigit() and int(points_count_str) in VALID_RECHARGE_POINTS:
                 points_count = int(points_count_str)
 
                 user_ref = db.collection('users').document(student_id)
@@ -1701,8 +1721,16 @@ async def upload_to_cloudinary(
 ):
     """رفع ملف عام إلى Cloudinary باستخدام المفاتيح الآمنة (Signed)"""
     try:
-        file_contents = await file.read()
-        
+        # 🔒 حماية: نوع مورد معروف، اسم مجلد بسيط، وحجم محدود
+        if resource_type not in ('auto', 'image', 'raw', 'video'):
+            raise HTTPException(status_code=400, detail="نوع الملف غير مسموح.")
+        if folder and not re.match(r'^[A-Za-z0-9_\-/]{1,60}$', folder):
+            raise HTTPException(status_code=400, detail="اسم المجلد غير صالح.")
+
+        file_contents = await file.read(MAX_UPLOAD_BYTES + 1)
+        if len(file_contents) > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="حجم الملف كبير (الحد الأقصى 15 ميجابايت).")
+
         upload_result = cloudinary.uploader.upload(
             file_contents,
             resource_type=resource_type,
@@ -1710,6 +1738,8 @@ async def upload_to_cloudinary(
         )
         return {"url": upload_result.get("secure_url")}
             
+    except HTTPException:
+        raise
     except Exception as e:
         print("Upload Exception:", str(e))
         raise HTTPException(status_code=500, detail=f"Cloudinary upload exception: {str(e)}")
@@ -1745,6 +1775,9 @@ async def complete_session(
         'completedAt': firestore.SERVER_TIMESTAMP
     }
     if payload.audioUrl:
+        # 🔒 الرابط لازم يكون من Cloudinary تبعنا (عشان ما حدا يحط رابط خبيث للطرف الثاني)
+        if not payload.audioUrl.startswith(f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/"):
+            raise HTTPException(status_code=400, detail="رابط التسجيل غير صالح.")
         update_data['audioRecordingUrl'] = payload.audioUrl
 
     session_ref.update(update_data)
