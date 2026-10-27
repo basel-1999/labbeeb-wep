@@ -286,7 +286,6 @@
 
                         <button onclick="triggerAnimation('happy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😊</button>
                         <button onclick="triggerAnimation('sad')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">😢</button>
-                        <button onclick="triggerAnimation('trophy')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🏆</button>
                         <button onclick="triggerAnimation('balloons')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">🎈</button>
                         <button onclick="triggerAnimation('heart')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl">❤️</button>
                         <button onclick="triggerAnimation('question')" class="p-2 hover:bg-white/10 rounded-lg shrink-0 text-xl" style="transform: scaleX(-1); display: inline-block;">❓</button>
@@ -469,7 +468,6 @@
         <!-- Hidden Audio Elements -->
         <audio id="sound_happy" src="/static/sounds/happy.mp3"></audio>
         <audio id="sound_sad" src="/static/sounds/sad.mp3"></audio>
-        <audio id="sound_trophy" src="/static/sounds/trophy.mp3"></audio>
         <audio id="sound_balloons" src="/static/sounds/balloons.mp3"></audio>
         <audio id="sound_heart" src="/static/sounds/heart.mp3"></audio>
         <audio id="sound_question" src="/static/sounds/question.mp3"></audio>
@@ -3007,51 +3005,429 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 });
             }
 
+            // ==========================================
+            // 🎬 مؤثرات المعلم (كلها مرسومة بالكود، بدون فيديوهات)
+            // ==========================================
+            function fxRand(min, max) { return min + Math.random() * (max - min); }
+            function fxPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+            let fxIdCounter = 0;
+
+            function fxBox(overlay) {
+                return { w: overlay.clientWidth || 800, h: overlay.clientHeight || 500 };
+            }
+
             function playAnimation(type) {
                 const overlay = document.getElementById('animationOverlay');
                 const sound = document.getElementById(`sound_${type}`);
-                if (sound) sound.play();
-                
-                if (type === 'fireworks') {
-                    for (let i = 0; i < 50; i++) {
-                        const p = document.createElement('div'); p.className = 'firework-particle';
-                        p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%';
-                        p.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                        p.style.transform = `translate(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px)`;
-                        overlay.appendChild(p); setTimeout(() => p.remove(), 1500);
+                if (sound) { try { sound.currentTime = 0; sound.play().catch(() => {}); } catch (e) {} }
+
+                if (type === 'fireworks') { playFireworks(overlay); return; }
+                if (type === 'balloons') { playBalloons(overlay); return; }
+                if (type === 'heart') { playHeart(overlay); return; }
+                if (type === 'question') { playQuestion(overlay); return; }
+
+                // 😊 😢: إيموجي بحركة بسيطة
+                const el = document.createElement('div');
+                el.className = 'anim-object';
+                if (type === 'happy') el.innerText = '😊';
+                else if (type === 'sad') el.innerText = '😢';
+                else return; // نوع غير معروف (مثلاً الكأس القديم): ما منعمل شي
+                overlay.appendChild(el);
+                setTimeout(() => el.remove(), 2500);
+            }
+
+            // ---------- 🎈 البلالين ----------
+            const BALLOON_COLORS = [
+                ['#FF8A80', '#E53935', '#8E0000'],
+                ['#FFD180', '#FB8C00', '#9A4A00'],
+                ['#FFF59D', '#FDD835', '#A98600'],
+                ['#A5D6A7', '#43A047', '#1B5E20'],
+                ['#90CAF9', '#1E88E5', '#0D3C80'],
+                ['#CE93D8', '#8E24AA', '#4A148C'],
+                ['#F48FB1', '#D81B60', '#7F0B3A'],
+                ['#80DEEA', '#00ACC1', '#00606B']
+            ];
+
+            function balloonSvg(colors, w) {
+                const id = 'bl' + (++fxIdCounter);
+                return `<svg viewBox="0 0 80 150" width="${w}" height="${w * 150 / 80}" style="display:block;overflow:visible;filter:drop-shadow(0 6px 8px rgba(0,0,0,.22))">
+                    <defs><radialGradient id="${id}" cx="35%" cy="28%" r="78%">
+                        <stop offset="0" stop-color="${colors[0]}"/><stop offset=".55" stop-color="${colors[1]}"/><stop offset="1" stop-color="${colors[2]}"/>
+                    </radialGradient></defs>
+                    <path d="M40 3C16 3 3 24 3 45c0 24 20 42 37 47 17-5 37-23 37-47C77 24 64 3 40 3Z" fill="url(#${id})"/>
+                    <path d="M34.5 91.5 40 99l5.5-7.5Z" fill="${colors[2]}"/>
+                    <path d="M40 99c-6 10 6 20 0 32s5 15 0 19" fill="none" stroke="rgba(60,60,60,.55)" stroke-width="1.6" stroke-linecap="round"/>
+                    <ellipse cx="25" cy="27" rx="6.5" ry="12" transform="rotate(-24 25 27)" fill="rgba(255,255,255,.55)"/>
+                    <ellipse cx="31" cy="12" rx="3" ry="2" fill="rgba(255,255,255,.7)"/>
+                </svg>`;
+            }
+
+            function balloonPopBurst(overlay, el, colors) {
+                const r = el.getBoundingClientRect();
+                const o = overlay.getBoundingClientRect();
+                const cx = r.left - o.left + r.width / 2;
+                const cy = r.top - o.top + r.height * 0.4;
+                const palette = colors.concat(['#FFFFFF', '#FFD54F']);
+                for (let i = 0; i < 16; i++) {
+                    const p = document.createElement('div');
+                    const s = fxRand(4, 9);
+                    p.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${s}px;height:${s * fxRand(0.6, 1.6)}px;background:${fxPick(palette)};border-radius:${Math.random() < 0.5 ? '50%' : '2px'};z-index:55;pointer-events:none;`;
+                    overlay.appendChild(p);
+                    const ang = Math.random() * Math.PI * 2;
+                    const dist = fxRand(30, 95);
+                    const a = p.animate([
+                        { transform: 'translate(-50%,-50%) scale(1) rotate(0deg)', opacity: 1 },
+                        { transform: `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist + 30}px)) scale(.3) rotate(${fxRand(-360, 360)}deg)`, opacity: 0 }
+                    ], { duration: fxRand(500, 900), easing: 'cubic-bezier(.15,.8,.3,1)' });
+                    a.onfinish = () => p.remove();
+                }
+            }
+
+            function playBalloons(overlay) {
+                const { w: W, h: H } = fxBox(overlay);
+                const base = Math.max(46, Math.min(96, W * 0.075));
+                const count = 20;
+                for (let i = 0; i < count; i++) {
+                    const size = base * fxRand(0.7, 1.3);
+                    const colors = fxPick(BALLOON_COLORS);
+                    const el = document.createElement('div');
+                    el.style.cssText = `position:absolute;left:${fxRand(2, 92)}%;top:0;z-index:${50 + (i % 5)};will-change:transform;pointer-events:none;`;
+                    el.innerHTML = balloonSvg(colors, size);
+                    overlay.appendChild(el);
+
+                    const bh = size * 150 / 80;
+                    const sway = fxRand(14, 42);
+                    const dur = fxRand(4200, 7800);
+                    const delay = i < 6 ? fxRand(0, 500) : fxRand(300, 1900);   // موجة أولى سريعة ثم الباقي
+                    const willPop = Math.random() < 0.22;
+                    const y0 = H + 30;
+                    const y1 = willPop ? H * fxRand(0.12, 0.5) : -(bh + 60);
+
+                    const anim = el.animate([
+                        { transform: `translate(0px, ${y0}px) rotate(${fxRand(-6, 6)}deg)` },
+                        { transform: `translate(${sway}px, ${y0 + (y1 - y0) * 0.33}px) rotate(${fxRand(3, 8)}deg)`, offset: 0.33 },
+                        { transform: `translate(${-sway}px, ${y0 + (y1 - y0) * 0.66}px) rotate(${fxRand(-8, -3)}deg)`, offset: 0.66 },
+                        { transform: `translate(${sway * 0.5}px, ${y1}px) rotate(${fxRand(-4, 4)}deg)` }
+                    ], { duration: dur, delay: delay, easing: 'cubic-bezier(.3,.05,.45,1)', fill: 'both' });
+
+                    anim.onfinish = () => {
+                        if (willPop) balloonPopBurst(overlay, el, colors);
+                        el.remove();
+                    };
+                }
+            }
+
+            // ---------- 🎆 المفرقعات ----------
+            function playFireworks(overlay) {
+                const { w: W, h: H } = fxBox(overlay);
+                const dpr = window.devicePixelRatio || 1;
+
+                // سما الليل
+                const backdrop = document.createElement('div');
+                backdrop.style.cssText = 'position:absolute;inset:0;z-index:50;pointer-events:none;background:radial-gradient(ellipse at 50% 120%, rgba(30,24,70,.92), rgba(4,6,20,.94));opacity:0;';
+                overlay.appendChild(backdrop);
+                backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, fill: 'forwards' });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(W * dpr);
+                canvas.height = Math.round(H * dpr);
+                canvas.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;z-index:51;pointer-events:none;`;
+                overlay.appendChild(canvas);
+                const c = canvas.getContext('2d');
+                c.scale(dpr, dpr);
+
+                const rockets = [];
+                const sparks = [];
+                const flashes = [];
+                const DURATION = 7200;      // مدة العرض بالمللي ثانية
+                const MAX_LAUNCH = 11;      // عدد الصواريخ
+                let launched = 0;
+                let nextLaunch = 250;
+                let finished = false;
+                const startTs = performance.now();
+                let lastTs = startTs;
+
+                function launch() {
+                    const targetY = fxRand(H * 0.16, H * 0.5);
+                    rockets.push({
+                        x: fxRand(W * 0.12, W * 0.88), y: H + 10,
+                        vx: fxRand(-0.6, 0.6) * (W / 800),
+                        vy: -Math.sqrt(2 * 0.12 * (H - targetY)),
+                        hue: fxRand(0, 360)
+                    });
+                }
+
+                function explode(x, y, hue) {
+                    const kind = fxPick(['peony', 'peony', 'ring', 'willow', 'palm', 'crackle']);
+                    const base = Math.min(W, H) / 500;
+                    const n = kind === 'ring' ? 70 : (kind === 'crackle' ? 90 : 120);
+                    const hue2 = (hue + fxRand(40, 160)) % 360;
+                    for (let i = 0; i < n; i++) {
+                        const a = (i / n) * Math.PI * 2 + fxRand(-0.03, 0.03);
+                        let sp;
+                        if (kind === 'ring') sp = 4.6 * base;
+                        else if (kind === 'palm') sp = (i % 2 ? 6.2 : 3.4) * base * fxRand(0.9, 1.1);
+                        else sp = fxRand(1.2, 6.4) * base;
+                        sparks.push({
+                            x, y, px: x, py: y,
+                            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                            life: 1,
+                            decay: kind === 'willow' ? fxRand(0.004, 0.008) : (kind === 'crackle' ? fxRand(0.012, 0.02) : fxRand(0.008, 0.016)),
+                            drag: kind === 'willow' ? 0.975 : 0.965,
+                            grav: kind === 'willow' ? 0.06 : 0.035,
+                            hue: ((kind === 'peony' && i % 3 === 0) ? hue2 : hue) + fxRand(-8, 8),
+                            size: fxRand(1.2, 2.4) * Math.max(0.8, base),
+                            twinkle: kind === 'crackle' || Math.random() < 0.25
+                        });
                     }
-            } else if (type === 'balloons' || type === 'trophy') {
-                    const video = document.createElement('video');
-                    video.src = `/static/videos/${type}.mp4`; 
-                    video.style.position = 'absolute';
-                    video.style.top = '0';
-                    video.style.left = '0';
-                    video.style.width = '100%';
-                    video.style.height = '100%';
-                    video.style.objectFit = 'cover'; // أو 'contain' إذا كنت تريد رؤية أبصار الفيديو كاملة دون قص الأطراف
-                    video.style.zIndex = '50';
-                    
-                    video.style.borderRadius = '0';
-                    video.style.boxShadow = 'none';
-                    video.style.background = 'transparent';
-                    
-                    video.autoplay = true;
-                    video.playsInline = true;
-                    overlay.appendChild(video);
-                    
-                    video.onended = () => video.remove(); 
-                    setTimeout(() => { if(video.parentNode) video.remove(); }, 15000); 
-                } else {
-                    const el = document.createElement('div'); el.className = 'anim-object';
-                    if (type === 'heart') el.innerText = '❤️';
-                    else if (type === 'happy') el.innerText = '😊';
-                    else if (type === 'sad') el.innerText = '😢';
-                    else if (type === 'question') {
-                        const span = document.createElement('span'); span.innerText = '❓';
-                        span.style.display = 'inline-block'; span.style.transform = 'scaleX(-1)';
-                        el.appendChild(span);
+                    flashes.push({ x, y, r: 10, life: 1, hue });
+                }
+
+                function finish() {
+                    if (finished) return;
+                    finished = true;
+                    const f1 = backdrop.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, fill: 'forwards' });
+                    canvas.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, fill: 'forwards' });
+                    f1.onfinish = () => { backdrop.remove(); canvas.remove(); };
+                }
+
+                function frame(now) {
+                    if (finished) return;
+                    const dt = Math.min(2.5, (now - lastTs) / 16.667);
+                    lastTs = now;
+                    const t = now - startTs;
+
+                    // تلاشي تدريجي لتكوين الذيول (مع بقاء الكانفس شفاف)
+                    c.globalCompositeOperation = 'destination-out';
+                    c.fillStyle = `rgba(0,0,0,${Math.min(0.5, 0.2 * dt)})`;
+                    c.fillRect(0, 0, W, H);
+                    c.globalCompositeOperation = 'lighter';
+
+                    // إطلاق الصواريخ
+                    if (t < DURATION - 2200 && launched < MAX_LAUNCH && t >= nextLaunch) {
+                        launch(); launched++;
+                        if (Math.random() < 0.35 && launched < MAX_LAUNCH) { launch(); launched++; }
+                        nextLaunch = t + fxRand(320, 760);
                     }
-                    overlay.appendChild(el); setTimeout(() => el.remove(), 2500);
+
+                    // الصواريخ
+                    for (let i = rockets.length - 1; i >= 0; i--) {
+                        const r = rockets[i];
+                        const px = r.x, py = r.y;
+                        r.vy += 0.12 * dt;
+                        r.x += r.vx * dt;
+                        r.y += r.vy * dt;
+                        c.strokeStyle = 'rgba(255,240,210,.95)';
+                        c.lineWidth = 2.2;
+                        c.lineCap = 'round';
+                        c.beginPath(); c.moveTo(px, py); c.lineTo(r.x, r.y); c.stroke();
+                        if (Math.random() < 0.7) {
+                            sparks.push({ x: r.x, y: r.y, px: r.x, py: r.y, vx: fxRand(-0.3, 0.3), vy: fxRand(0.3, 1.1), life: 1, decay: 0.05, drag: 0.95, grav: 0.02, hue: 35, size: 1.1, twinkle: false });
+                        }
+                        if (r.vy >= -0.6) { explode(r.x, r.y, r.hue); rockets.splice(i, 1); }
+                    }
+
+                    // الشرارات
+                    for (let i = sparks.length - 1; i >= 0; i--) {
+                        const s = sparks[i];
+                        s.px = s.x; s.py = s.y;
+                        s.vx *= Math.pow(s.drag, dt);
+                        s.vy *= Math.pow(s.drag, dt);
+                        s.vy += s.grav * dt;
+                        s.x += s.vx * dt;
+                        s.y += s.vy * dt;
+                        s.life -= s.decay * dt;
+                        if (s.life <= 0 || s.y > H + 20) { sparks.splice(i, 1); continue; }
+                        const alpha = Math.max(0, s.life) * (s.twinkle ? (0.55 + Math.random() * 0.45) : 1);
+                        c.strokeStyle = `hsla(${s.hue}, 100%, ${55 + s.life * 25}%, ${alpha})`;
+                        c.lineWidth = s.size * (0.6 + s.life * 0.6);
+                        c.lineCap = 'round';
+                        c.beginPath(); c.moveTo(s.px, s.py); c.lineTo(s.x, s.y); c.stroke();
+                    }
+
+                    // وميض الانفجار
+                    for (let i = flashes.length - 1; i >= 0; i--) {
+                        const f = flashes[i];
+                        f.life -= 0.09 * dt;
+                        f.r += 9 * dt;
+                        if (f.life <= 0) { flashes.splice(i, 1); continue; }
+                        const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 3);
+                        g.addColorStop(0, `hsla(${f.hue}, 100%, 85%, ${f.life * 0.55})`);
+                        g.addColorStop(1, `hsla(${f.hue}, 100%, 60%, 0)`);
+                        c.fillStyle = g;
+                        c.beginPath(); c.arc(f.x, f.y, f.r * 3, 0, Math.PI * 2); c.fill();
+                    }
+
+                    const busy = t < DURATION || sparks.length > 0 || rockets.length > 0;
+                    if (busy && t < DURATION + 2500) requestAnimationFrame(frame);
+                    else finish();
+                }
+
+                requestAnimationFrame(frame);
+                setTimeout(finish, DURATION + 5000);   // حماية: ننهي العرض حتى لو توقفت الإطارات
+            }
+
+            // ---------- ❤️ القلب ----------
+            const HEART_PATH = 'M50 88C20 62 2 44 2 26 2 12 13 2 27 2 37 2 46 8 50 17 54 8 63 2 73 2 87 2 98 12 98 26 98 44 80 62 50 88Z';
+
+            function heartSvg(w, c0, c1, c2) {
+                const id = 'ht' + (++fxIdCounter);
+                return `<svg viewBox="0 0 100 92" width="${w}" height="${w * 0.92}" style="display:block;overflow:visible">
+                    <defs><radialGradient id="${id}" cx="32%" cy="26%" r="85%">
+                        <stop offset="0" stop-color="${c0}"/><stop offset=".5" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/>
+                    </radialGradient></defs>
+                    <path d="${HEART_PATH}" fill="url(#${id})"/>
+                    <path d="M17 26C17 17 24 11 32 11" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="5" stroke-linecap="round"/>
+                    <ellipse cx="22" cy="38" rx="3" ry="4.5" fill="rgba(255,255,255,.45)" transform="rotate(-20 22 38)"/>
+                </svg>`;
+            }
+
+            function playHeart(overlay) {
+                const { w: W, h: H } = fxBox(overlay);
+                const cx = W / 2, cy = H * 0.48;
+                const big = Math.max(120, Math.min(300, Math.min(W, H) * 0.5));
+
+                // حلقات النبض خلف القلب
+                for (let i = 0; i < 3; i++) {
+                    const ring = document.createElement('div');
+                    ring.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${big}px;height:${big}px;margin:${-big / 2}px 0 0 ${-big / 2}px;border-radius:50%;border:4px solid rgba(239,35,60,.55);z-index:50;pointer-events:none;opacity:0;`;
+                    overlay.appendChild(ring);
+                    const a = ring.animate([
+                        { transform: 'scale(.5)', opacity: 0.9 },
+                        { transform: 'scale(2.1)', opacity: 0 }
+                    ], { duration: 1500, delay: 350 + i * 420, easing: 'ease-out', fill: 'forwards' });
+                    a.onfinish = () => ring.remove();
+                }
+
+                // القلب الكبير: ظهور ثم 3 نبضات ثم اختفاء
+                const heart = document.createElement('div');
+                heart.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;margin:${-big * 0.46}px 0 0 ${-big / 2}px;z-index:52;pointer-events:none;transform:scale(0);filter:drop-shadow(0 12px 22px rgba(157,2,8,.45)) drop-shadow(0 0 28px rgba(255,60,90,.55));`;
+                heart.innerHTML = heartSvg(big, '#FF9AAE', '#EF233C', '#8D0801');
+                overlay.appendChild(heart);
+                heart.animate([
+                    { transform: 'scale(0) rotate(-12deg)', opacity: 1, offset: 0 },
+                    { transform: 'scale(1.22) rotate(4deg)', opacity: 1, offset: 0.18 },
+                    { transform: 'scale(.96) rotate(0deg)', opacity: 1, offset: 0.26 },
+                    { transform: 'scale(1.14)', opacity: 1, offset: 0.34 },
+                    { transform: 'scale(1)', opacity: 1, offset: 0.40 },
+                    { transform: 'scale(1.14)', opacity: 1, offset: 0.52 },
+                    { transform: 'scale(1)', opacity: 1, offset: 0.58 },
+                    { transform: 'scale(1.14)', opacity: 1, offset: 0.70 },
+                    { transform: 'scale(1)', opacity: 1, offset: 0.76 },
+                    { transform: 'scale(1.5)', opacity: 0, offset: 1 }
+                ], { duration: 3400, easing: 'ease-in-out', fill: 'forwards' }).onfinish = () => heart.remove();
+
+                // قلوب صغيرة بتطلع وبتطير لفوق
+                const palette = [
+                    ['#FFB3C1', '#FF4D6D', '#A4133C'],
+                    ['#FFC2D1', '#FF758F', '#C9184A'],
+                    ['#FFD6E0', '#FF5C8A', '#B5179E'],
+                    ['#FFADAD', '#F94144', '#8E0000']
+                ];
+                const scaleK = Math.max(0.7, Math.min(1.3, W / 800));
+                for (let i = 0; i < 22; i++) {
+                    const size = fxRand(22, 54) * scaleK;
+                    const p = fxPick(palette);
+                    const el = document.createElement('div');
+                    el.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;margin:${-size * 0.46}px 0 0 ${-size / 2}px;z-index:51;pointer-events:none;opacity:0;`;
+                    el.innerHTML = heartSvg(size, p[0], p[1], p[2]);
+                    overlay.appendChild(el);
+                    const dx = fxRand(-W * 0.38, W * 0.38);
+                    const rise = fxRand(H * 0.45, H * 0.95);
+                    const rot = fxRand(-40, 40);
+                    el.animate([
+                        { transform: 'translate(0,0) scale(.2) rotate(0deg)', opacity: 0, offset: 0 },
+                        { transform: `translate(${dx * 0.3}px, ${-rise * 0.2}px) scale(1) rotate(${rot * 0.5}deg)`, opacity: 1, offset: 0.15 },
+                        { transform: `translate(${dx}px, ${-rise}px) scale(${fxRand(0.7, 1.1)}) rotate(${rot}deg)`, opacity: 0, offset: 1 }
+                    ], { duration: fxRand(2200, 3400), delay: 700 + i * fxRand(50, 120), easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
+                }
+            }
+
+            // ---------- ❓ علامة الاستفهام ----------
+            const Q_PATH = 'M28 40C28 14 72 14 72 40C72 58 50 60 50 82';
+
+            function questionSvg(w, flip) {
+                const id = 'qm' + (++fxIdCounter);
+                const mirror = flip ? 'transform="translate(100 0) scale(-1 1)"' : '';
+                return `<svg viewBox="0 0 100 130" width="${w}" height="${w * 1.3}" style="display:block;overflow:visible">
+                    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#FFE57A"/><stop offset=".55" stop-color="#FFB300"/><stop offset="1" stop-color="#F57C00"/>
+                    </linearGradient></defs>
+                    <g ${mirror}>
+                        <g transform="translate(4 7)" opacity=".28"><path d="${Q_PATH}" fill="none" stroke="#000" stroke-width="22" stroke-linecap="round"/><circle cx="50" cy="106" r="12"/></g>
+                        <path d="${Q_PATH}" fill="none" stroke="#7A3E00" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="50" cy="106" r="13" fill="#7A3E00"/>
+                        <path d="${Q_PATH}" fill="none" stroke="url(#${id})" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="50" cy="106" r="8.5" fill="url(#${id})"/>
+                        <path d="${Q_PATH}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3.2" stroke-linecap="round" transform="translate(-3.4 -3.4)"/>
+                        <ellipse cx="47" cy="102.5" rx="3" ry="2" fill="rgba(255,255,255,.7)"/>
+                    </g>
+                </svg>`;
+            }
+
+            function playQuestion(overlay) {
+                const { w: W, h: H } = fxBox(overlay);
+                const cx = W / 2, cy = H * 0.46;
+                const big = Math.max(110, Math.min(240, Math.min(W, H) * 0.42));
+                const flip = currentLangLive !== 'en';   // بالعربي بتنعكس (مثل علامة الاستفهام العربية)
+                const scaleK = Math.max(0.7, Math.min(1.2, W / 800));
+
+                // توهج خلفي
+                const glow = document.createElement('div');
+                glow.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${big * 2.2}px;height:${big * 2.2}px;margin:${-big * 1.1}px 0 0 ${-big * 1.1}px;border-radius:50%;background:radial-gradient(circle, rgba(255,193,7,.55), rgba(255,193,7,0) 65%);z-index:50;pointer-events:none;opacity:0;`;
+                overlay.appendChild(glow);
+                glow.animate([
+                    { opacity: 0, transform: 'scale(.4)', offset: 0 },
+                    { opacity: 1, transform: 'scale(1)', offset: 0.25 },
+                    { opacity: 1, transform: 'scale(1.1)', offset: 0.8 },
+                    { opacity: 0, transform: 'scale(1.3)', offset: 1 }
+                ], { duration: 3000, fill: 'forwards' }).onfinish = () => glow.remove();
+
+                // العلامة الرئيسية: قفزة وتمايل
+                const q = document.createElement('div');
+                q.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;margin:${-big * 0.65}px 0 0 ${-big / 2}px;z-index:52;pointer-events:none;transform:scale(0);filter:drop-shadow(0 10px 14px rgba(0,0,0,.35));`;
+                q.innerHTML = questionSvg(big, flip);
+                overlay.appendChild(q);
+                q.animate([
+                    { transform: 'translateY(60px) scale(0) rotate(-30deg)', opacity: 0, offset: 0 },
+                    { transform: 'translateY(-18px) scale(1.18) rotate(8deg)', opacity: 1, offset: 0.2 },
+                    { transform: 'translateY(0) scale(.95) rotate(-6deg)', opacity: 1, offset: 0.32 },
+                    { transform: 'translateY(-8px) scale(1.04) rotate(5deg)', opacity: 1, offset: 0.46 },
+                    { transform: 'translateY(0) scale(1) rotate(-3deg)', opacity: 1, offset: 0.6 },
+                    { transform: 'translateY(-6px) scale(1.02) rotate(2deg)', opacity: 1, offset: 0.8 },
+                    { transform: 'translateY(-40px) scale(1.25) rotate(0deg)', opacity: 0, offset: 1 }
+                ], { duration: 3000, easing: 'ease-in-out', fill: 'forwards' }).onfinish = () => q.remove();
+
+                // نجوم لامعة حولها
+                for (let i = 0; i < 9; i++) {
+                    const ang = (i / 9) * Math.PI * 2 + fxRand(-0.3, 0.3);
+                    const rad = big * fxRand(0.62, 0.95);
+                    const s = fxRand(14, 30);
+                    const sp = document.createElement('div');
+                    sp.style.cssText = `position:absolute;left:${cx + Math.cos(ang) * rad}px;top:${cy + Math.sin(ang) * rad * 0.9}px;margin:${-s / 2}px 0 0 ${-s / 2}px;width:${s}px;height:${s}px;z-index:53;pointer-events:none;opacity:0;`;
+                    sp.innerHTML = `<svg viewBox="-12 -12 24 24" width="${s}" height="${s}"><path d="M0-11 2.8-2.8 11 0 2.8 2.8 0 11-2.8 2.8-11 0-2.8-2.8Z" fill="${fxPick(['#FFF59D', '#FFFFFF', '#FFD54F'])}"/></svg>`;
+                    overlay.appendChild(sp);
+                    sp.animate([
+                        { transform: 'scale(0) rotate(0deg)', opacity: 0, offset: 0 },
+                        { transform: 'scale(1.1) rotate(60deg)', opacity: 1, offset: 0.4 },
+                        { transform: 'scale(0) rotate(140deg)', opacity: 0, offset: 1 }
+                    ], { duration: fxRand(700, 1100), delay: 350 + i * 170, iterations: 2, fill: 'forwards' }).onfinish = () => sp.remove();
+                }
+
+                // علامات صغيرة بتتطاير
+                for (let i = 0; i < 7; i++) {
+                    const s = fxRand(34, 64) * scaleK;
+                    const el = document.createElement('div');
+                    el.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;margin:${-s * 0.65}px 0 0 ${-s / 2}px;z-index:51;pointer-events:none;opacity:0;`;
+                    el.innerHTML = questionSvg(s, flip);
+                    overlay.appendChild(el);
+                    const dx = fxRand(-W * 0.4, W * 0.4);
+                    const dy = fxRand(-H * 0.42, -H * 0.08);
+                    el.animate([
+                        { transform: 'translate(0,0) scale(.3) rotate(0deg)', opacity: 0, offset: 0 },
+                        { transform: `translate(${dx * 0.35}px, ${dy * 0.35}px) scale(.9) rotate(${fxRand(-25, 25)}deg)`, opacity: 0.95, offset: 0.2 },
+                        { transform: `translate(${dx}px, ${dy}px) scale(1) rotate(${fxRand(-40, 40)}deg)`, opacity: 0, offset: 1 }
+                    ], { duration: fxRand(2200, 3200), delay: 600 + i * 160, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
                 }
             }
 
