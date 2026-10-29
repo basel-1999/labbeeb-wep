@@ -917,25 +917,26 @@
             });
 
 
-                        // ✨ دالة دخول ملء الشاشة (تتكون من محاولة تلقائية + تفاعل احتياطي)
+            // ✨ دالة دخول ملء الشاشة (تتكون من محاولة تلقائية + أول حركة للماوس)
             function enterStudentFullscreen() {
                 const elem = document.documentElement;
                 if (!elem.requestFullscreen) return; // المتصفح لا يدعم ملء الشاشة
 
                 // محاولة الدخول التلقائي
                 elem.requestFullscreen().catch(() => {
-                    // لو المتصفح منع التلقائي، ننتظر أول تفاعل (نقرة أو لمس) من الطالب
+                    // لو المتصفح منع التلقائي، ننتظر أول حركة للماوس أو لمس للشاشة (بدون نقر)
                     const triggerFullscreen = () => {
                         if (document.fullscreenElement === null) {
                             elem.requestFullscreen().catch(() => {});
                         }
-                        document.removeEventListener('click', triggerFullscreen);
-                        document.removeEventListener('keydown', triggerFullscreen);
+                        document.removeEventListener('mousemove', triggerFullscreen);
                         document.removeEventListener('touchstart', triggerFullscreen);
+                        document.removeEventListener('keydown', triggerFullscreen);
                     };
-                    document.addEventListener('click', triggerFullscreen);
-                    document.addEventListener('keydown', triggerFullscreen);
+                    // ✨ الاستماع لأي حركة ماوس (بمجرد تثبيت اليد على الماوس تدخل الشاشة)
+                    document.addEventListener('mousemove', triggerFullscreen);
                     document.addEventListener('touchstart', triggerFullscreen);
+                    document.addEventListener('keydown', triggerFullscreen);
                 });
             }
 
