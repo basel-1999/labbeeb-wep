@@ -2,7 +2,7 @@
     <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <title>غرفة البث المباشر - منصة لبيب</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -121,12 +121,63 @@
             /* 💬 سهم الإرسال: بيتجه حسب لغة الصفحة */
             html[lang="en"] #sendArrow { transform: scaleX(-1); }
 
+            
+            /* ================= 🎬 العرض الغامر (Immersive) ================= */
+            html, body { width: 100%; height: 100%; margin: 0; overscroll-behavior: none; }
+
+            /* السبورة تملأ الشاشة كاملة */
+            #mainStage { position: fixed; inset: 0; display: block; overflow: hidden; background: #000; }
+            #boardArea { position: absolute; inset: 0; display: block; }
+            #boardCanvasWrap { position: absolute; inset: 0; }
+
+            /* الشرائط عائمة فوق السبورة بدل ما تاخد مساحة منها */
+            #appHeader { position: fixed; top: 0; left: 0; right: 0; z-index: 45; background-color: rgba(44,44,44,.94); }
+            #appFooter { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; background-color: rgba(44,44,44,.94); }
+            #teacherToolbar { position: absolute; top: 56px; left: 0; right: 0; z-index: 44; height: auto; min-height: 48px; padding-top: 4px; padding-bottom: 4px; background-color: rgba(42,42,42,.94); }
+            #appHeader, #appFooter, #teacherToolbar { transition: transform .25s ease, opacity .25s ease; }
+            body.ui-hidden #appHeader { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+            body.ui-hidden #appFooter { transform: translateY(100%); opacity: 0; pointer-events: none; }
+            body.ui-hidden #teacherToolbar { transform: translateY(calc(-100% - 70px)); opacity: 0; pointer-events: none; }
+
+            #uiHandle { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 60; width: 54px; height: 20px; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font-size: 14px; line-height: 18px; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s; cursor: pointer; }
+            body.ui-hidden #uiHandle { opacity: .75; pointer-events: auto; }
+
+            .hdr-icon.active { background: rgba(245,158,11,.35); }
+            .mode-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; color: rgba(255,255,255,.75); background: transparent; transition: all .15s; }
+            .mode-btn:hover { background: rgba(255,255,255,.12); }
+            .mode-btn.active { background: #F59E0B; color: #000; box-shadow: 0 0 0 2px rgba(245,158,11,.35); }
+
+            /* المحادثة: نافذة عائمة (ما بتغيّر حجم السبورة) */
+            #chatPanel { position: absolute; top: 108px; bottom: 72px; inset-inline-end: 8px; width: 20rem; max-width: calc(100vw - 16px); z-index: 42; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45); background-color: rgba(37,37,37,.96); }
+            #chatShowBtn { position: absolute; top: 108px; inset-inline-end: 12px; z-index: 47; }
+            html[dir="ltr"] #rewardTrophies { right: auto; left: 10px; }   /* بالإنجليزي المحادثة على اليمين */
+
+            /* شاشة المشاركة: ملء الشاشة بدون هوامش أو إطار */
+            #screenShareContainer { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; display: flex !important; flex-direction: column; z-index: 20; background: #000; visibility: hidden; pointer-events: none; }
+            #screenShareContainer > div:first-child { display: none; }   /* شريط العنوان الأصفر */
+            #screenSharePlayer { min-height: 0 !important; }
+            #screenShareNotice { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #fff; text-align: center; font-weight: 800; font-size: 1.25rem; padding: 24px; pointer-events: none; }
+            #screenSharePlayer:empty + #screenShareNotice { display: flex; }
+            #screenShareNotice .notice-me { display: none; }
+            body.i-am-sharing #screenShareNotice .notice-me { display: block; }
+            body.i-am-sharing #screenShareNotice .notice-wait { display: none; }
+
+            /* نمط "مشاركة الشاشة": بتختفي السبورة وبتظهر الشاشة */
+            body[data-mode="screenshare"] #screenShareContainer { visibility: visible; pointer-events: auto; }
+            body[data-mode="screenshare"] #boardCanvasWrap { visibility: hidden; pointer-events: none; }
+            /* لكن النجوم والمؤثرات بتضل ظاهرة فوق شاشة المشاركة */
+            body[data-mode="screenshare"] #rewardTrophies,
+            body[data-mode="screenshare"] #rewardStage,
+            body[data-mode="screenshare"] #animationOverlay { visibility: visible; }
+            /* الطالب ما بيحتاج أدوات الرسم لما السبورة مخفية */
+            body.role-student[data-mode="screenshare"] #teacherToolbar { display: none !important; }
+
         </style>
     </head>
-    <body class="h-screen flex flex-col">
+    <body class="h-screen flex flex-col" data-mode="whiteboard"></body>
 
         <!-- App Bar -->
-        <header class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0">
+        <header id="appHeader" class="bg-[#2C2C2C] h-14 flex items-center justify-between px-4 z-10 shrink-0"></header>
             <div class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <span id="timerDisplay" class="font-bold text-amber-400">00:00:00</span>
@@ -163,16 +214,32 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     <span id="allowDrawLabel" data-i18n-l="allow_draw_label">السماح بالرسم</span>
                 </button>
+                                <button id="fsBtn" onclick="toggleAppFullscreen()" data-i18n-l-title="fullscreen_btn" title="ملء الشاشة" class="hdr-icon p-2 hover:bg-white/10 rounded-lg text-white/80 text-base leading-none">⛶</button>
+                <button id="pinBtn" onclick="toggleUiPin()" data-i18n-l-title="pin_ui_btn" title="تثبيت الأدوات" class="hdr-icon p-2 hover:bg-white/10 rounded-lg text-white/80 text-base leading-none">📌</button>
             </div>
         </header>
 
         <!-- Main Content -->
-        <main class="flex-1 flex overflow-hidden relative">
+        <main id="mainStage" class="flex-1 flex overflow-hidden relative"></main>
             
             <!-- Whiteboard Area -->
-            <div class="flex-1 flex flex-col">
+            <div id="boardArea" class="flex-1 flex flex-col"></div>
                 <!-- Toolbar (Teacher Only) -->
                 <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap">
+                    
+                                        <!-- 🖥️ نمط العرض: المعلم فقط -->
+                    <div id="displayModeButtons" style="display:none" class="items-center gap-1 bg-black/40 rounded-xl p-1 ml-2 shrink-0">
+                        <button id="modeBoardBtn" onclick="setDisplayMode('whiteboard')" class="mode-btn active">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            <span data-i18n-l="view_whiteboard">السبورة</span>
+                        </button>
+                        <button id="modeShareBtn" onclick="setDisplayMode('screenshare')" class="mode-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            <span data-i18n-l="view_screen">مشاركة الشاشة</span>
+                        </button>
+                    </div>
+                    <div class="h-4 w-px bg-white/15 mx-1"></div>
+
                     <span data-i18n-l="colors_label" class="text-sm text-white/70 ml-2">الألوان:</span>
                     
                     <button onclick="selectColor('black')" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
@@ -294,7 +361,7 @@
                 </div>
 
                 <!-- Canvas -->
-                <div class="flex-1 relative bg-white">
+                <div id="boardCanvasWrap" class="flex-1 relative bg-white"></div>
                     <canvas id="whiteboard"></canvas>
                     <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
                     <div id="remotePointer"></div>
@@ -327,6 +394,13 @@
                     </button>
                 </div>
                 <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
+                                <div id="screenShareNotice">
+                    <div>
+                        <div style="font-size:56px;margin-bottom:12px">🖥️</div>
+                        <p class="notice-wait" data-i18n-l="notice_waiting">بانتظار مشاركة الشاشة...</p>
+                        <p class="notice-me" data-i18n-l="notice_sharing_me">أنت تشارك شاشتك الآن</p>
+                    </div>
+                </div>
             </div>
 
 
@@ -400,8 +474,10 @@
             </div>
         </main>
 
+                <button id="uiHandle" onclick="showUI()" title="⋯">⋯</button>
+
         <!-- Bottom Controls -->
-        <footer class="bg-[#2C2C2C] h-16 flex items-center justify-center gap-6 shrink-0">
+        <footer id="appFooter" class="bg-[#2C2C2C] h-16 flex items-center justify-center gap-6 shrink-0"></footer>
             <button id="muteBtn" onclick="toggleMute()" class="p-3 rounded-full bg-green-600 hover:bg-green-700 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
             </button>
@@ -520,6 +596,12 @@
                     send_btn: "إرسال",
                     show_chat: "المحادثة",
                     hide_chat: "إخفاء المحادثة",
+                    view_whiteboard: "السبورة",
+                    view_screen: "مشاركة الشاشة",
+                    notice_waiting: "بانتظار مشاركة الشاشة...",
+                    notice_sharing_me: "أنت تشارك شاشتك الآن",
+                    fullscreen_btn: "ملء الشاشة",
+                    pin_ui_btn: "تثبيت الأدوات",
                     end_session_title: "إنهاء الجلسة",
                     end_session_confirm: "هل أنت متأكد من إغلاق الجلسة الحالية وحفظ ملخص السبورة؟",
                     cancel_btn: "إلغاء",
@@ -619,6 +701,12 @@
                     send_btn: "Send",
                     show_chat: "Chat",
                     hide_chat: "Hide chat",
+                    view_whiteboard: "Whiteboard",
+                    view_screen: "Screen share",
+                    notice_waiting: "Waiting for screen share...",
+                    notice_sharing_me: "You are sharing your screen",
+                    fullscreen_btn: "Fullscreen",
+                    pin_ui_btn: "Pin toolbars",
                     end_session_title: "End Session",
                     end_session_confirm: "Are you sure you want to close this session and save the board summary?",
                     cancel_btn: "Cancel",
@@ -938,6 +1026,7 @@
                 }
 
                 initRewardsUI();
+                initImmersiveUI();
             }
 
             // ==========================================
@@ -2618,6 +2707,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
             function updateScreenShareUI() {
                 const btn = document.getElementById('screenShareBtn');
+                document.body.classList.toggle('i-am-sharing', isScreenSharing);
                 if (isScreenSharing) {
                     btn.classList.remove('bg-white/10', 'hover:bg-white/20');
                     btn.classList.add('bg-green-600', 'hover:bg-green-700');
@@ -2661,10 +2751,12 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         await db.collection('sessions').doc(sessionId).update({ isScreenSharing: true, screenShareUid: currentUser.uid });
                         document.getElementById('screenShareContainer').style.display = 'none';
                         showSnackBar(tl('screen_share_started'), 'green');
+                        if (isTeacher) setDisplayMode('screenshare');
                     } else {
                         await stopMyScreenShare();
                         await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null });
                         showSnackBar(tl('screen_share_stopped'), 'orange');
+                        if (isTeacher) setDisplayMode('whiteboard');
                     }
                 } catch (e) {
                     if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
@@ -2759,6 +2851,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             );
                         }
                     }
+
+                                        // 🖥️ مزامنة نمط العرض (سبورة / مشاركة شاشة) من المعلم
+                    const remoteMode = (data.displayMode === 'screenshare') ? 'screenshare' : 'whiteboard';
+                    if (remoteMode !== currentDisplayMode) applyDisplayMode(remoteMode);
 
                     // 📄 متابعة تلقائية لرقم صفحة السبورة الحالية (الطالب يتبع المعلم دائماً)
                     const remotePage = data.currentBoardPage || 0;
@@ -3689,6 +3785,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
         // ---------- التهيئة ----------
         async function initTrialInterview() {
             trialPhase = 'init';
+            uiPinned = true;
+            const pinB = document.getElementById('pinBtn');
+            if (pinB) pinB.classList.add('active');
+            showUI();
             tvEl('chatPanel').style.display = 'none';
             tvEl('muteBtn').style.display = 'none';
             tvEl('endSessionText').innerText = 'إلغاء المقابلة';
@@ -4034,6 +4134,152 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // ==========================================
             // 🛠️ Utilities
             // ==========================================
+                        // ==========================================
+            // 🎬 العرض الغامر: ملء الشاشة + نمط العرض + إخفاء الأدوات تلقائياً
+            // ==========================================
+            let currentDisplayMode = 'whiteboard';
+            let uiPinned = false;
+            let uiHideTimer = null;
+            let uiHover = false;
+            let fsAutoTried = false;
+
+            // ---------- نمط العرض (سبورة / مشاركة شاشة) ----------
+            function applyDisplayMode(mode) {
+                currentDisplayMode = (mode === 'screenshare') ? 'screenshare' : 'whiteboard';
+                document.body.dataset.mode = currentDisplayMode;
+                const b = document.getElementById('modeBoardBtn');
+                const s = document.getElementById('modeShareBtn');
+                if (b) b.classList.toggle('active', currentDisplayMode === 'whiteboard');
+                if (s) s.classList.toggle('active', currentDisplayMode === 'screenshare');
+            }
+
+            async function setDisplayMode(mode) {
+                if (!isTeacher) return;   // المعلم فقط بيتحكم بنمط العرض
+                const target = (mode === 'screenshare') ? 'screenshare' : 'whiteboard';
+                if (target === currentDisplayMode) return;
+                const previous = currentDisplayMode;
+                applyDisplayMode(target);   // فوري عند المعلم، والطالب بيتبعه عبر onSnapshot
+                try {
+                    await db.collection('sessions').doc(sessionId).update({ displayMode: target });
+                } catch (e) {
+                    console.error('Failed to sync display mode:', e);
+                    applyDisplayMode(previous);
+                    showSnackBar(currentLangLive === 'en' ? 'Could not change the view mode' : 'تعذر تغيير نمط العرض', 'red');
+                }
+            }
+
+            // ---------- ملء الشاشة (Fullscreen API) ----------
+            function isAppFullscreen() {
+                return !!(document.fullscreenElement || document.webkitFullscreenElement);
+            }
+
+            async function enterAppFullscreen() {
+                const el = document.documentElement;
+                try {
+                    if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                } catch (e) {
+                    console.warn('Fullscreen not available:', e);
+                }
+            }
+
+            function exitAppFullscreen() {
+                try {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                } catch (e) {}
+            }
+
+            function toggleAppFullscreen() {
+                if (isAppFullscreen()) exitAppFullscreen(); else enterAppFullscreen();
+            }
+
+            function updateFsBtn() {
+                const b = document.getElementById('fsBtn');
+                if (b) b.classList.toggle('active', isAppFullscreen());
+            }
+
+            // ---------- إخفاء/إظهار الشرائط تلقائياً ----------
+            function uiBlocked() {
+                if (uiHover) return true;
+                const shown = (id) => {
+                    const el = document.getElementById(id);
+                    return !!el && getComputedStyle(el).display !== 'none';
+                };
+                if (shown('shapeMenu') || shown('pointerMenu')) return true;   // قائمة مفتوحة
+                if (document.querySelector('.modal.active')) return true;      // نافذة مفتوحة
+                const tg = document.getElementById('trialGuide');
+                if (tg && tg.style.display === 'block') return true;           // رسائل المقابلة التجريبية
+                return false;
+            }
+
+            function scheduleHideUI() {
+                clearTimeout(uiHideTimer);
+                if (uiPinned) return;
+                uiHideTimer = setTimeout(hideUI, 3500);
+            }
+
+            function hideUI() {
+                if (uiPinned) return;
+                if (uiBlocked()) { scheduleHideUI(); return; }
+                document.body.classList.add('ui-hidden');
+            }
+
+            function showUI() {
+                document.body.classList.remove('ui-hidden');
+                scheduleHideUI();
+            }
+
+            function toggleUiPin() {
+                uiPinned = !uiPinned;
+                const b = document.getElementById('pinBtn');
+                if (b) b.classList.toggle('active', uiPinned);
+                if (uiPinned) { clearTimeout(uiHideTimer); showUI(); } else { scheduleHideUI(); }
+            }
+
+            function initImmersiveUI() {
+                if (isTeacher) {
+                    const m = document.getElementById('displayModeButtons');
+                    if (m) m.style.display = 'flex';
+                } else {
+                    document.body.classList.add('role-student');
+                }
+                applyDisplayMode(currentDisplayMode);
+
+                // إظهار الأدوات عند الاقتراب من الحافة العلوية أو السفلية (ماوس أو لمس)
+                const nearEdge = (y) => y <= 130 || y >= window.innerHeight - 90;
+                document.addEventListener('mousemove', (e) => {
+                    if (isDrawing) return;   // ما منزعج المعلم أثناء الرسم
+                    if (nearEdge(e.clientY)) showUI();
+                }, { passive: true });
+                document.addEventListener('touchstart', (e) => {
+                    const t = e.touches && e.touches[0];
+                    if (t && nearEdge(t.clientY)) showUI();
+                }, { passive: true });
+
+                ['appHeader', 'appFooter', 'teacherToolbar'].forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.addEventListener('mouseenter', () => { uiHover = true; });
+                    el.addEventListener('mouseleave', () => { uiHover = false; scheduleHideUI(); });
+                });
+
+                document.addEventListener('fullscreenchange', updateFsBtn);
+                document.addEventListener('webkitfullscreenchange', updateFsBtn);
+
+                // أول ضغطة/لمسة = ندخل ملء الشاشة تلقائياً (المتصفح بيشترط حركة من المستخدم)
+                document.addEventListener('pointerdown', () => {
+                    if (fsAutoTried) return;
+                    fsAutoTried = true;
+                    if (!isAppFullscreen()) enterAppFullscreen();
+                }, { once: true });
+
+                // على الشاشات الصغيرة (جوال) المحادثة بتبدأ مخفية عشان ما تغطي السبورة
+                if (window.innerWidth < 768 && isChatOpen) toggleChat();
+
+                scheduleHideUI();
+            }
+
             function hashCode(str) { let hash = 0; for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash = hash & hash; } return Math.abs(hash); }
             function openModal(id) { document.getElementById(id).classList.add('active'); }
             function closeModal(id) { document.getElementById(id).classList.remove('active'); }

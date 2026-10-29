@@ -144,7 +144,7 @@ service cloud.firestore {
           'starsAwarded', 'lastStarAt', 'isTrialInterview'
         ]) &&
         (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['drawingAllowedForStudent', 'screenShareAllowedForStudent', 'viewMode']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['drawingAllowedForStudent', 'screenShareAllowedForStudent', 'viewMode', 'displayMode']) ||
           resource.data.teacherId == request.auth.uid
         )
       );
