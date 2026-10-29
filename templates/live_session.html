@@ -916,6 +916,29 @@
                 }
             });
 
+
+                        // ✨ دالة دخول ملء الشاشة (تتكون من محاولة تلقائية + تفاعل احتياطي)
+            function enterStudentFullscreen() {
+                const elem = document.documentElement;
+                if (!elem.requestFullscreen) return; // المتصفح لا يدعم ملء الشاشة
+
+                // محاولة الدخول التلقائي
+                elem.requestFullscreen().catch(() => {
+                    // لو المتصفح منع التلقائي، ننتظر أول تفاعل (نقرة أو لمس) من الطالب
+                    const triggerFullscreen = () => {
+                        if (document.fullscreenElement === null) {
+                            elem.requestFullscreen().catch(() => {});
+                        }
+                        document.removeEventListener('click', triggerFullscreen);
+                        document.removeEventListener('keydown', triggerFullscreen);
+                        document.removeEventListener('touchstart', triggerFullscreen);
+                    };
+                    document.addEventListener('click', triggerFullscreen);
+                    document.addEventListener('keydown', triggerFullscreen);
+                    document.addEventListener('touchstart', triggerFullscreen);
+                });
+            }
+
             function initUI() {
                 document.getElementById('sessionTitle').innerText = isTeacher ? `${tl('session_with_student')} ${studentName}` : tl('session_with_teacher');
                 if (isTeacher) {
@@ -930,6 +953,9 @@
                     document.getElementById('endSessionBtn').classList.remove('bg-red-600');
                     document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
                     document.getElementById('pointsDisplayContainer').classList.remove('hidden');
+                    
+                    // ✨ تفعيل ملء الشاشة للطالب فقط
+                    enterStudentFullscreen();
                 }
                 // ✨ إظهار أزرار التحكم بالعرض للمعلم فقط
                 if (isTeacher) {
