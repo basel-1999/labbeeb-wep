@@ -299,6 +299,11 @@
                     <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
                     <div id="remotePointer"></div>
 
+                    <!-- ✨ حاوية مشاركة الشاشة في المنطقة الرئيسية (تغطي السبورة) -->
+                    <div id="mainScreenShareContainer" class="absolute inset-0 bg-black hidden z-20">
+                        <div id="mainScreenSharePlayer" class="w-full h-full"></div>
+                    </div>
+
                     <!-- ⭐ عمود الميداليات والكأس (بينبني بالجافاسكريبت) -->
                     <div id="rewardTrophies"></div>
 
@@ -315,19 +320,6 @@
                 </div>
             </div>
 
-            <!-- Screen Share View -->
-            <div id="screenShareContainer" class="w-1/3 m-2 border-4 border-amber-400 rounded-xl overflow-hidden bg-black flex-col shrink-0 relative transition-all duration-300" style="display: none;">
-                <div class="bg-amber-400 text-black font-bold py-1 px-3 text-sm flex justify-between items-center z-10">
-                    <span id="screenShareTitle" data-i18n-l="other_screen">شاشة الطرف الآخر</span>
-                    <button onclick="toggleFullScreenScreenShare()" class="text-black hover:bg-black/10 rounded p-1 text-xs font-bold flex items-center gap-1">
-                        <svg id="fullscreenIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                        </svg>
-                        <span id="fullscreenText" data-i18n-l="zoom_in">تكبير</span>
-                    </button>
-                </div>
-                <div id="screenSharePlayer" class="flex-1 w-full h-full min-h-[250px] flex items-center justify-center bg-black"></div>
-            </div>
 
 
 
@@ -406,8 +398,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
             </button>
             
-            <button id="screenShareBtn" onclick="toggleScreenShare()" class="hidden p-3 rounded-full bg-white/10 hover:bg-white/20 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            <button id="screenShareBtn" onclick="toggleScreenShare()" class="hidden flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                <span data-i18n-l="screen_share_btn">مشاركة الشاشة</span>
+            </button>
+            <button id="showBoardBtn" onclick="showBoardView()" class="hidden flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                <span data-i18n-l="show_board_btn">عرض السبورة</span>
             </button>
 
             <button id="endSessionBtn" onclick="confirmEndSession()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
@@ -594,7 +591,9 @@
                     ending_for_other: "جاري إنهاء الجلسة للطرف الآخر...",
                     stopping_recording: "جاري إيقاف التسجيل الصوتي...",
                     cloudinary_upload_failed: "فشل رفع الملف إلى Cloudinary",
-                    default_file_word: "ملف"
+                    default_file_word: "ملف" ,
+                    show_board_btn: "عرض السبورة",
+                    screen_share_btn: "مشاركة الشاشة",
                 },
                 en: {
                     session_with_teacher: "Session with Teacher",
@@ -693,7 +692,9 @@
                     ending_for_other: "Ending the session for the other party...",
                     stopping_recording: "Stopping audio recording...",
                     cloudinary_upload_failed: "Failed to upload file to Cloudinary",
-                    default_file_word: "File"
+                    default_file_word: "File" ,
+                    show_board_btn: "Show Board",
+                    screen_share_btn: "Screen Share",
                 }
             };
             let currentLangLive = 'ar';
@@ -930,9 +931,10 @@
                     document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
                     document.getElementById('pointsDisplayContainer').classList.remove('hidden');
                 }
-                document.getElementById('screenShareBtn').classList.remove('hidden');
-
+                // ✨ إظهار أزرار التحكم بالعرض للمعلم فقط
                 if (isTeacher) {
+                    document.getElementById('screenShareBtn').classList.remove('hidden');
+                    document.getElementById('showBoardBtn').classList.remove('hidden');
                     document.getElementById('allowStudentScreenShareBtn').classList.remove('hidden');
                     document.getElementById('allowStudentDrawBtn').classList.remove('hidden');
                 }
@@ -2550,18 +2552,19 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             
                             if (user.uid !== myScreenShareUid) {
                                 screenShareUid = user.uid;
-                                document.getElementById('screenShareContainer').style.display = 'flex';
-                                const player = document.getElementById('screenSharePlayer');
+                                // ✨ تشغيل الفيديو في الحاوية الرئيسية
+                                const player = document.getElementById('mainScreenSharePlayer');
                                 player.innerHTML = ''; 
-                                user.videoTrack.play('screenSharePlayer');
+                                user.videoTrack.play('mainScreenSharePlayer');
                             }
                         }
                     });
                     
                     agoraEngine.on("user-unpublished", (user, mediaType) => {
                         if (mediaType === "video") {
-                            document.getElementById('screenShareContainer').style.display = 'none';
-                            document.getElementById('screenSharePlayer').innerHTML = ''; 
+                            // ✨ العودة للسبورة عند توقف مشاركة الطرف الآخر
+                            applyViewMode('board');
+                            document.getElementById('mainScreenSharePlayer').innerHTML = ''; 
                         }
                     });
 
@@ -2628,6 +2631,26 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 btn.blur();
             }
 
+            // ✨ حالة العرض: 'board' (السبورة) أو 'share' (المشاركة)
+            let currentViewMode = 'board';
+
+            // ✨ دالة عرض السبورة (يستخدمها المعلم)
+            function showBoardView() {
+                currentViewMode = 'board';
+                document.getElementById('mainScreenShareContainer').classList.add('hidden');
+                document.getElementById('whiteboard').style.display = 'block';
+                
+                // إيقاف المشاركة لتوفير الموارد (كما اتفقنا)
+                if (isScreenSharing) {
+                    stopMyScreenShare();
+                    db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null, viewMode: 'board' });
+                } else {
+                    db.collection('sessions').doc(sessionId).update({ viewMode: 'board' });
+                }
+                showSnackBar(tl('show_board_btn'), 'green');
+            }
+
+            // ✨ دالة تبديل المشاركة (يستخدمها المعلم: تشغيل/إيقاف)
             async function toggleScreenShare() {
                 if (isTrialInterview) { trialToggleScreenShareDemo(); return; }
                 try {
@@ -2658,12 +2681,25 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         await screenShareClient.publish(screenTrack);
                         isScreenSharing = true;
                         updateScreenShareUI();
-                        await db.collection('sessions').doc(sessionId).update({ isScreenSharing: true, screenShareUid: currentUser.uid });
-                        document.getElementById('screenShareContainer').style.display = 'none';
+                        
+                        // ✨ عند بدء المشاركة، نحول العرض للمشاركة ونخفي السبورة
+                        currentViewMode = 'share';
+                        document.getElementById('whiteboard').style.display = 'none';
+                        document.getElementById('mainScreenShareContainer').classList.remove('hidden');
+                        
+                        await db.collection('sessions').doc(sessionId).update({ 
+                            isScreenSharing: true, 
+                            screenShareUid: currentUser.uid,
+                            viewMode: 'share'
+                        });
                         showSnackBar(tl('screen_share_started'), 'green');
                     } else {
                         await stopMyScreenShare();
-                        await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null });
+                        await db.collection('sessions').doc(sessionId).update({ 
+                            isScreenSharing: false, 
+                            screenShareUid: null,
+                            viewMode: 'board'
+                        });
                         showSnackBar(tl('screen_share_stopped'), 'orange');
                     }
                 } catch (e) {
@@ -2678,49 +2714,25 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
                 isScreenSharing = false;
                 updateScreenShareUI();
+                
+                // ✨ العودة للسبورة عند إيقاف المشاركة
+                currentViewMode = 'board';
+                document.getElementById('mainScreenShareContainer').classList.add('hidden');
+                document.getElementById('whiteboard').style.display = 'block';
             }
 
-            let isScreenFullScreen = false;
-            function toggleFullScreenScreenShare() {
-                const container = document.getElementById('screenShareContainer');
-                const icon = document.getElementById('fullscreenIcon');
-                const text = document.getElementById('fullscreenText');
-                
-                isScreenFullScreen = !isScreenFullScreen;
-                
-                if (isScreenFullScreen) {
-                    container.style.position = 'fixed';
-                    container.style.top = '0';
-                    container.style.left = '0';
-                    container.style.right = '0';
-                    container.style.bottom = '0';
-                    container.style.width = '100vw';
-                    container.style.height = '100vh';
-                    container.style.zIndex = '99999';
-                    container.style.margin = '0';
-                    container.style.borderRadius = '0';
-                    
-                    text.innerText = tl('zoom_out');
-                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />';
+            // ✨ دالة تطبيق وضع العرض (يستقبلها الطالب من السيرفر)
+            function applyViewMode(mode) {
+                currentViewMode = mode;
+                if (mode === 'share') {
+                    document.getElementById('whiteboard').style.display = 'none';
+                    document.getElementById('mainScreenShareContainer').classList.remove('hidden');
                 } else {
-                    container.style.position = '';
-                    container.style.top = '';
-                    container.style.left = '';
-                    container.style.right = '';
-                    container.style.bottom = '';
-                    container.style.width = '';
-                    container.style.height = '';
-                    container.style.zIndex = '';
-                    container.style.margin = '';
-                    container.style.borderRadius = '';
-                    
-                    text.innerText = tl('zoom_in');
-                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />';
-                }
-                
-                const video = container.querySelector('video');
-                if (video) {
-                    video.style.objectFit = 'contain';
+                    document.getElementById('mainScreenShareContainer').classList.add('hidden');
+                    document.getElementById('whiteboard').style.display = 'block';
+                    // إعادة ضبط حجم السبورة عند العودة لها
+                    resizeCanvas();
+                    renderCurrentPageStrokes();
                 }
             }
 
@@ -2800,12 +2812,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             stopMyScreenShare();
                         }
                         
-                        if (!data.isScreenSharing) {
-                            document.getElementById('screenShareContainer').style.display = 'none';
-                        } else if (data.screenShareUid !== currentUser.uid) {
-                            document.getElementById('screenShareContainer').style.display = 'flex';
-                        } else {
-                            document.getElementById('screenShareContainer').style.display = 'none';
+                        // ✨ مزامنة وضع العرض (board أو share) ليتبعه الطالب
+                        const remoteViewMode = data.viewMode || 'board';
+                        if (remoteViewMode !== currentViewMode) {
+                            applyViewMode(remoteViewMode);
                         }
                     }
                 });
