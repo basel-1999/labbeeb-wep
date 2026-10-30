@@ -1297,19 +1297,7 @@
 
         async function joinSession(sessionId) {
             const studentName = encodeURIComponent(displayName);
-            const redirectUrl = `/live-session?sessionId=${sessionId}&role=student&studentName=${studentName}`;
-            
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                try {
-                    // طلب ملء الشاشة قبل الانتقال للغرفة
-                    await elem.requestFullscreen();
-                } catch (e) {
-                    // لو رفض المتصفح أو حدث خطأ، نكمل التحويل بشكل طبيعي
-                    console.warn("Fullscreen request failed, redirecting anyway:", e);
-                }
-            }
-            window.location.href = redirectUrl;
+            window.location.href = `/live-session?sessionId=${sessionId}&role=student&studentName=${studentName}`;
         }
 
         function playAudio(url, subject) {

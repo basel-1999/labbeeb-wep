@@ -917,31 +917,25 @@
             });
 
 
-            // ✨ دالة ملء الشاشة الاحتياطية (تتحقق وتحاول الإعادة تلقائياً)
+            // ✨ دالة دخول ملء الشاشة (تتكون من محاولة تلقائية + تفاعل احتياطي)
             function enterStudentFullscreen() {
-                if (isTeacher) return;
                 const elem = document.documentElement;
-                if (!elem.requestFullscreen) return;
+                if (!elem.requestFullscreen) return; // المتصفح لا يدعم ملء الشاشة
 
-                // لو المتصفح لا يزال في ملء الشاشة (دخل من لوحة التحكم)، لا نفعل شيئاً
-                if (document.fullscreenElement !== null) return;
-
-                // محاولة الدخول التلقائي (قد ينجح إذا انتقل المتصفح وهو في وضع ملء الشاشة)
+                // محاولة الدخول التلقائي
                 elem.requestFullscreen().catch(() => {
-                    // لو فشل التلقائي، ننتظر أول تفاعل من الطالب (حركة ماوس أو لمس)
+                    // لو المتصفح منع التلقائي، ننتظر أول تفاعل (نقرة أو لمس) من الطالب
                     const triggerFullscreen = () => {
                         if (document.fullscreenElement === null) {
                             elem.requestFullscreen().catch(() => {});
                         }
-                        document.removeEventListener('mousemove', triggerFullscreen);
                         document.removeEventListener('click', triggerFullscreen);
-                        document.removeEventListener('touchstart', triggerFullscreen);
                         document.removeEventListener('keydown', triggerFullscreen);
+                        document.removeEventListener('touchstart', triggerFullscreen);
                     };
-                    document.addEventListener('mousemove', triggerFullscreen);
                     document.addEventListener('click', triggerFullscreen);
-                    document.addEventListener('touchstart', triggerFullscreen);
                     document.addEventListener('keydown', triggerFullscreen);
+                    document.addEventListener('touchstart', triggerFullscreen);
                 });
             }
 
