@@ -957,9 +957,9 @@
                     // ✨ تفعيل ملء الشاشة للطالب فقط
                     enterStudentFullscreen();
                 }
-                // ✨ إظهار أزرار التحكم بالعرض للمعلم فقط
+                // ✨ زر مشاركة الشاشة للاثنين (الطالب بيستخدمه لما المعلم يسمحله)، وزر عرض السبورة للمعلم فقط
+                document.getElementById('screenShareBtn').classList.remove('hidden');
                 if (isTeacher) {
-                    document.getElementById('screenShareBtn').classList.remove('hidden');
                     document.getElementById('showBoardBtn').classList.remove('hidden');
                     document.getElementById('allowStudentScreenShareBtn').classList.remove('hidden');
                     document.getElementById('allowStudentDrawBtn').classList.remove('hidden');
