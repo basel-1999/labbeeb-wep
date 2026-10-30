@@ -2708,10 +2708,9 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         isScreenSharing = true;
                         updateScreenShareUI();
                         
-                        // ✨ عند بدء المشاركة، نحول العرض للمشاركة ونخفي السبورة
+                        // ✨ عند بدء المشاركة: المشارك يبقى يرى السبورة، الطرف الآخر يتحول تلقائياً
                         currentViewMode = 'share';
-                        document.getElementById('whiteboard').style.display = 'none';
-                        document.getElementById('mainScreenShareContainer').classList.remove('hidden');
+                        // لا نخفي السبورة عن المشارك (هو يرى شاشته بنافذة المشاركة)
                         
                         await db.collection('sessions').doc(sessionId).update({ 
                             isScreenSharing: true, 
@@ -2838,9 +2837,15 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             stopMyScreenShare();
                         }
                         
-                        // ✨ مزامنة وضع العرض (board أو share) ليتبعه الطالب
+                        // ✨ مزامنة وضع العرض: المشارك يبقى على السبورة، الطرف الآخر يرى المشاركة
                         const remoteViewMode = data.viewMode || 'board';
-                        if (remoteViewMode !== currentViewMode) {
+                        const amSharing = data.isScreenSharing && data.screenShareUid === currentUser.uid;
+                        if (amSharing) {
+                            // أنا المشارك، أبقى على السبورة دائماً
+                            if (currentViewMode !== 'board') {
+                                applyViewMode('board');
+                            }
+                        } else if (remoteViewMode !== currentViewMode) {
                             applyViewMode(remoteViewMode);
                         }
                     }
