@@ -2666,7 +2666,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 document.getElementById('mainScreenShareContainer').classList.add('hidden');
                 document.getElementById('whiteboard').style.display = 'block';
                 
-                // إيقاف المشاركة لتوفير الموارد (كما اتفقنا)
+                // إيقاف مشاركة المعلم فقط (لتوفير الموارد)
                 if (isScreenSharing) {
                     stopMyScreenShare();
                     db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null, viewMode: 'board' });
@@ -2708,22 +2708,21 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         isScreenSharing = true;
                         updateScreenShareUI();
                         
-                        // ✨ عند بدء المشاركة: المشارك يبقى يرى السبورة، الطرف الآخر يتحول تلقائياً
-                        currentViewMode = 'share';
-                        // لا نخفي السبورة عن المشارك (هو يرى شاشته بنافذة المشاركة)
+                        // ✨ المشارك يبقى يرى السبورة، الطرف الآخر يكتشف المشاركة تلقائياً
+                        currentViewMode = 'board'; // المشارك يبقى على السبورة
                         
                         await db.collection('sessions').doc(sessionId).update({ 
                             isScreenSharing: true, 
-                            screenShareUid: currentUser.uid,
-                            viewMode: 'share'
+                            screenShareUid: currentUser.uid
+                            // لا نحدّث viewMode - المعلم يكتشف تلقائياً
                         });
                         showSnackBar(tl('screen_share_started'), 'green');
                     } else {
                         await stopMyScreenShare();
                         await db.collection('sessions').doc(sessionId).update({ 
                             isScreenSharing: false, 
-                            screenShareUid: null,
-                            viewMode: 'board'
+                            screenShareUid: null
+                            // لا نحدّث viewMode - المعلم يكتشف التوقف تلقائياً
                         });
                         showSnackBar(tl('screen_share_stopped'), 'orange');
                     }
@@ -2837,16 +2836,28 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             stopMyScreenShare();
                         }
                         
-                        // ✨ مزامنة وضع العرض: المشارك يبقى على السبورة، الطرف الآخر يرى المشاركة
-                        const remoteViewMode = data.viewMode || 'board';
-                        const amSharing = data.isScreenSharing && data.screenShareUid === currentUser.uid;
+                        // ✨ اكتشاف تلقائي: إذا كان الطرف الآخر يشارك، أرى مشاركته
+                        const otherIsSharing = data.isScreenSharing && data.screenShareUid && data.screenShareUid !== currentUser.uid;
+                        const amSharing = isScreenSharing; // أنا أشارك حالياً
+                        
                         if (amSharing) {
-                            // أنا المشارك، أبقى على السبورة دائماً
+                            // أنا المشارك - أبقى على السبورة دائماً
                             if (currentViewMode !== 'board') {
                                 applyViewMode('board');
                             }
-                        } else if (remoteViewMode !== currentViewMode) {
-                            applyViewMode(remoteViewMode);
+                        } else if (otherIsSharing) {
+                            // الطرف الآخر يشارك - أتحول لعرض المشاركة
+                            if (currentViewMode !== 'share') {
+                                currentViewMode = 'share';
+                                document.getElementById('whiteboard').style.display = 'none';
+                                document.getElementById('mainScreenShareContainer').classList.remove('hidden');
+                            }
+                        } else {
+                            // لا أحد يشارك - أتبع viewMode من المعلم
+                            const remoteViewMode = data.viewMode || 'board';
+                            if (remoteViewMode !== currentViewMode) {
+                                applyViewMode(remoteViewMode);
+                            }
                         }
                     }
                 });
