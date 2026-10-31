@@ -47,7 +47,8 @@
             #timerDisplay { font-size: 1.125rem; }
 
             /* ضبط أبعاد الفيديو */
-            #screenSharePlayer video {
+            #screenSharePlayer video,
+            #mainScreenSharePlayer video {
                 object-fit: contain !important;
                 width: 100% !important;
                 height: 100% !important;
@@ -407,6 +408,10 @@
                 <span data-i18n-l="show_board_btn">عرض السبورة</span>
             </button>
 
+            <button id="fsToggleBtn" onclick="toggleStudentFullscreen()" style="display:none" title="ملء الشاشة" class="p-3 rounded-full bg-white/10 hover:bg-white/20 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+            </button>
+
             <button id="endSessionBtn" onclick="confirmEndSession()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1m0 0V6m0-1h1m3 0h2m-3 0h1m6 0h2m-6 0H6m12 0h1m-1 0h1m-1 0h1" /></svg>
                 <span id="endSessionText" data-i18n-l="end_session_text">إنهاء الجلسة</span>
@@ -744,6 +749,7 @@
         let agoraEngine = null;
         let localAudioTrack = null;
         let screenShareClient = null;
+        let screenShareTrack = null;
         const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
 
         // 🎙️ نظام مزج الصوت للتسجيل: يجمع صوت المايك المحلي + صوت الطرف الآخر القادم عبر Agora
@@ -925,6 +931,7 @@
                 // محاولة الدخول التلقائي
                 elem.requestFullscreen().catch(() => {
                     // لو المتصفح منع التلقائي، ننتظر أول تفاعل (نقرة أو لمس) من الطالب
+                    showSnackBar(currentLangLive === 'en' ? 'Tap anywhere to go full screen' : 'اضغط في أي مكان لملء الشاشة', 'orange');
                     const triggerFullscreen = () => {
                         if (document.fullscreenElement === null) {
                             elem.requestFullscreen().catch(() => {});
@@ -937,6 +944,14 @@
                     document.addEventListener('keydown', triggerFullscreen);
                     document.addEventListener('touchstart', triggerFullscreen);
                 });
+            }
+
+            function toggleStudentFullscreen() {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {});
+                } else if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                }
             }
 
             function initUI() {
@@ -956,6 +971,7 @@
                     
                     // ✨ تفعيل ملء الشاشة للطالب فقط
                     enterStudentFullscreen();
+                    document.getElementById('fsToggleBtn').style.display = 'block';
                 }
                 // ✨ زر مشاركة الشاشة للاثنين (الطالب بيستخدمه لما المعلم يسمحله)، وزر عرض السبورة للمعلم فقط
                 document.getElementById('screenShareBtn').classList.remove('hidden');
@@ -974,6 +990,11 @@
             async function toggleAllowStudentScreenShare() {
                 if (!isTeacher) return;
                 const newValue = !screenShareAllowedForStudent;
+
+                // سحب الصلاحية أثناء مشاركة الطالب: نوقف مشاركته
+                if (!newValue && sessionIsScreenSharing && sessionScreenShareUid && sessionScreenShareUid !== currentUser.uid) {
+                    await db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null, viewMode: 'board' });
+                }
 
                 if (newValue && isScreenSharing) {
                     // المعلم كان يشارك شاشته - لازم نوقفه أول عشان نسمح للطالب
@@ -2671,7 +2692,11 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     stopMyScreenShare();
                     db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null, viewMode: 'board' });
                 } else {
-                    db.collection('sessions').doc(sessionId).update({ viewMode: 'board' });
+                    // لو الطالب هو اللي يشارك: المعلم بيوقف مشاركته ويرجع للسبورة
+                    const studentSharing = sessionIsScreenSharing && sessionScreenShareUid && sessionScreenShareUid !== currentUser.uid;
+                    db.collection('sessions').doc(sessionId).update(studentSharing
+                        ? { isScreenSharing: false, screenShareUid: null, viewMode: 'board' }
+                        : { viewMode: 'board' });
                 }
                 showSnackBar(tl('show_board_btn'), 'green');
             }
@@ -2705,6 +2730,12 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         await screenShareClient.join(AGORA_APP_ID, sessionId, token || null, screenShareUidLocal);
                         const screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1", optimizationMode: "detail" }, "disable");
                         await screenShareClient.publish(screenTrack);
+                        screenShareTrack = screenTrack;
+                        // لو المعلم أوقف المشاركة من زر "Stop sharing" الخاص بالمتصفح
+                        screenTrack.on('track-ended', async () => {
+                            await stopMyScreenShare();
+                            db.collection('sessions').doc(sessionId).update({ isScreenSharing: false, screenShareUid: null }).catch(() => {});
+                        });
                         isScreenSharing = true;
                         updateScreenShareUI();
                         
@@ -2735,6 +2766,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             async function stopMyScreenShare() {
+                if (screenShareTrack) { try { screenShareTrack.stop(); screenShareTrack.close(); } catch (e) {} screenShareTrack = null; }
                 if (screenShareClient) { await screenShareClient.leave(); screenShareClient = null; }
                 isScreenSharing = false;
                 updateScreenShareUI();
@@ -2836,6 +2868,11 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             stopMyScreenShare();
                         }
                         
+                        // 🔐 المعلم أوقف مشاركة الطالب (أو سحب الصلاحية): نوقفها عند الطالب
+                        if (!isTeacher && isScreenSharing && !data.isScreenSharing) {
+                            stopMyScreenShare();
+                        }
+
                         // ✨ اكتشاف تلقائي: إذا كان الطرف الآخر يشارك، أرى مشاركته
                         const otherIsSharing = data.isScreenSharing && data.screenShareUid && data.screenShareUid !== currentUser.uid;
                         const amSharing = isScreenSharing; // أنا أشارك حالياً
