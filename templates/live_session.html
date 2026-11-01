@@ -275,7 +275,7 @@
                     </button>
 
                     <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" /></svg> <span data-i18n-l="eraser_btn">ممحاة</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.22 15.22l5.65 5.65" /></svg> <span data-i18n-l="eraser_btn">ممحاة</span>
                     </button>
                     <div id="animationButtons" class="contents">
                         <div class="h-4 w-px bg-white/15 mx-2"></div>
@@ -750,6 +750,8 @@
         let localAudioTrack = null;
         let screenShareClient = null;
         let screenShareTrack = null;
+        let myScreenShareUid = null;      // رقم UID لمشاركتي الحالية (جديد لكل مشاركة)
+        let screenShareBusy = false;      // يمنع الضغط المزدوج على زر المشاركة
         const AGORA_APP_ID = "3a54c447b558405da3e87b1177ccc463";
 
         // 🎙️ نظام مزج الصوت للتسجيل: يجمع صوت المايك المحلي + صوت الطرف الآخر القادم عبر Agora
@@ -2595,8 +2597,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         }
                         if (mediaType === "video") {
                             const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                            const myScreenShareUid = numericUid + 1000000;
-                            
+
+
+                            // myScreenShareUid متغير عام (رقم مشاركتي الحالية)
+
                             if (user.uid !== myScreenShareUid) {
                                 screenShareUid = user.uid;
                                 // ✨ تشغيل الفيديو في الحاوية الرئيسية
@@ -2704,6 +2708,8 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // ✨ دالة تبديل المشاركة (يستخدمها المعلم: تشغيل/إيقاف)
             async function toggleScreenShare() {
                 if (isTrialInterview) { trialToggleScreenShareDemo(); return; }
+                if (screenShareBusy) return;   // في عملية مشاركة قيد التنفيذ
+                screenShareBusy = true;
                 try {
                     if (!isScreenSharing) {
                         // 🔐 فحص الصلاحية: الطالب ما بيقدر يشارك إلا لو المعلم سمح
@@ -2724,7 +2730,8 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         }
 
                         const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                        const screenShareUidLocal = numericUid + 1000000; 
+                        const screenShareUidLocal = 1000000 + Math.floor(Math.random() * 9000000);   // رقم جديد كل مرة
+                        myScreenShareUid = screenShareUidLocal; 
                         const token = await fetchDynamicToken(sessionId, screenShareUidLocal);
                         screenShareClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
                         await screenShareClient.join(AGORA_APP_ID, sessionId, token || null, screenShareUidLocal);
@@ -2762,6 +2769,8 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     isScreenSharing = false;
                     updateScreenShareUI();
                     showSnackBar(`${tl('screen_share_failed')} ${e.message}`, 'red');
+                } finally {
+                    screenShareBusy = false;
                 }
             }
 
