@@ -90,7 +90,7 @@
 
 
             /* ⭐ ===== نظام المكافآت ===== */
-            #rewardTrophies { --tw: clamp(58px, min(11vh, 10vw), 108px); position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; z-index: 35; }
+            #rewardTrophies { --tw: clamp(58px, min(11vh, 10vw), 108px); position: absolute; inset-inline-start: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; z-index: 35; }
             .trophy-wrap { position: relative; width: var(--tw); }
             .trophy-wrap.cup { width: calc(var(--tw) * 1.12); }
             .trophy-item { transition: filter .5s ease; }
@@ -168,12 +168,12 @@
         </header>
 
         <!-- Main Content -->
-        <main class="flex-1 flex overflow-hidden relative">
+        <main class="flex-1 flex overflow-hidden relative min-w-0 min-h-0"></main>
             
             <!-- Whiteboard Area -->
-            <div class="flex-1 flex flex-col min-w-0 min-h-0"></div>
+            <div id="boardArea" class="flex-1 flex flex-col min-w-0 min-h-0"></div>
                 <!-- Toolbar (Teacher Only) -->
-                <div id="teacherToolbar" class="bg-[#2A2A2A] h-12 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap">
+                <div id="teacherToolbar" class="bg-[#2A2A2A] min-h-[48px] py-1 flex items-center px-4 gap-2 shrink-0 z-30 hidden relative flex-wrap"></div>
                     <span data-i18n-l="colors_label" class="text-sm text-white/70 ml-2">الألوان:</span>
                     
                     <button onclick="selectColor('black')" class="w-7 h-7 rounded-full bg-black border-2 border-white/30 shrink-0"></button>
@@ -277,6 +277,14 @@
                     <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.22 15.22l5.65 5.65" /></svg> <span data-i18n-l="eraser_btn">ممحاة</span>
                     </button>
+
+                                        <!-- ✨ زر رفع صورة على السبورة -->
+                    <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    <button onclick="document.getElementById('imageInput').click()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span>صورة</span>
+                    </button>
+
                     <div id="animationButtons" class="contents">
                         <div class="h-4 w-px bg-white/15 mx-2"></div>
                         
@@ -295,7 +303,7 @@
                 </div>
 
                 <!-- Canvas -->
-                <div class="flex-1 relative bg-white min-h-0 overflow-hidden"></div>
+                <div id="boardCanvasWrap" class="flex-1 relative bg-white min-h-0 overflow-hidden"></div>
                     <canvas id="whiteboard"></canvas>
                     <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
                     <div id="remotePointer"></div>
@@ -332,7 +340,7 @@
             </button>
 
             <!-- Chat Panel -->
-            <div id="chatPanel" class="w-80 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative">
+            <div id="chatPanel" class="w-80 max-w-[90vw] min-h-0 bg-[#252525] flex flex-col shrink-0 border-r border-white/10 relative"></div>
                 <div class="bg-[#2C2C2C] p-3 flex justify-between items-center border-b border-white/10">
                     <div class="flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -794,6 +802,14 @@
             let draggingTextId = null;
             let dragOffsetX = 0;
             let dragOffsetY = 0;
+                        // ✨ نظام الصور على السبورة
+            const imageCache = {}; // تخزين مؤقت للصور المحمّلة
+            let draggingImageId = null;
+            let resizingImageId = null;
+            let resizeCorner = null; // 'tl', 'tr', 'bl', 'br'
+            let imageDragOffsetX = 0;
+            let imageDragOffsetY = 0;
+            let selectedImageId = null;
 
         // 📄 رقم الصفحة الحالية للسبورة (بدل حفظ صور، كل نقطة بتتسجل تحت رقم صفحتها)
         let currentPageIndex = 0;
@@ -1130,6 +1146,42 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 
                 if (isPointerMode) return; 
                 
+                // ✨ فحص مقابض التحكم للصورة المحددة أولاً
+                if (isTeacher && selectedImageId) {
+                    const selected = currentStrokes.find(s => s.id === selectedImageId);
+                    if (selected && selected.type === 'image') {
+                        const corner = getResizeCornerAtPosition(px, py, selected);
+                        if (corner) {
+                            resizingImageId = selectedImageId;
+                            resizeCorner = corner;
+                            isDrawing = true;
+                            canvas.style.cursor = 'nwse-resize';
+                            return;
+                        }
+                    }
+                }
+                
+                // ✨ فحص النقر على صورة
+                if (isTeacher) {
+                    const hitImage = getImageAtPosition(px, py);
+                    if (hitImage) {
+                        // تحديد الصورة وبدء السحب
+                        selectedImageId = hitImage.id;
+                        draggingImageId = hitImage.id;
+                        imageDragOffsetX = px - (hitImage.dx * boardW);
+                        imageDragOffsetY = py - (hitImage.dy * boardH);
+                        isDrawing = true;
+                        canvas.style.cursor = "grabbing";
+                        renderCurrentPageStrokes();
+                        return;
+                    }
+                    // النقر بعيداً عن الصورة: إلغاء التحديد
+                    if (selectedImageId) {
+                        selectedImageId = null;
+                        renderCurrentPageStrokes();
+                    }
+                }
+                
                 if (isEraser) {
                     isDrawing = true;
                     eraseStrokeAt(pos.x, pos.y);
@@ -1166,6 +1218,45 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
                 function draw(e) { if (!canDraw() || !isDrawing) return;
                 const pos = getMousePos(e);
+                const px = pos.x * boardW;
+                const py = pos.y * boardH;
+                
+                // ✨ تكبير/تصغير صورة
+                if (resizingImageId) {
+                    const img = currentStrokes.find(s => s.id === resizingImageId);
+                    if (img) {
+                        if (resizeCorner === 'br') {
+                            img.w = Math.max(0.05, (px - img.dx * boardW) / boardW);
+                            img.h = Math.max(0.05, (py - img.dy * boardH) / boardH);
+                        } else if (resizeCorner === 'tr') {
+                            img.w = Math.max(0.05, (px - img.dx * boardW) / boardW);
+                            img.h = Math.max(0.05, (img.dy * boardH + img.h * boardH - py) / boardH);
+                            img.dy = py / boardH;
+                        } else if (resizeCorner === 'bl') {
+                            img.w = Math.max(0.05, (img.dx * boardW + img.w * boardW - px) / boardW);
+                            img.dx = px / boardW;
+                            img.h = Math.max(0.05, (py - img.dy * boardH) / boardH);
+                        } else if (resizeCorner === 'tl') {
+                            img.w = Math.max(0.05, (img.dx * boardW + img.w * boardW - px) / boardW);
+                            img.dx = px / boardW;
+                            img.h = Math.max(0.05, (img.dy * boardH + img.h * boardH - py) / boardH);
+                            img.dy = py / boardH;
+                        }
+                        redrawAllStrokes();
+                    }
+                    return;
+                }
+                
+                // ✨ سحب صورة
+                if (draggingImageId) {
+                    const img = currentStrokes.find(s => s.id === draggingImageId);
+                    if (img) {
+                        img.dx = (px - imageDragOffsetX) / boardW;
+                        img.dy = (py - imageDragOffsetY) / boardH;
+                        redrawAllStrokes();
+                    }
+                    return;
+                }
                 
                 if (draggingTextId) {
                     const tempPx = pos.x * boardW - dragOffsetX;
@@ -1193,6 +1284,37 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
             function endDraw(e) { if (!canDraw() || !isDrawing) return;
                 isDrawing = false;
+                
+                // ✨ حفظ تكبير/تصغير صورة
+                if (resizingImageId) {
+                    const img = currentStrokes.find(s => s.id === resizingImageId);
+                    if (img) {
+                        db.collection('sessions').doc(sessionId).collection('strokes').doc(resizingImageId).update({
+                            dx: img.dx,
+                            dy: img.dy,
+                            w: img.w,
+                            h: img.h
+                        });
+                    }
+                    resizingImageId = null;
+                    resizeCorner = null;
+                    canvas.style.cursor = PEN_CURSOR;
+                    return;
+                }
+                
+                // ✨ حفظ سحب صورة
+                if (draggingImageId) {
+                    const img = currentStrokes.find(s => s.id === draggingImageId);
+                    if (img) {
+                        db.collection('sessions').doc(sessionId).collection('strokes').doc(draggingImageId).update({
+                            dx: img.dx,
+                            dy: img.dy
+                        });
+                    }
+                    draggingImageId = null;
+                    canvas.style.cursor = PEN_CURSOR;
+                    return;
+                }
                 
                 if (draggingTextId) {
                     const pos = getMousePos(e || window.event);
@@ -1504,6 +1626,15 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 ctx.clearRect(0, 0, boardW, boardH);
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, boardW, boardH);
+                
+                // ✨ رسم الصور أولاً
+                currentStrokes.forEach(s => {
+                    if (s.type === 'image' && imageCache[s.url]) {
+                        drawImageOnCanvas(imageCache[s.url], s);
+                    }
+                });
+                
+                // ✨ ثم رسم باقي العناصر فوق الصور
                 currentStrokes.forEach(s => {
                     if (s.type === 'text') {
                         ctx.font = `${s.fontSize || 18}px Cairo, sans-serif`;
@@ -1513,10 +1644,18 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         ctx.fillText(s.text, s.dx * boardW, s.dy * boardH);
                     } else if (s.type === 'shape') {
                         drawShape(s.shape, s.startX, s.startY, s.endX, s.endY, s.color, s.strokeWidth);
-                    } else {
+                    } else if (s.type !== 'image') {
                         drawStroke(s.points);
                     }
                 });
+                
+                // ✨ مقابض التحكم
+                if (selectedImageId) {
+                    const selected = currentStrokes.find(s => s.id === selectedImageId);
+                    if (selected && selected.type === 'image') {
+                        drawResizeHandles(selected);
+                    }
+                }
             }
 
             function redrawCanvas() { ctx.clearRect(0, 0, boardW, boardH); }
@@ -1549,31 +1688,64 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             ctx.fillRect(0, 0, boardW, boardH);
             strokeDocIds = [];
             currentStrokes = [];
+            
+            // ✨ فصل الصور عن باقي العناصر (الصور تُرسم أولاً تحت الخطوط)
+            const imageStrokes = [];
+            const otherStrokes = [];
+            
             lastWhiteboardSnapshot.forEach((doc) => {
                 const data = doc.data();
-                if (data.pending && liveStrokeRef && doc.id === liveStrokeRef.id) return; // خطي الحالي بينرسم محلياً
+                if (data.pending && liveStrokeRef && doc.id === liveStrokeRef.id) return;
                 const docPage = data.page || 0;
-                if (docPage !== currentPageIndex) return; // نعرض فقط نقاط الصفحة الحالية
-
+                if (docPage !== currentPageIndex) return;
+                
+                if (data.type === 'image') {
+                    imageStrokes.push({ id: doc.id, type: 'image', url: data.url, dx: data.dx, dy: data.dy, w: data.w, h: data.h, author: data.author });
+                    strokeDocIds.push(doc.id);
+                } else {
+                    otherStrokes.push({ id: doc.id, ...data });
+                    strokeDocIds.push(doc.id);
+                }
+            });
+            
+            // ✨ رسم الصور أولاً (تحت الخطوط)
+            let needRerender = false;
+            imageStrokes.forEach((s) => {
+                if (imageCache[s.url]) {
+                    drawImageOnCanvas(imageCache[s.url], s);
+                } else {
+                    needRerender = true;
+                    loadImage(s.url, () => renderCurrentPageStrokes());
+                }
+                currentStrokes.push(s);
+            });
+            
+            // ✨ رسم باقي العناصر (خطوط، أشكال، نصوص) فوق الصور
+            otherStrokes.forEach((data) => {
                 if (data.type === 'text') {
                     ctx.font = `${data.fontSize || 18}px Cairo, sans-serif`;
                     ctx.fillStyle = data.color;
                     ctx.textBaseline = 'top';
                     ctx.textAlign = 'left';
                     ctx.fillText(data.text, data.dx * boardW, data.dy * boardH);
-                    strokeDocIds.push(doc.id);
-                    currentStrokes.push({ id: doc.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18, author: data.author });
+                    currentStrokes.push({ id: data.id, type: 'text', dx: data.dx, dy: data.dy, text: data.text, color: data.color, fontSize: data.fontSize || 18, author: data.author });
                 } else if (data.type === 'shape') {
                     drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
-                    strokeDocIds.push(doc.id);
-                    currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth, author: data.author });
+                    currentStrokes.push({ id: data.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth, author: data.author });
                 } else {
                     const points = data.points || [];
                     drawStroke(points);
-                    strokeDocIds.push(doc.id);
-                    currentStrokes.push({ id: doc.id, points: points, author: data.author });
+                    currentStrokes.push({ id: data.id, points: points, author: data.author });
                 }
             });
+            
+            // ✨ رسم مقابض التحكم للصورة المحددة
+            if (selectedImageId) {
+                const selected = currentStrokes.find(s => s.id === selectedImageId);
+                if (selected && selected.type === 'image') {
+                    drawResizeHandles(selected);
+                }
+            }
         }
 
 
@@ -1662,6 +1834,142 @@ function handleDoubleClick(e) { if (!canDraw()) return;
     }
 
 
+            // ==========================================
+            // 🖼️ نظام الصور على السبورة
+            // ==========================================
+            async function handleImageUpload(event) {
+                if (!isTeacher) return;
+                const file = event.target.files[0];
+                if (!file) return;
+
+                showSnackBar(currentLangLive === 'en' ? 'Uploading image...' : 'جاري رفع الصورة...', '#D97706');
+
+                try {
+                    const token = await currentUser.getIdToken();
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('folder', 'board_images');
+
+                    const res = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (!data.url) throw new Error('Upload failed');
+
+                    // حفظ الصورة كـ stroke من نوع image
+                    // الأبعاد الافتراضية: 30% من عرض السبورة، مع الحفاظ على النسبة
+                    const defaultW = 0.3;
+                    const defaultH = 0.3;
+
+                    await db.collection('sessions').doc(sessionId).collection('strokes').add({
+                        type: 'image',
+                        url: data.url,
+                        dx: 0.35,
+                        dy: 0.35,
+                        w: defaultW,
+                        h: defaultH,
+                        page: currentPageIndex,
+                        author: currentUser.uid,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    showSnackBar(currentLangLive === 'en' ? 'Image added!' : 'تمت إضافة الصورة! 🖼️', '#10b981');
+                } catch (e) {
+                    showSnackBar(currentLangLive === 'en' ? 'Failed to upload image' : 'فشل رفع الصورة', '#ef4444');
+                }
+                event.target.value = '';
+            }
+
+            // تحميل الصورة وتخزينها في الذاكرة المؤقتة
+            function loadImage(url, callback) {
+                if (imageCache[url]) {
+                    callback(imageCache[url]);
+                    return;
+                }
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    imageCache[url] = img;
+                    callback(img);
+                };
+                img.onerror = () => callback(null);
+                img.src = url;
+            }
+
+            // رسم صورة واحدة على الكانفس
+            function drawImageOnCanvas(img, data) {
+                const x = data.dx * boardW;
+                const y = data.dy * boardH;
+                const w = data.w * boardW;
+                const h = data.h * boardH;
+                ctx.drawImage(img, x, y, w, h);
+            }
+
+            // رسم مقابض التحكم (للصورة المحددة)
+            function drawResizeHandles(data) {
+                const x = data.dx * boardW;
+                const y = data.dy * boardH;
+                const w = data.w * boardW;
+                const h = data.h * boardH;
+                const handleSize = 8;
+
+                ctx.strokeStyle = '#3B82F6';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(x, y, w, h);
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#3B82F6';
+                // الزوايا الأربع
+                const corners = [
+                    [x, y], [x + w, y], [x, y + h], [x + w, y + h]
+                ];
+                corners.forEach(([cx, cy]) => {
+                    ctx.fillRect(cx - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+                });
+            }
+
+            // الكشف عن صورة عند نقطة معينة
+            function getImageAtPosition(px, py) {
+                for (let i = currentStrokes.length - 1; i >= 0; i--) {
+                    const s = currentStrokes[i];
+                    if (s.type === 'image') {
+                        const x = s.dx * boardW;
+                        const y = s.dy * boardH;
+                        const w = s.w * boardW;
+                        const h = s.h * boardH;
+                        if (px >= x && px <= x + w && py >= y && py <= y + h) {
+                            return s;
+                        }
+                    }
+                }
+                return null;
+            }
+
+            // الكشف عن مقبض تحكم عند نقطة معينة
+            function getResizeCornerAtPosition(px, py, data) {
+                if (!data) return null;
+                const x = data.dx * boardW;
+                const y = data.dy * boardH;
+                const w = data.w * boardW;
+                const h = data.h * boardH;
+                const tolerance = 10;
+
+                // top-left
+                if (Math.abs(px - x) < tolerance && Math.abs(py - y) < tolerance) return 'tl';
+                // top-right
+                if (Math.abs(px - (x + w)) < tolerance && Math.abs(py - y) < tolerance) return 'tr';
+                // bottom-left
+                if (Math.abs(px - x) < tolerance && Math.abs(py - (y + h)) < tolerance) return 'bl';
+                // bottom-right
+                if (Math.abs(px - (x + w)) < tolerance && Math.abs(py - (y + h)) < tolerance) return 'br';
+
+                return null;
+            }
+
 
             function eraseStrokeAt(x, y) {
                 const px = x * boardW;
@@ -1670,7 +1978,16 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     const stroke = currentStrokes[i];
                     let hit = false;
                     
-                    if (stroke.type === 'text') {
+                    // ✨ فحص الصور
+                    if (stroke.type === 'image') {
+                        const ix = stroke.dx * boardW;
+                        const iy = stroke.dy * boardH;
+                        const iw = stroke.w * boardW;
+                        const ih = stroke.h * boardH;
+                        if (px >= ix && px <= ix + iw && py >= iy && py <= iy + ih) {
+                            hit = true;
+                        }
+                    } else if (stroke.type === 'text') {
                         const tx = stroke.dx * boardW;
                         const ty = stroke.dy * boardH;
                         ctx.font = `${stroke.fontSize || 18}px Cairo, sans-serif`;
