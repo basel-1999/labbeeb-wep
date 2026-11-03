@@ -1116,8 +1116,9 @@
                 canvas.addEventListener('touchmove', handleTouch);
                 canvas.addEventListener('touchend', handleTouchEnd);
                 canvas.addEventListener('dblclick', handleDoubleClick);
-                // 🖼️ تهيئة طبقة الصور (لإلغاء التحديد عند النقر خارجها)
+                // 🖼️ تهيئة طبقة الصور والسحب والإفلات
                 initImageLayer();
+                initDragDrop();
             }
 function handleDoubleClick(e) { if (!canDraw()) return;
         const pos = getMousePos(e);
@@ -4464,16 +4465,129 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 imageDragState = null;
             }
 
-            // ⌨️ مستمع زر Delete لمسح السبورة
+            // ⌨️ مستمع زر Delete: يمسح الصورة المحددة فقط (لا يمسح السبورة)
             document.addEventListener('keydown', (e) => {
                 // تجاهل عند الكتابة في حقل نصي
                 const tag = e.target.tagName;
                 if (tag === 'INPUT' || tag === 'TEXTAREA') return;
                 if (e.key === 'Delete') {
-                    e.preventDefault();
-                    confirmClearBoard();
+                    // 🖼️ لو في صورة محددة، امسحها فقط
+                    if (selectedImageId) {
+                        e.preventDefault();
+                        if (confirm('هل تريد حذف هذه الصورة؟')) {
+                            db.collection('sessions').doc(sessionId).collection('strokes')
+                                .doc(selectedImageId).delete()
+                                .catch(err => console.error('Image delete failed:', err));
+                            selectedImageId = null;
+                            renderImages();
+                        }
+                    }
+                    // لو ما في صورة محددة، لا تفعل شيئاً (لا تمسح السبورة)
                 }
             });
+
+            // ==========================================
+            // 🖼️ السحب والإفلات (Drag & Drop) للصور على السبورة
+            // ==========================================
+            function initDragDrop() {
+                const boardContainer = canvas.parentElement;
+
+                // منع السلوك الافتراضي للمتصفح (فتح الصورة في تبويب جديد)
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    boardContainer.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                // إبراز المنطقة عند سحب ملف فوقها
+                let dragCounter = 0;
+                boardContainer.addEventListener('dragenter', (e) => {
+                    dragCounter++;
+                    boardContainer.style.outline = '3px dashed #2563eb';
+                    boardContainer.style.outlineOffset = '-3px';
+                });
+                boardContainer.addEventListener('dragleave', (e) => {
+                    dragCounter--;
+                    if (dragCounter === 0) {
+                        boardContainer.style.outline = '';
+                    }
+                });
+                boardContainer.addEventListener('drop', (e) => {
+                    dragCounter = 0;
+                    boardContainer.style.outline = '';
+
+                    const files = e.dataTransfer.files;
+                    if (!files || files.length === 0) return;
+
+                    // معالجة كل ملف صورة تم إفلاته
+                    Array.from(files).forEach(file => {
+                        if (!file.type.startsWith('image/')) return;
+
+                        // حساب موضع الإفلات بالنسبة للسبورة (نسبياً)
+                        const rect = canvas.getBoundingClientRect();
+                        const dropX = (e.clientX - rect.left) / rect.width;
+                        const dropY = (e.clientY - rect.top) / rect.height;
+
+                        // رفع الصورة ووضعها عند موضع الإفلات
+                        handleImageDrop(file, dropX, dropY);
+                    });
+                });
+            }
+
+            // 📤 رفع صورة تم سحبها وإفلاتها على السبورة
+            async function handleImageDrop(file, dropX, dropY) {
+                if (!file.type.startsWith('image/')) {
+                    showSnackBar('الرجاء استخدام ملف صورة صالح', 'red');
+                    return;
+                }
+
+                showSnackBar('جاري رفع الصورة...', 'orange');
+                try {
+                    const token = await currentUser.getIdToken();
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('folder', 'board_images');
+
+                    const res = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (!data.url) throw new Error('Upload failed');
+
+                    // تحميل الصورة لمعرفة أبعادها الطبيعية
+                    const img = new Image();
+                    img.onload = async () => {
+                        const aspectRatio = img.naturalHeight / Math.max(1, img.naturalWidth);
+                        const defaultWidth = 0.3;
+                        const defaultHeight = defaultWidth * aspectRatio;
+
+                        // وضع الصورة عند موضع الإفلات (مع مركزنتها على النقطة)
+                        const dx = Math.max(0, Math.min(1 - defaultWidth, dropX - defaultWidth / 2));
+                        const dy = Math.max(0, Math.min(1 - defaultHeight, dropY - defaultHeight / 2));
+
+                        await db.collection('sessions').doc(sessionId).collection('strokes').add({
+                            type: 'image',
+                            imageUrl: data.url,
+                            dx: dx,
+                            dy: dy,
+                            width: defaultWidth,
+                            height: defaultHeight,
+                            page: currentPageIndex,
+                            author: currentUser.uid,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        showSnackBar('تم رفع الصورة بنجاح ✅', 'green');
+                    };
+                    img.onerror = () => showSnackBar('تعذر تحميل الصورة بعد الرفع', 'red');
+                    img.src = data.url;
+                } catch (e) {
+                    console.error('Image drop upload failed:', e);
+                    showSnackBar('فشل رفع الصورة', 'red');
+                }
+            }
         </script>
     </body>
     </html>
