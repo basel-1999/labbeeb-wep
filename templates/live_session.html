@@ -122,6 +122,35 @@
             /* 💬 سهم الإرسال: بيتجه حسب لغة الصفحة */
             html[lang="en"] #sendArrow { transform: scaleX(-1); }
 
+            /* 🖼️ طبقة الصور على السبورة */
+            #imageLayer {
+                position: absolute; inset: 0; pointer-events: none; z-index: 5;
+            }
+            .board-image {
+                position: absolute; pointer-events: auto; cursor: move;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                user-select: none; -webkit-user-select: none;
+                box-sizing: border-box;
+            }
+            .board-image img {
+                width: 100%; height: 100%; display: block; pointer-events: none;
+                -webkit-user-drag: none; user-select: none;
+            }
+            .board-image.selected {
+                outline: 2px solid #2563eb;
+                outline-offset: 2px;
+            }
+            .resize-handle {
+                position: absolute; width: 14px; height: 14px;
+                background: #2563eb; border: 2px solid #fff;
+                border-radius: 50%; pointer-events: auto;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            }
+            .resize-handle.nw { top: -7px; left: -7px; cursor: nwse-resize; }
+            .resize-handle.ne { top: -7px; right: -7px; cursor: nesw-resize; }
+            .resize-handle.sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+            .resize-handle.se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+
         </style>
     </head>
     <body class="h-screen flex flex-col">
@@ -303,6 +332,8 @@
                 <!-- Canvas --> 
                 <div class="flex-1 relative bg-white min-h-0 overflow-hidden">
                     <canvas id="whiteboard"></canvas>
+                    <!-- 🖼️ طبقة الصور المرفوعة على السبورة -->
+                    <div id="imageLayer"></div>
                     <div id="animationOverlay" class="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"></div>
                     <div id="remotePointer"></div>
 
@@ -1085,6 +1116,8 @@
                 canvas.addEventListener('touchmove', handleTouch);
                 canvas.addEventListener('touchend', handleTouchEnd);
                 canvas.addEventListener('dblclick', handleDoubleClick);
+                // 🖼️ تهيئة طبقة الصور (لإلغاء التحديد عند النقر خارجها)
+                initImageLayer();
             }
 function handleDoubleClick(e) { if (!canDraw()) return;
         const pos = getMousePos(e);
@@ -1543,6 +1576,8 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             requestAnimationFrame(() => {
                 boardRedrawQueued = false;
                 renderCurrentPageStrokesBase();
+                // 🖼️ إعادة عرض طبقة الصور أيضاً (تحريك، تحجيم، إضافة، حذف)
+                renderImages();
                 // الخط اللي بيرسمه المستخدم حالياً بيضل ظاهر فوق إعادة الرسم
                 if (isDrawing && currentStroke.length > 1) drawStroke(currentStroke);
             });
@@ -1573,6 +1608,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     drawShape(data.shape, data.startX, data.startY, data.endX, data.endY, data.color, data.strokeWidth);
                     strokeDocIds.push(doc.id);
                     currentStrokes.push({ id: doc.id, type: 'shape', shape: data.shape, startX: data.startX, startY: data.startY, endX: data.endX, endY: data.endY, color: data.color, strokeWidth: data.strokeWidth, author: data.author });
+                } else if (data.type === 'image') {
+                    // 🖼️ الصور لا تُرسم على Canvas، بل تُعرض كطبقة HTML منفصلة عبر renderImages()
+                    strokeDocIds.push(doc.id);
+                    currentStrokes.push({ id: doc.id, type: 'image', imageUrl: data.imageUrl, dx: data.dx, dy: data.dy, width: data.width, height: data.height, author: data.author });
                 } else {
                     const points = data.points || [];
                     drawStroke(points);
@@ -1694,6 +1733,15 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         const minY = Math.min(sy, ey) - 10;
                         const maxY = Math.max(sy, ey) + 10;
                         if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+                            hit = true;
+                        }
+                    } else if (stroke.type === 'image') {
+                        // 🖼️ فحص إصابة الصورة بمستطيلها المرئي
+                        const ix = stroke.dx * boardW;
+                        const iy = stroke.dy * boardH;
+                        const iw = stroke.width * boardW;
+                        const ih = stroke.height * boardW;
+                        if (px >= ix && px <= ix + iw && py >= iy && py <= iy + ih) {
                             hit = true;
                         }
                     } else {
@@ -2795,12 +2843,15 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // ✨ دالة تطبيق وضع العرض (يستقبلها الطالب من السيرفر)
             function applyViewMode(mode) {
                 currentViewMode = mode;
+                const layerEl = document.getElementById('imageLayer');
                 if (mode === 'share') {
                     document.getElementById('whiteboard').style.display = 'none';
+                    if (layerEl) layerEl.style.display = 'none';
                     document.getElementById('mainScreenShareContainer').classList.remove('hidden');
                 } else {
                     document.getElementById('mainScreenShareContainer').classList.add('hidden');
                     document.getElementById('whiteboard').style.display = 'block';
+                    if (layerEl) layerEl.style.display = 'block';
                     // إعادة ضبط حجم السبورة عند العودة لها
                     resizeCanvas();
                     renderCurrentPageStrokes();
@@ -4146,6 +4197,239 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 const snackbar = document.createElement('div'); snackbar.className = 'snackbar';
                 snackbar.style.backgroundColor = colors[color] || '#333'; snackbar.innerText = text;
                 document.body.appendChild(snackbar); setTimeout(() => snackbar.remove(), 3000);
+            }
+
+            // ==========================================
+            // 🖼️ نظام الصور على السبورة (رفع، عرض، تحريك، تحجيم، مسح)
+            // ==========================================
+            let selectedImageId = null;       // معرف الصورة المحددة حالياً
+            let imageDragState = null;        // حالة السحب/التحجيم الحالية
+            let imageLayerEl = null;          // مرجع لعنصر طبقة الصور
+
+            // تهيئة طبقة الصور وإغلاق التحديد عند النقر خارجها
+            function initImageLayer() {
+                imageLayerEl = document.getElementById('imageLayer');
+                // إلغاء التحديد عند النقر على السبورة (وليس على صورة)
+                canvas.addEventListener('mousedown', (e) => {
+                    if (selectedImageId && !e.target.closest('.board-image')) {
+                        selectedImageId = null;
+                        renderImages();
+                    }
+                });
+            }
+
+            // 📤 رفع صورة من جهاز المعلم إلى Cloudinary ثم حفظها في Firestore
+            async function handleImageUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) {
+                    showSnackBar('الرجاء اختيار ملف صورة صالح', 'red');
+                    event.target.value = '';
+                    return;
+                }
+
+                showSnackBar('جاري رفع الصورة...', 'orange');
+                try {
+                    const token = await currentUser.getIdToken();
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('folder', 'board_images');
+
+                    const res = await fetch('/api/cloudinary/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (!data.url) throw new Error('Upload failed');
+
+                    // تحميل الصورة لمعرفة أبعادها الطبيعية وحساب النسبة
+                    const img = new Image();
+                    img.onload = async () => {
+                        const aspectRatio = img.naturalHeight / Math.max(1, img.naturalWidth);
+                        // الحجم الافتراضي: 30% من عرض السبورة، مع المحافظة على نسبة الصورة
+                        const defaultWidth = 0.3;
+                        const defaultHeight = defaultWidth * aspectRatio;
+                        // وضع الصورة في منتصف السبورة
+                        const dx = Math.max(0, 0.5 - defaultWidth / 2);
+                        const dy = Math.max(0, 0.5 - defaultHeight / 2);
+
+                        await db.collection('sessions').doc(sessionId).collection('strokes').add({
+                            type: 'image',
+                            imageUrl: data.url,
+                            dx: dx,
+                            dy: dy,
+                            width: defaultWidth,
+                            height: defaultHeight,
+                            page: currentPageIndex,
+                            author: currentUser.uid,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        showSnackBar('تم رفع الصورة بنجاح ✅', 'green');
+                    };
+                    img.onerror = () => showSnackBar('تعذر تحميل الصورة بعد الرفع', 'red');
+                    img.src = data.url;
+                } catch (e) {
+                    console.error('Image upload failed:', e);
+                    showSnackBar('فشل رفع الصورة', 'red');
+                }
+                event.target.value = '';
+            }
+
+            // 🎨 عرض جميع صور الصفحة الحالية كطبقة HTML فوق السبورة
+            function renderImages() {
+                if (!imageLayerEl) return;
+                imageLayerEl.innerHTML = '';
+
+                const pageImages = currentStrokes.filter(s => s.type === 'image');
+                pageImages.forEach(img => {
+                    const div = document.createElement('div');
+                    div.className = 'board-image' + (img.id === selectedImageId ? ' selected' : '');
+                    div.dataset.id = img.id;
+                    div.style.left = (img.dx * boardW) + 'px';
+                    div.style.top = (img.dy * boardH) + 'px';
+                    div.style.width = (img.width * boardW) + 'px';
+                    div.style.height = (img.height * boardW) + 'px';
+
+                    const imgEl = document.createElement('img');
+                    imgEl.src = img.imageUrl;
+                    imgEl.draggable = false;
+                    div.appendChild(imgEl);
+
+                    // مقابض التحجيم تظهر فقط للصورة المحددة
+                    if (img.id === selectedImageId) {
+                        ['nw', 'ne', 'sw', 'se'].forEach(corner => {
+                            const handle = document.createElement('div');
+                            handle.className = 'resize-handle ' + corner;
+                            handle.dataset.corner = corner;
+                            div.appendChild(handle);
+                        });
+                    }
+
+                    imageLayerEl.appendChild(div);
+
+                    // ربط أحداث التفاعل (تحريك/تحجيم) فقط لمن يملك صلاحية الرسم
+                    if (canDraw()) {
+                        attachImageInteraction(div, img);
+                    }
+                });
+            }
+
+            // 🖱️ ربط أحداث التحريك والتحجيم بصورة واحدة
+            function attachImageInteraction(div, img) {
+                div.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const isHandle = e.target.classList.contains('resize-handle');
+                    const corner = isHandle ? e.target.dataset.corner : null;
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+
+                    // تحديد الصورة فور النقر عليها
+                    selectedImageId = img.id;
+                    renderImages();
+
+                    // الحصول على العنصر الجديد بعد إعادة الرسم
+                    const selectedDiv = imageLayerEl.querySelector(`[data-id="${img.id}"]`);
+                    if (!selectedDiv) return;
+
+                    const aspectRatio = img.height / Math.max(0.0001, img.width);
+
+                    imageDragState = {
+                        id: img.id,
+                        mode: isHandle ? 'resize' : 'move',
+                        corner: corner,
+                        startX: startX,
+                        startY: startY,
+                        startDx: img.dx,
+                        startDy: img.dy,
+                        startWidth: img.width,
+                        startHeight: img.height,
+                        aspectRatio: aspectRatio,
+                        newDx: img.dx,
+                        newDy: img.dy,
+                        newWidth: img.width,
+                        newHeight: img.height,
+                        div: selectedDiv
+                    };
+
+                    const onMove = (ev) => {
+                        if (!imageDragState) return;
+                        const ddx = (ev.clientX - imageDragState.startX) / boardW;
+                        const ddy = (ev.clientY - imageDragState.startY) / boardH;
+
+                        if (imageDragState.mode === 'move') {
+                            let newDx = imageDragState.startDx + ddx;
+                            let newDy = imageDragState.startDy + ddy;
+                            // منع خروج الصورة عن حدود السبورة
+                            newDx = Math.max(0, Math.min(1 - imageDragState.startWidth, newDx));
+                            newDy = Math.max(0, Math.min(1 - imageDragState.startHeight, newDy));
+                            imageDragState.newDx = newDx;
+                            imageDragState.newDy = newDy;
+                            imageDragState.div.style.left = (newDx * boardW) + 'px';
+                            imageDragState.div.style.top = (newDy * boardH) + 'px';
+                        } else if (imageDragState.mode === 'resize') {
+                            const ar = imageDragState.aspectRatio;
+                            let newWidth = imageDragState.startWidth;
+                            let newDx = imageDragState.startDx;
+                            let newDy = imageDragState.startDy;
+                            const startW = imageDragState.startWidth;
+                            const startH = imageDragState.startHeight;
+
+                            if (imageDragState.corner === 'se') {
+                                newWidth = Math.max(0.05, startW + ddx);
+                            } else if (imageDragState.corner === 'sw') {
+                                newWidth = Math.max(0.05, startW - ddx);
+                                newDx = startDx + (startW - newWidth);
+                            } else if (imageDragState.corner === 'ne') {
+                                newWidth = Math.max(0.05, startW + ddx);
+                                const newHeight = newWidth * ar;
+                                newDy = startDy + (startH - newHeight);
+                            } else if (imageDragState.corner === 'nw') {
+                                newWidth = Math.max(0.05, startW - ddx);
+                                newDx = startDx + (startW - newWidth);
+                                const newHeight = newWidth * ar;
+                                newDy = startDy + (startH - newHeight);
+                            }
+
+                            const newHeight = newWidth * ar;
+                            imageDragState.newDx = newDx;
+                            imageDragState.newDy = newDy;
+                            imageDragState.newWidth = newWidth;
+                            imageDragState.newHeight = newHeight;
+                            imageDragState.div.style.left = (newDx * boardW) + 'px';
+                            imageDragState.div.style.top = (newDy * boardH) + 'px';
+                            imageDragState.div.style.width = (newWidth * boardW) + 'px';
+                            imageDragState.div.style.height = (newHeight * boardW) + 'px';
+                        }
+                    };
+
+                    const onUp = () => {
+                        if (imageDragState) {
+                            const update = {};
+                            if (imageDragState.mode === 'move') {
+                                update.dx = imageDragState.newDx;
+                                update.dy = imageDragState.newDy;
+                            } else {
+                                update.dx = imageDragState.newDx;
+                                update.dy = imageDragState.newDy;
+                                update.width = imageDragState.newWidth;
+                                update.height = imageDragState.newHeight;
+                            }
+                            // حفظ الموضع/الحجم الجديد في Firestore لمزامنته مع الطرف الآخر
+                            db.collection('sessions').doc(sessionId).collection('strokes')
+                                .doc(imageDragState.id).update(update)
+                                .catch(err => console.error('Image update failed:', err));
+                            imageDragState = null;
+                        }
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                    };
+
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
             }
         </script>
     </body>
