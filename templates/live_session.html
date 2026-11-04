@@ -306,9 +306,14 @@
                     <button onclick="enableEraser()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.22 15.22l5.65 5.65" /></svg> <span data-i18n-l="eraser_btn">ممحاة</span>
                     </button>
+                                        <!-- ✨ أداة تحديد الصور (تحريك وتغيير حجم) -->
+                    <button id="selectToolBtn" onclick="enableSelectMode()" title="تحديد الصور وتحريكها وتغيير حجمها" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-6.2 1.6L9.5 20z"/></svg>
+                        <span>تحديد</span>
+                    </button>
                     <!-- ✨ زر رفع صورة على السبورة -->
                     <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-                    <button onclick="document.getElementById('imageInput').click()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+               <button id="addImageBtn" onclick="document.getElementById('imageInput').click()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         <span>صورة</span>
                     </button>
@@ -1003,6 +1008,8 @@
                 } else {
                     // 🚫 المؤثرات (إيموجي/بلالين...) للمعلم فقط، ما بتظهر للطالب أبداً
                     document.getElementById('animationButtons').style.display = 'none';
+                    document.getElementById('addImageBtn').style.display = 'none';
+                    document.getElementById('selectToolBtn').style.display = 'none';
                     document.getElementById('endSessionText').innerText = tl('leave_session_btn');
                     document.getElementById('endSessionBtn').classList.remove('bg-red-600');
                     document.getElementById('endSessionBtn').classList.add('bg-orange-500', 'hover:bg-orange-600');
@@ -1164,6 +1171,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
             function startDraw(e) { if (!canDraw()) return;
+                if (isSelectMode) { handleSelectDown(e); return; }
                 const pos = getMousePos(e);
                 const px = pos.x * boardW;
                 const py = pos.y * boardH;
@@ -1211,7 +1219,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 }
 
                 // 🖼️ فحص النقر على صورة (للتحريك) - يعمل في وضع القلم فقط
-                const imageHit = getImageAtPosition(px, py);
+                const imageHit = null;   // القلم ما بيحرّك الصور (استخدم أداة التحديد)
                 if (imageHit) {
                     selectedImageId = imageHit.id;
                     renderImages();
@@ -1752,6 +1760,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 for (let i = 0; i < currentStrokes.length; i++) {
                     const stroke = currentStrokes[i];
                     let hit = false;
+                    if (stroke.type === 'image') continue;   // الصور ما بتنمسح بالممحاة
                     
                     if (stroke.type === 'text') {
                         const tx = stroke.dx * boardW;
@@ -4242,17 +4251,146 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // الصور تُعرض كطبقة HTML تحت Canvas، والتفاعل يتم عبر Canvas hit-test
             // ==========================================
             let selectedImageId = null;       // معرف الصورة المحددة حالياً
-            let imageDragState = null;        // حالة السحب/التحجيم الحالية
+            let isSelectMode = false;         // أداة التحديد (للصور)
+            let imageDragState = null;       // حالة السحب/التحجيم الحالية
             let imageLayerEl = null;          // مرجع لعنصر طبقة الصور
             const IMAGE_HANDLE_SIZE = 16;     // حجم منطقة النقر على مقبض التحجيم (بالبكسل)
 
             // تهيئة طبقة الصور
+            // ==========================================
+            // 🖼️ أداة التحديد (تحريك الصور وتغيير حجمها)
+            // ==========================================
+            function updateSelectBtnUI() {
+                const b = document.getElementById('selectToolBtn');
+                if (b) b.style.background = isSelectMode ? 'rgba(255,255,255,0.2)' : '';
+            }
+
+            function enableSelectMode() {
+                if (!isTeacher) return;
+                hideMyPointer();
+                isSelectMode = true;
+                isEraser = false;
+                isTextMode = false;
+                isShapeMode = false;
+                isPointerMode = false;
+                canvas.style.cursor = 'default';
+                document.getElementById('sizePopup').style.display = 'none';
+                updateSelectBtnUI();
+            }
+
+            function exitSelectMode() {
+                if (!isSelectMode) return;
+                isSelectMode = false;
+                selectedImageId = null;
+                imageDragState = null;
+                renderImages();
+                updateSelectBtnUI();
+            }
+
+            function handleSelectDown(e) {
+                const pos = getMousePos(e);
+                const px = pos.x * boardW;
+                const py = pos.y * boardH;
+
+                // مقبض تحجيم للصورة المحددة؟
+                if (selectedImageId) {
+                    const handle = getImageHandleAt(px, py);
+                    const sel = currentStrokes.find(s => s.id === selectedImageId && s.type === 'image');
+                    if (handle && sel) {
+                        isDrawing = true;
+                        startImageDrag(pos, sel, handle);
+                        return;
+                    }
+                }
+
+                // نقر على صورة: نحددها ونبدأ تحريكها
+                const hit = getImageAtPosition(px, py);
+                if (hit) {
+                    selectedImageId = hit.id;
+                    renderImages();
+                    isDrawing = true;
+                    startImageDrag(pos, hit, null);
+                    return;
+                }
+
+                // نقر على فراغ: نلغي التحديد
+                if (selectedImageId) { selectedImageId = null; renderImages(); }
+            }
+
+            // أي أداة ثانية بتنختار من الشريط = نطلع من وضع التحديد
+            document.getElementById('teacherToolbar').addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (!btn || btn.id === 'selectToolBtn' || btn.id === 'addImageBtn') return;
+                if (btn.closest('#animationButtons')) return;   // النجمة والمؤثرات ما بتغيّر الأداة
+                exitSelectMode();
+            });
+
             function initImageLayer() {
                 imageLayerEl = document.getElementById('imageLayer');
             }
 
+            // 🗜️ ضغط الصورة قبل الرفع (يحل مشكلة ERR_HTTP2_PROTOCOL_ERROR مع Render.com)
+            // - تصغير الصورة إلى 1600px كحد أقصى (مع الحفاظ على النسبة)
+            // - إعادة ترميزها JPEG بجودة 0.82
+            // - إرجاع File جديد أصغر حجماً
+            function compressImage(file) {
+                return new Promise((resolve, reject) => {
+                    if (!file.type.startsWith('image/')) {
+                        reject(new Error('Not an image'));
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const MAX_SIZE = 1600; // الحد الأقصى للعرض أو الارتفاع
+                            let { width, height } = img;
+
+                            // تصغير الصورة لو كانت كبيرة
+                            if (width > MAX_SIZE || height > MAX_SIZE) {
+                                if (width > height) {
+                                    height = Math.round((height * MAX_SIZE) / width);
+                                    width = MAX_SIZE;
+                                } else {
+                                    width = Math.round((width * MAX_SIZE) / height);
+                                    height = MAX_SIZE;
+                                }
+                            }
+
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            // خلفية بيضاء لمعالجة PNG الشفاف
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, width, height);
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            // تحويل إلى Blob ثم File
+                            canvas.toBlob((blob) => {
+                                if (!blob) {
+                                    reject(new Error('Compression failed'));
+                                    return;
+                                }
+                                const compressedFile = new File(
+                                    [blob],
+                                    file.name.replace(/\.(png|gif|webp|bmp)$/i, '.jpg'),
+                                    { type: 'image/jpeg', lastModified: Date.now() }
+                                );
+                                resolve(compressedFile);
+                            }, 'image/jpeg', 0.82);
+                        };
+                        img.onerror = () => reject(new Error('Image load failed'));
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = () => reject(new Error('File read failed'));
+                    reader.readAsDataURL(file);
+                });
+            }
+
             // 📤 رفع صورة من جهاز المعلم إلى Cloudinary ثم حفظها في Firestore
             async function handleImageUpload(event) {
+                if (!isTeacher) return;   // الصور للمعلم فقط
                 const file = event.target.files[0];
                 if (!file) return;
                 if (!file.type.startsWith('image/')) {
@@ -4261,11 +4399,20 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     return;
                 }
 
-                showSnackBar('جاري رفع الصورة...', 'orange');
+                showSnackBar('جاري ضغط ورفع الصورة...', 'orange');
                 try {
+                    // 🗜️ ضغط الصورة قبل الرفع لتجنب ERR_HTTP2_PROTOCOL_ERROR
+                    let uploadFile = file;
+                    try {
+                        uploadFile = await compressImage(file);
+                    } catch (compErr) {
+                        console.warn('Compression failed, using original:', compErr);
+                        uploadFile = file;
+                    }
+
                     const token = await currentUser.getIdToken();
                     const formData = new FormData();
-                    formData.append('file', file);
+                    formData.append('file', uploadFile);
                     formData.append('folder', 'board_images');
 
                     const res = await fetch('/api/cloudinary/upload', {
@@ -4343,6 +4490,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
             // 🖱️ فحص ما إذا كانت النقطة على صورة (يُستخدم من startDraw)
             function getImageAtPosition(px, py) {
+                if (!isTeacher) return null;   // الطالب ما بيحرّك ولا بيحدد صور المعلم
                 for (let i = currentStrokes.length - 1; i >= 0; i--) {
                     const s = currentStrokes[i];
                     if (s.type === 'image') {
@@ -4490,6 +4638,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // 🖼️ السحب والإفلات (Drag & Drop) للصور على السبورة
             // ==========================================
             function initDragDrop() {
+                // 🛡️ حماية: لو انفلت ملف برا السبورة، المتصفح ما يفتحه ويطلعك من الحصة
+                const hasFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
+                window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+                window.addEventListener('drop', (e) => { if (hasFiles(e)) e.preventDefault(); });
                 const boardContainer = canvas.parentElement;
 
                 // منع السلوك الافتراضي للمتصفح (فتح الصورة في تبويب جديد)
@@ -4537,16 +4689,26 @@ function handleDoubleClick(e) { if (!canDraw()) return;
 
             // 📤 رفع صورة تم سحبها وإفلاتها على السبورة
             async function handleImageDrop(file, dropX, dropY) {
+                if (!isTeacher) return;   // الصور للمعلم فقط
                 if (!file.type.startsWith('image/')) {
                     showSnackBar('الرجاء استخدام ملف صورة صالح', 'red');
                     return;
                 }
 
-                showSnackBar('جاري رفع الصورة...', 'orange');
+                showSnackBar('جاري ضغط ورفع الصورة...', 'orange');
                 try {
+                    // 🗜️ ضغط الصورة قبل الرفع لتجنب ERR_HTTP2_PROTOCOL_ERROR
+                    let uploadFile = file;
+                    try {
+                        uploadFile = await compressImage(file);
+                    } catch (compErr) {
+                        console.warn('Compression failed, using original:', compErr);
+                        uploadFile = file;
+                    }
+
                     const token = await currentUser.getIdToken();
                     const formData = new FormData();
-                    formData.append('file', file);
+                    formData.append('file', uploadFile);
                     formData.append('folder', 'board_images');
 
                     const res = await fetch('/api/cloudinary/upload', {
@@ -4590,4 +4752,4 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
         </script>
     </body>
-    </html>
+    </html> 
