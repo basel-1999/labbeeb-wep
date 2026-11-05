@@ -307,15 +307,15 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.22 15.22l5.65 5.65" /></svg> <span data-i18n-l="eraser_btn">ممحاة</span>
                     </button>
                                         <!-- ✨ أداة تحديد الصور (تحريك وتغيير حجم) -->
-                    <button id="selectToolBtn" onclick="enableSelectMode()" title="تحديد الصور وتحريكها وتغيير حجمها" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
+                    <button id="selectToolBtn" onclick="enableSelectMode()" data-i18n-l-title="select_tool_title" title="تحديد الصور وتحريكها وتغيير حجمها" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-6.2 1.6L9.5 20z"/></svg>
-                        <span>تحديد</span>
+                        <span data-i18n-l="select_btn">تحديد</span>
                     </button>
                     <!-- ✨ زر رفع صورة على السبورة -->
                     <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
                <button id="addImageBtn" onclick="document.getElementById('imageInput').click()" class="px-3 py-1 border border-white/20 text-white/70 text-xs rounded-md flex items-center gap-1 shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <span>صورة</span>
+                        <span data-i18n-l="image_btn">صورة</span>
                     </button>
                     <div id="animationButtons" class="contents">
                         <div class="h-4 w-px bg-white/15 mx-2"></div>
@@ -600,6 +600,16 @@
                     allow_draw_label: "السماح بالرسم",
                     end_session_text: "إنهاء الجلسة",
                     file_upload_failed: "فشل رفع الملف",
+                    select_btn: "تحديد",
+                    select_tool_title: "تحديد الصور وتحريكها وتغيير حجمها",
+                    image_btn: "صورة",
+                    image_only: "الرجاء اختيار ملف صورة صالح",
+                    image_too_big: "حجم الصورة كبير (الحد الأقصى 15 ميجا)",
+                    image_board_hidden: "ارجع لعرض السبورة أولاً",
+                    image_uploading: "جاري رفع الصورة...",
+                    image_uploaded: "تمت إضافة الصورة ✅ اسحبها لتحريكها واستخدم الدوائر لتغيير حجمها",
+                    image_failed: "تعذر إضافة الصورة",
+                    image_delete_confirm: "هل تريد حذف هذه الصورة؟",
                     trial_badge_text: "🚀 حصة تجريبية مجانية",
                     reward_star_caption: "أحسنت! نجمة جديدة",
                     reward_silver_caption: "ميدالية فضية!",
@@ -701,6 +711,16 @@
                     allow_draw_label: "Allow Drawing",
                     end_session_text: "End Session",
                     file_upload_failed: "File upload failed",
+                    select_btn: "Select",
+                    select_tool_title: "Select, move and resize images",
+                    image_btn: "Image",
+                    image_only: "Please choose a valid image file",
+                    image_too_big: "Image is too large (max 15 MB)",
+                    image_board_hidden: "Switch back to the board first",
+                    image_uploading: "Uploading image...",
+                    image_uploaded: "Image added ✅ Drag to move, use the circles to resize",
+                    image_failed: "Could not add the image",
+                    image_delete_confirm: "Delete this image?",
                     trial_badge_text: "🚀 Free Trial Session",
                     reward_star_caption: "Great job! New star",
                     reward_silver_caption: "Silver Medal!",
@@ -4388,33 +4408,246 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 });
             }
 
-            // 📤 رفع صورة من جهاز المعلم إلى Cloudinary ثم حفظها في Firestore
-            async function handleImageUpload(event) {
-                if (!isTeacher) return;   // الصور للمعلم فقط
-                const file = event.target.files[0];
-                if (!file) return;
-                if (!file.type.startsWith('image/')) {
-                    showSnackBar('الرجاء اختيار ملف صورة صالح', 'red');
-                    event.target.value = '';
-                    return;
+            // ==========================================
+            // 🖼️ رفع الصور وعرضها وتحريكها (نسخة محسّنة)
+            // التخزين (نفس القديم): dx/dy نسبة من عرض/ارتفاع السبورة،
+            // و width/height نسبة من "عرض" السبورة (عشان الصورة ما تتشوه)
+            // ==========================================
+            const MIN_IMG_PX = 40;                 // أصغر حجم للصورة بالبكسل
+            const imageElMap = new Map();          // id -> عنصر الصورة (نحدّثه بدل ما نعيد بناءه)
+            const imagePendingGeom = {};           // قياسات لسا ما وصل حفظها لـ Firestore
+            let imageQueue = Promise.resolve();    // رفع الصور بالدور
+
+            // مستطيل الصورة بالبكسل (ونضمن إنها ما تطلع برا السبورة لو تغيّرت الأبعاد)
+            function imageRectPx(g) {
+                const w = g.width * boardW;
+                const h = g.height * boardW;
+                const x = Math.min(Math.max(0, g.dx * boardW), Math.max(0, boardW - w));
+                const y = Math.min(Math.max(0, g.dy * boardH), Math.max(0, boardH - h));
+                return { x: x, y: y, w: w, h: h };
+            }
+
+            // 🎨 عرض صور الصفحة: بنحدّث العناصر الموجودة بدل ما نعيد بناءها (بدون وميض)
+            function renderImages() {
+                if (!imageLayerEl) return;
+                const pageImages = currentStrokes.filter(s => s.type === 'image');
+                const alive = new Set(pageImages.map(i => i.id));
+
+                // إزالة الصور اللي اتحذفت أو اللي من صفحة ثانية
+                imageElMap.forEach((el, id) => {
+                    if (!alive.has(id)) { el.remove(); imageElMap.delete(id); }
+                });
+
+                pageImages.forEach((img) => {
+                    let div = imageElMap.get(img.id);
+                    if (!div) {
+                        div = document.createElement('div');
+                        const imgEl = document.createElement('img');
+                        imgEl.draggable = false;
+                        div.appendChild(imgEl);
+                        imageLayerEl.appendChild(div);
+                        imageElMap.set(img.id, div);
+                    }
+
+                    // أثناء السحب (ولحد ما يوصل الحفظ) نستخدم القياسات المحلية عشان الحركة تكون سلسة
+                    let g = img;
+                    if (imageDragState && imageDragState.id === img.id && imageDragState.cur) g = imageDragState.cur;
+                    else if (imagePendingGeom[img.id]) g = imagePendingGeom[img.id];
+
+                    const r = imageRectPx(g);
+                    div.className = 'board-image' + (img.id === selectedImageId ? ' selected' : '');
+                    div.style.left = r.x + 'px';
+                    div.style.top = r.y + 'px';
+                    div.style.width = r.w + 'px';
+                    div.style.height = r.h + 'px';
+
+                    const imgEl = div.querySelector('img');
+                    if (imgEl.getAttribute('src') !== img.imageUrl) imgEl.src = img.imageUrl;
+
+                    // مقابض التحجيم للصورة المحددة فقط
+                    const handles = div.querySelectorAll('.resize-handle');
+                    if (img.id === selectedImageId) {
+                        if (handles.length === 0) {
+                            ['nw', 'ne', 'sw', 'se'].forEach((corner) => {
+                                const hd = document.createElement('div');
+                                hd.className = 'resize-handle ' + corner;
+                                div.appendChild(hd);
+                            });
+                        }
+                    } else {
+                        handles.forEach(hd => hd.remove());
+                    }
+                });
+            }
+
+            // 🖱️ أي صورة تحت النقطة؟ (للمعلم فقط)
+            function getImageAtPosition(px, py) {
+                if (!isTeacher) return null;   // الطالب ما بيحرّك ولا بيحدد صور المعلم
+                for (let i = currentStrokes.length - 1; i >= 0; i--) {
+                    const s = currentStrokes[i];
+                    if (s.type !== 'image') continue;
+                    const r = imageRectPx(imagePendingGeom[s.id] || s);
+                    if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return s;
+                }
+                return null;
+            }
+
+            // 🖱️ مقبض تحجيم للصورة المحددة؟
+            function getImageHandleAt(px, py) {
+                if (!selectedImageId) return null;
+                const s = currentStrokes.find(x => x.id === selectedImageId && x.type === 'image');
+                if (!s) return null;
+                const r = imageRectPx(imagePendingGeom[s.id] || s);
+                const hs = IMAGE_HANDLE_SIZE;
+                const corners = {
+                    nw: { x: r.x, y: r.y },
+                    ne: { x: r.x + r.w, y: r.y },
+                    sw: { x: r.x, y: r.y + r.h },
+                    se: { x: r.x + r.w, y: r.y + r.h }
+                };
+                for (const [name, p] of Object.entries(corners)) {
+                    if (Math.abs(px - p.x) <= hs && Math.abs(py - p.y) <= hs) return name;
+                }
+                return null;
+            }
+
+            // 🖱️ بدء تحريك أو تحجيم (pos نسبة من السبورة، وبنحوّلها لبكسل)
+            function startImageDrag(pos, img, corner) {
+                const r = imageRectPx(imagePendingGeom[img.id] || img);
+                imageDragState = {
+                    id: img.id,
+                    mode: corner ? 'resize' : 'move',
+                    corner: corner,
+                    startX: pos.x * boardW,
+                    startY: pos.y * boardH,
+                    orig: r,
+                    ar: r.h / Math.max(1, r.w),    // الارتفاع ÷ العرض
+                    cur: null
+                };
+            }
+
+            // 🖱️ تحديث الموضع/الحجم أثناء السحب (كله بالبكسل)
+            function updateImageDrag(pos) {
+                const st = imageDragState;
+                if (!st) return;
+                const dxp = pos.x * boardW - st.startX;
+                const dyp = pos.y * boardH - st.startY;
+                const o = st.orig;
+                let x, y, w, h;
+
+                if (st.mode === 'move') {
+                    w = o.w;
+                    h = o.h;
+                    x = o.x + dxp;
+                    y = o.y + dyp;
+                } else {
+                    const west = st.corner.includes('w');
+                    const north = st.corner.includes('n');
+                    // العرض المقترح من الحركة الأفقية ومن العمودية، ونتبع المحور اللي تحرك أكثر
+                    const wx = west ? o.w - dxp : o.w + dxp;
+                    const wy = (north ? o.h - dyp : o.h + dyp) / st.ar;
+                    w = Math.abs(wx - o.w) >= Math.abs(wy - o.w) ? wx : wy;
+                    const maxW = Math.min(boardW, boardH / st.ar);   // لازم تضل كاملة جوا السبورة
+                    w = Math.min(Math.max(w, MIN_IMG_PX), maxW);
+                    h = w * st.ar;
+                    // الزاوية المقابلة بتضل ثابتة
+                    x = west ? o.x + (o.w - w) : o.x;
+                    y = north ? o.y + (o.h - h) : o.y;
                 }
 
-                showSnackBar('جاري ضغط ورفع الصورة...', 'orange');
+                x = Math.min(Math.max(0, x), Math.max(0, boardW - w));
+                y = Math.min(Math.max(0, y), Math.max(0, boardH - h));
+
+                st.cur = { dx: x / boardW, dy: y / boardH, width: w / boardW, height: h / boardW };
+                renderImages();
+            }
+
+            // 🖱️ إنهاء السحب وحفظ النتيجة
+            function endImageDrag() {
+                const st = imageDragState;
+                imageDragState = null;
+                if (!st || !st.cur) return;   // نقرة بدون تحريك: ما في شي نحفظه
+                const geom = st.cur;
+                imagePendingGeom[st.id] = geom;   // نضل نعرضها محلياً لحد ما يوصل الحفظ
+                db.collection('sessions').doc(sessionId).collection('strokes').doc(st.id)
+                    .update({ dx: geom.dx, dy: geom.dy, width: geom.width, height: geom.height })
+                    .catch((err) => {
+                        console.error('Image update failed:', err);
+                        showSnackBar(tl('image_failed'), 'red');
+                    })
+                    .then(() => {
+                        delete imagePendingGeom[st.id];
+                        renderCurrentPageStrokes();
+                    });
+            }
+
+            // ---------- رفع الصورة وإضافتها ----------
+
+            // تصغير الصورة (أطول ضلع 1600) قبل الرفع: أسرع بالرفع وبالعرض عند الطالب
+            function prepareImageForUpload(file) {
+                return new Promise((resolve, reject) => {
+                    const objUrl = URL.createObjectURL(file);
+                    const img = new Image();
+                    img.onload = () => {
+                        URL.revokeObjectURL(objUrl);
+                        const w = img.naturalWidth, h = img.naturalHeight;
+                        if (!w || !h) { reject(new Error('bad image')); return; }
+                        const k = Math.min(1, 1600 / Math.max(w, h));
+                        // صغيرة أصلاً: نرفعها زي ما هي
+                        if (k === 1 && file.size <= 400 * 1024 && /^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+                            resolve({ blob: file, width: w, height: h, type: file.type });
+                            return;
+                        }
+                        const tw = Math.max(1, Math.round(w * k));
+                        const th = Math.max(1, Math.round(h * k));
+                        const cv = document.createElement('canvas');
+                        cv.width = tw;
+                        cv.height = th;
+                        const cx = cv.getContext('2d');
+                        const keepAlpha = /png|webp|gif|svg/.test(file.type);
+                        if (!keepAlpha) { cx.fillStyle = '#fff'; cx.fillRect(0, 0, tw, th); }
+                        cx.drawImage(img, 0, 0, tw, th);
+                        const type = keepAlpha ? 'image/png' : 'image/jpeg';
+                        cv.toBlob((blob) => blob ? resolve({ blob: blob, width: tw, height: th, type: type }) : reject(new Error('compress failed')), type, 0.88);
+                    };
+                    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('bad image')); };
+                    img.src = objUrl;
+                });
+            }
+
+            // حجم وموضع الصورة الجديدة: عرض 30% من السبورة (وبحد أقصى 70% من ارتفاعها)
+            // بمنتصف السبورة، أو بنقطة الإفلات (dropPos نسبة من السبورة)
+            function computeImagePlacement(aspect, dropPos) {
+                let width = 0.3;
+                const maxHeightPx = boardH * 0.7;
+                if (width * boardW * aspect > maxHeightPx) width = maxHeightPx / (boardW * aspect);
+                width = Math.min(width, 0.9);
+                const height = width * aspect;           // نسبة من عرض السبورة
+                const wPx = width * boardW;
+                const hPx = height * boardW;
+                const cx = dropPos ? dropPos.x * boardW : boardW / 2;
+                const cy = dropPos ? dropPos.y * boardH : boardH / 2;
+                const x = Math.min(Math.max(0, cx - wPx / 2), Math.max(0, boardW - wPx));
+                const y = Math.min(Math.max(0, cy - hPx / 2), Math.max(0, boardH - hPx));
+                return { dx: x / boardW, dy: y / boardH, width: width, height: height };
+            }
+
+            async function addImageFile(file, dropPos) {
+                if (!isTeacher || !currentUser) return;
+                if (!file || !file.type || !file.type.startsWith('image/')) { showSnackBar(tl('image_only'), 'red'); return; }
+                if (file.size > 15 * 1024 * 1024) { showSnackBar(tl('image_too_big'), 'orange'); return; }
+                if (!boardW || !boardH) { showSnackBar(tl('image_board_hidden'), 'orange'); return; }
+
+                showSnackBar(tl('image_uploading'), 'orange');
                 try {
-                    // 🗜️ ضغط الصورة قبل الرفع لتجنب ERR_HTTP2_PROTOCOL_ERROR
-                    let uploadFile = file;
-                    try {
-                        uploadFile = await compressImage(file);
-                    } catch (compErr) {
-                        console.warn('Compression failed, using original:', compErr);
-                        uploadFile = file;
-                    }
+                    const prepared = await prepareImageForUpload(file);
+                    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }[prepared.type] || 'png';
+                    const upFile = new File([prepared.blob], 'board_' + Date.now() + '.' + ext, { type: prepared.type });
 
                     const token = await currentUser.getIdToken();
                     const formData = new FormData();
-                    formData.append('file', uploadFile);
+                    formData.append('file', upFile);
                     formData.append('folder', 'board_images');
-
                     const res = await fetch('/api/cloudinary/upload', {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}` },
@@ -4423,194 +4656,42 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     const data = await res.json();
                     if (!data.url) throw new Error('Upload failed');
 
-                    // تحميل الصورة لمعرفة أبعادها الطبيعية وحساب النسبة
-                    const img = new Image();
-                    img.onload = async () => {
-                        const aspectRatio = img.naturalHeight / Math.max(1, img.naturalWidth);
-                        // الحجم الافتراضي: 30% من عرض السبورة، مع المحافظة على نسبة الصورة
-                        const defaultWidth = 0.3;
-                        const defaultHeight = defaultWidth * aspectRatio;
-                        // وضع الصورة في منتصف السبورة
-                        const dx = Math.max(0, 0.5 - defaultWidth / 2);
-                        const dy = Math.max(0, 0.5 - defaultHeight / 2);
+                    const aspect = prepared.height / prepared.width;     // الارتفاع ÷ العرض
+                    const place = computeImagePlacement(aspect, dropPos);
+                    const ref = db.collection('sessions').doc(sessionId).collection('strokes').doc();
+                    await ref.set({
+                        type: 'image',
+                        imageUrl: data.url,
+                        dx: place.dx,
+                        dy: place.dy,
+                        width: place.width,
+                        height: place.height,
+                        page: currentPageIndex,
+                        author: currentUser.uid,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
 
-                        await db.collection('sessions').doc(sessionId).collection('strokes').add({
-                            type: 'image',
-                            imageUrl: data.url,
-                            dx: dx,
-                            dy: dy,
-                            width: defaultWidth,
-                            height: defaultHeight,
-                            page: currentPageIndex,
-                            author: currentUser.uid,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        showSnackBar('تم رفع الصورة بنجاح ✅', 'green');
-                    };
-                    img.onerror = () => showSnackBar('تعذر تحميل الصورة بعد الرفع', 'red');
-                    img.src = data.url;
+                    // نحدد الصورة الجديدة مباشرة عشان المعلم يعدّل حجمها (احذف السطرين الجايين لو ما بدك هالسلوك)
+                    enableSelectMode();
+                    selectedImageId = ref.id;
+                    renderCurrentPageStrokes();
+                    showSnackBar(tl('image_uploaded'), 'green');
                 } catch (e) {
-                    console.error('Image upload failed:', e);
-                    showSnackBar('فشل رفع الصورة', 'red');
+                    console.error('Add image failed:', e);
+                    showSnackBar(tl('image_failed'), 'red');
                 }
+            }
+
+            // الزر (اختيار ملف)
+            function handleImageUpload(event) {
+                const f = event.target.files && event.target.files[0];
                 event.target.value = '';
+                if (f) imageQueue = imageQueue.then(() => addImageFile(f, null));
             }
 
-            // 🎨 عرض جميع صور الصفحة الحالية كطبقة HTML (للعرض فقط، بدون أحداث)
-            function renderImages() {
-                if (!imageLayerEl) return;
-                imageLayerEl.innerHTML = '';
-
-                const pageImages = currentStrokes.filter(s => s.type === 'image');
-                pageImages.forEach(img => {
-                    const div = document.createElement('div');
-                    div.className = 'board-image' + (img.id === selectedImageId ? ' selected' : '');
-                    div.style.left = (img.dx * boardW) + 'px';
-                    div.style.top = (img.dy * boardH) + 'px';
-                    div.style.width = (img.width * boardW) + 'px';
-                    div.style.height = (img.height * boardW) + 'px';
-
-                    const imgEl = document.createElement('img');
-                    imgEl.src = img.imageUrl;
-                    imgEl.draggable = false;
-                    div.appendChild(imgEl);
-
-                    // مقابض التحجيم تظهر فقط للصورة المحددة (للعرض فقط)
-                    if (img.id === selectedImageId) {
-                        ['nw', 'ne', 'sw', 'se'].forEach(corner => {
-                            const handle = document.createElement('div');
-                            handle.className = 'resize-handle ' + corner;
-                            div.appendChild(handle);
-                        });
-                    }
-
-                    imageLayerEl.appendChild(div);
-                });
-            }
-
-            // 🖱️ فحص ما إذا كانت النقطة على صورة (يُستخدم من startDraw)
-            function getImageAtPosition(px, py) {
-                if (!isTeacher) return null;   // الطالب ما بيحرّك ولا بيحدد صور المعلم
-                for (let i = currentStrokes.length - 1; i >= 0; i--) {
-                    const s = currentStrokes[i];
-                    if (s.type === 'image') {
-                        const ix = s.dx * boardW;
-                        const iy = s.dy * boardH;
-                        const iw = s.width * boardW;
-                        const ih = s.height * boardW;
-                        if (px >= ix && px <= ix + iw && py >= iy && py <= iy + ih) {
-                            return s;
-                        }
-                    }
-                }
-                return null;
-            }
-
-            // 🖱️ فحص ما إذا كانت النقطة على مقبض تحجيم للصورة المحددة
-            function getImageHandleAt(px, py) {
-                if (!selectedImageId) return null;
-                const img = currentStrokes.find(s => s.id === selectedImageId && s.type === 'image');
-                if (!img) return null;
-
-                const ix = img.dx * boardW;
-                const iy = img.dy * boardH;
-                const iw = img.width * boardW;
-                const ih = img.height * boardW;
-                const hs = IMAGE_HANDLE_SIZE;
-
-                const corners = {
-                    'nw': { x: ix, y: iy },
-                    'ne': { x: ix + iw, y: iy },
-                    'sw': { x: ix, y: iy + ih },
-                    'se': { x: ix + iw, y: iy + ih }
-                };
-
-                for (const [corner, pos] of Object.entries(corners)) {
-                    if (Math.abs(px - pos.x) <= hs && Math.abs(py - pos.y) <= hs) {
-                        return corner;
-                    }
-                }
-                return null;
-            }
-
-            // 🖱️ بدء تحريك أو تحجيم صورة (يُستدعى من startDraw)
-            function startImageDrag(pos, img, corner) {
-                imageDragState = {
-                    id: img.id,
-                    mode: corner ? 'resize' : 'move',
-                    corner: corner,
-                    startX: pos.x,
-                    startY: pos.y,
-                    startDx: img.dx,
-                    startDy: img.dy,
-                    startWidth: img.width,
-                    startHeight: img.height,
-                    aspectRatio: img.height / Math.max(0.0001, img.width)
-                };
-            }
-
-            // 🖱️ تحديث موضع/حجم الصورة أثناء السحب (يُستدعى من draw)
-            function updateImageDrag(pos) {
-                if (!imageDragState) return;
-                const ddx = pos.x - imageDragState.startX;
-                const ddy = pos.y - imageDragState.startY;
-                const stroke = currentStrokes.find(s => s.id === imageDragState.id);
-                if (!stroke) return;
-
-                if (imageDragState.mode === 'move') {
-                    let newDx = imageDragState.startDx + ddx;
-                    let newDy = imageDragState.startDy + ddy;
-                    newDx = Math.max(0, Math.min(1 - imageDragState.startWidth, newDx));
-                    newDy = Math.max(0, Math.min(1 - imageDragState.startHeight, newDy));
-                    stroke.dx = newDx;
-                    stroke.dy = newDy;
-                } else if (imageDragState.mode === 'resize') {
-                    const ar = imageDragState.aspectRatio;
-                    const startW = imageDragState.startWidth;
-                    const startH = imageDragState.startHeight;
-                    let newWidth = startW;
-                    let newDx = imageDragState.startDx;
-                    let newDy = imageDragState.startDy;
-
-                    if (imageDragState.corner === 'se') {
-                        newWidth = Math.max(0.05, startW + ddx);
-                    } else if (imageDragState.corner === 'sw') {
-                        newWidth = Math.max(0.05, startW - ddx);
-                        newDx = imageDragState.startDx + (startW - newWidth);
-                    } else if (imageDragState.corner === 'ne') {
-                        newWidth = Math.max(0.05, startW + ddx);
-                        const newHeight = newWidth * ar;
-                        newDy = imageDragState.startDy + (startH - newHeight);
-                    } else if (imageDragState.corner === 'nw') {
-                        newWidth = Math.max(0.05, startW - ddx);
-                        newDx = imageDragState.startDx + (startW - newWidth);
-                        const newHeight = newWidth * ar;
-                        newDy = imageDragState.startDy + (startH - newHeight);
-                    }
-
-                    stroke.dx = newDx;
-                    stroke.dy = newDy;
-                    stroke.width = newWidth;
-                    stroke.height = newWidth * ar;
-                }
-                renderImages();
-            }
-
-            // 🖱️ إنهاء السحب وحفظ النتيجة في Firestore (يُستدعى من endDraw)
-            function endImageDrag() {
-                if (!imageDragState) return;
-                const stroke = currentStrokes.find(s => s.id === imageDragState.id);
-                if (stroke) {
-                    db.collection('sessions').doc(sessionId).collection('strokes')
-                        .doc(imageDragState.id).update({
-                            dx: stroke.dx,
-                            dy: stroke.dy,
-                            width: stroke.width,
-                            height: stroke.height
-                        })
-                        .catch(err => console.error('Image update failed:', err));
-                }
-                imageDragState = null;
+            // الإفلات على السبورة (عدة ملفات = واحد ورا الثاني)
+            function handleImageDrop(file, dropX, dropY) {
+                imageQueue = imageQueue.then(() => addImageFile(file, { x: dropX, y: dropY }));
             }
 
             // ⌨️ مستمع زر Delete: يمسح الصورة المحددة فقط (لا يمسح السبورة)
@@ -4622,7 +4703,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     // 🖼️ لو في صورة محددة، امسحها فقط
                     if (selectedImageId) {
                         e.preventDefault();
-                        if (confirm('هل تريد حذف هذه الصورة؟')) {
+                        if (confirm(tl('image_delete_confirm'))) {
                             db.collection('sessions').doc(sessionId).collection('strokes')
                                 .doc(selectedImageId).delete()
                                 .catch(err => console.error('Image delete failed:', err));
@@ -4687,69 +4768,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 });
             }
 
-            // 📤 رفع صورة تم سحبها وإفلاتها على السبورة
-            async function handleImageDrop(file, dropX, dropY) {
-                if (!isTeacher) return;   // الصور للمعلم فقط
-                if (!file.type.startsWith('image/')) {
-                    showSnackBar('الرجاء استخدام ملف صورة صالح', 'red');
-                    return;
-                }
-
-                showSnackBar('جاري ضغط ورفع الصورة...', 'orange');
-                try {
-                    // 🗜️ ضغط الصورة قبل الرفع لتجنب ERR_HTTP2_PROTOCOL_ERROR
-                    let uploadFile = file;
-                    try {
-                        uploadFile = await compressImage(file);
-                    } catch (compErr) {
-                        console.warn('Compression failed, using original:', compErr);
-                        uploadFile = file;
-                    }
-
-                    const token = await currentUser.getIdToken();
-                    const formData = new FormData();
-                    formData.append('file', uploadFile);
-                    formData.append('folder', 'board_images');
-
-                    const res = await fetch('/api/cloudinary/upload', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if (!data.url) throw new Error('Upload failed');
-
-                    // تحميل الصورة لمعرفة أبعادها الطبيعية
-                    const img = new Image();
-                    img.onload = async () => {
-                        const aspectRatio = img.naturalHeight / Math.max(1, img.naturalWidth);
-                        const defaultWidth = 0.3;
-                        const defaultHeight = defaultWidth * aspectRatio;
-
-                        // وضع الصورة عند موضع الإفلات (مع مركزنتها على النقطة)
-                        const dx = Math.max(0, Math.min(1 - defaultWidth, dropX - defaultWidth / 2));
-                        const dy = Math.max(0, Math.min(1 - defaultHeight, dropY - defaultHeight / 2));
-
-                        await db.collection('sessions').doc(sessionId).collection('strokes').add({
-                            type: 'image',
-                            imageUrl: data.url,
-                            dx: dx,
-                            dy: dy,
-                            width: defaultWidth,
-                            height: defaultHeight,
-                            page: currentPageIndex,
-                            author: currentUser.uid,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        showSnackBar('تم رفع الصورة بنجاح ✅', 'green');
-                    };
-                    img.onerror = () => showSnackBar('تعذر تحميل الصورة بعد الرفع', 'red');
-                    img.src = data.url;
-                } catch (e) {
-                    console.error('Image drop upload failed:', e);
-                    showSnackBar('فشل رفع الصورة', 'red');
-                }
-            }
+          
         </script>
     </body>
     </html> 
