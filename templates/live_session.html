@@ -3154,7 +3154,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                         const bubble = document.createElement('div');
                         bubble.className = `p-2 rounded-lg text-xs font-medium flex flex-col gap-1 ${isMine ? 'bg-amber-600/30 border border-amber-500/30 text-amber-200 ml-auto' : 'bg-gray-800 border border-white/10 text-white mr-auto'} max-w-[85%] break-words`;
                         
-                        if (data.type === 'file' && data.fileUrl) {
+                        if (data.type === 'file' && typeof data.fileUrl === 'string' && data.fileUrl.startsWith('https://res.cloudinary.com/')) {
                             const url = data.fileUrl;
                             const fileName = data.fileName || tl('default_file_word');
                             const isImage = url.match(/\.(jpeg|jpg|gif|png)$/) != null || (url.includes('cloudinary') && url.includes('image'));
@@ -3177,7 +3177,8 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                                 link.href = url;
                                 link.target = "_blank";
                                 link.className = "flex items-center gap-2 text-white hover:underline";
-                                link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> <span>${fileName}</span>`;
+                                link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> <span class="chat-file-name"></span>`;
+                                link.querySelector('.chat-file-name').textContent = fileName;
                                 bubble.appendChild(link);
                             }
                         } else {

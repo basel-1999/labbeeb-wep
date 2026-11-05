@@ -107,7 +107,7 @@ service cloud.firestore {
         ) &&
         // 2. المعلم (تجريبي، أو تمت مقابلته، أو معتمد) ما بيعدل بياناته الأكاديمية إلا عبر الإدارة
         (
-          !(resource.data.get('status', '') in ['approved', 'trial', 'interviewed']) ||
+          !(resource.data.get('status', '') in ['approved', 'trial', 'interviewed', 'pending_profile_update']) ||
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'name', 'country', 'city',
             'subject', 'subjects', 'targetAge', 'teachingLanguage', 'experienceYears',
@@ -134,17 +134,20 @@ service cloud.firestore {
       // الإنشاء يتم فقط عبر الباك-إند (Admin SDK) بعد فحص الرصيد
       allow create: if isAdmin();
 
+      // قائمة بيضاء: الطالب/المعلم بيعدّلوا بس هالحقول. أي حقل ثاني (مثل isFreeTrial) ممنوع.
       allow update: if isAdmin() || (
         isSessionParticipant(sessionId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'studentId', 'teacherId', 'assignedTeacherId',
-          'status', 'completedAt', 'endReason',
-          'timerStartedAt', 'pointsDeducted', 'lastDeductionAt',
-          'studentJoinedAt', 'teacherJoinedAt',
-          'starsAwarded', 'lastStarAt', 'isTrialInterview'
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isScreenSharing', 'screenShareUid', 'viewMode',
+          'screenShareAllowedForStudent', 'drawingAllowedForStudent',
+          'currentBoardPage', 'autoCancelled',
+          'bookingType', 'scheduledAt', 'scheduledTime',
+          'attachedFiles'
         ]) &&
         (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['drawingAllowedForStudent', 'screenShareAllowedForStudent', 'viewMode', 'displayMode']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'drawingAllowedForStudent', 'screenShareAllowedForStudent', 'viewMode', 'attachedFiles'
+          ]) ||
           resource.data.teacherId == request.auth.uid
         )
       );

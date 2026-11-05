@@ -1225,17 +1225,17 @@ function processSessions() {
                     const startBtnText = isStartAllowed ? tt('start_session_btn') : tt('waiting_time_btn');
                     actionHtml = `
                         <button onclick="openAttachFilesModal('${req.id}')" class="border border-oliveGreen text-oliveGreen text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg> ${tt('files_btn')}</button>
-                        <button onclick="openPreFlightModal('${req.id}', '${data.studentName ?? tt('default_student')}')" ${!isStartAllowed ? 'disabled' : ''} class="${startBtnClass} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
+                        <button onclick="openPreFlightModal('${req.id}', this.dataset.name)" data-name="${escapeHtml(data.studentName ?? tt('default_student'))}" ${!isStartAllowed ? 'disabled' : ''} class="${startBtnClass} text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-1">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             ${startBtnText}
                         </button>
                     `;
                 }
 
-                const statusBadge = (tabName === 'pending') ? tt('new_request_badge') : (tabName === 'completed' ? tt('completed_badge_2') : (isStartAllowed ? tt('ready_now_badge') : `⏳ ${data.scheduledTime ?? tt('tab_upcoming')}`));
+                const statusBadge = (tabName === 'pending') ? tt('new_request_badge') : (tabName === 'completed' ? tt('completed_badge_2') : (isStartAllowed ? tt('ready_now_badge') : `⏳ ${escapeHtml(data.scheduledTime ?? tt('tab_upcoming'))}`));
 
                 // ✨ التحقق من وجود ملاحظات أو طلب مخصص
-                const notesHtml = data.notes ? `<div class="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded-lg border border-yellow-200">${tt('student_notes_label')} ${data.notes}</div>` : '';
+                const notesHtml = data.notes ? `<div class="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded-lg border border-yellow-200">${tt('student_notes_label')} ${escapeHtml(data.notes)}</div>` : '';
                 const preferredBadge = data.preferredTeacherId ? `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded">${tt('custom_request_badge')}</span>` : '';
                 
                 // ✨ إضافة شارة الحصة التجريبية (مكبرة وبارزة)
@@ -1249,8 +1249,8 @@ function processSessions() {
                                 ${preferredBadge}
                                 ${freeTrialBadge}
                             </div>
-                            <h4 class="text-base font-bold text-textDark">${tt('student_label')} ${data.studentName ?? tt('default_student')}</h4>
-                            <p class="text-xs text-gray-500">${data.subject ?? tt('general_subject')} • ${data.grade ?? ''} (${tt('lesson_topic_label')} ${data.topic ?? data.subject ?? tt('direct_lesson')})</p>
+                            <h4 class="text-base font-bold text-textDark">${tt('student_label')} ${escapeHtml(data.studentName ?? tt('default_student'))}</h4>
+                            <p class="text-xs text-gray-500">${escapeHtml(data.subject ?? tt('general_subject'))} • ${escapeHtml(data.grade ?? '')} (${tt('lesson_topic_label')} ${escapeHtml(data.topic ?? data.subject ?? tt('direct_lesson'))})</p>
                             ${notesHtml}
                         </div>
                         <div class="flex gap-2 shrink-0">
@@ -1299,6 +1299,16 @@ function processSessions() {
         // ==========================================
         // 🩺 الفحص المسبق (Pre-flight)
         // ==========================================
+
+        function escapeHtml(v) {
+    return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
         function openPreFlightModal(sessionId, studentName) {
             selectedSessionData = { id: sessionId, student: studentName };
             micReady = false;
