@@ -1702,8 +1702,8 @@ async def tap_webhook(request: Request):
 
     except Exception as e:
         print(f"❌ Webhook Exception: {str(e)}")
-        # نرجع 200 حتى لو في خطأ عشان Tap ما يعملش Spam على السيرفر بتاعنا، بس نسجل الخطأ
-        return {"status": "error", "message": str(e)}
+        # 500 عشان Tap يعيد المحاولة. التكرار محمي بمعرّف الشحنة، فما بتنزل النقاط مرتين
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 
 # ==========================================
