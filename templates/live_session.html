@@ -2695,7 +2695,10 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // ==========================================
             async function fetchDynamicToken(channelName, uid) {
                 try {
-                    const response = await fetch(`https://agora-server-59qz.onrender.com/rtc-token?channelName=${channelName}&uid=${uid}`);
+                    const idToken = await currentUser.getIdToken();
+                    const response = await fetch(`/api/session/agora-token/${channelName}?agoraUid=${uid}`, {
+                        headers: { 'Authorization': `Bearer ${idToken}` }
+                    });
                     if (response.ok) return (await response.json()).token || '';
                     return '';
                 } catch (e) { return ''; }

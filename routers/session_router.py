@@ -17,6 +17,9 @@ from datetime import datetime, timezone
 import httpx
 import asyncio
 import re
+import time
+from agora_token_builder import RtcTokenBuilder
+import math
 from urllib.parse import unquote
 
 load_dotenv()
@@ -38,6 +41,16 @@ STARS_PER_SESSION_LIMIT = 3   # أقصى عدد نجوم يمنحها المعل
 STAR_COOLDOWN_SECONDS = 10    # الفاصل بين كل نجمة والتي بعدها
 STARS_PER_BASKET = 10         # كل 10 نجوم = كأس وبتفضى السلة
 
+# 💰 إعدادات الفوترة
+
+BILLING_INTERVAL_SECONDS = 300      # كل 5 دقائق
+BILLING_POINTS_PER_INTERVAL = 0.5   # نص نقطة
+SETTLE_ON_EXIT = True               # عند الخروج: خصم الفترات المكتملة اللي لسا ما انخصمت (بدون أي جزء ناقص)     # 20 دقيقة + 30 ثانية سماح
+
+# 🎙️ إعدادات Agora
+AGORA_APP_ID = os.getenv("AGORA_APP_ID", "3a54c447b558405da3e87b1177ccc463")
+AGORA_APP_CERTIFICATE = os.getenv("AGORA_APP_CERTIFICATE")
+AGORA_TOKEN_TTL_SECONDS = 6 * 3600   # عمر التوكن: 6 ساعات
 
 # 🎓 المقابلة التجريبية للمعلم
 TRIAL_INTERVIEW_SECONDS = 900   # 15 دقيقة بالضبط
@@ -277,94 +290,86 @@ async def join_session(sessionId: str, uid: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
 
+@firestore.transactional
+@firestore.transactional
+def _settle_points_txn(transaction, session_ref, uid, finish):
+    """
+    نفس منطق الخصم القديم بالضبط (نص نقطة لكل 5 دقائق مكتملة)،
+    بس داخل transaction عشان ما ينخصم مرتين لو الطالب والمعلم ناديوا بنفس اللحظة.
+    finish=True يعني الحصة عم تنتهي (خروج/إنهاء).
+    """
+    snap = session_ref.get(transaction=transaction)
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+    s = snap.to_dict() or {}
+
+    if s.get('studentId') != uid and s.get('teacherId') != uid:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
+
+    status = s.get('status')
+    already = s.get('pointsDeducted', 0) or 0
+    if status in ('completed', 'cancelled'):
+        return {"pointsDeducted": already, "sessionEnded": True}
+
+    student_id = s.get('studentId')
+    started = s.get('timerStartedAt')
+    update = {}
+    student_ref = None
+    new_points = None
+    ended_reason = None
+
+    # نفس شروط القديم: بس الحصص المدفوعة الفعّالة (مش التجريبية، ولا مقابلة المعلم)
+    billable = (
+        started is not None
+        and status == 'active'
+        and not s.get('isFreeTrial')
+        and not s.get('isTrialInterview')
+        and (not finish or SETTLE_ON_EXIT)
+    )
+
+    if billable:
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        intervals_due = int(elapsed // BILLING_INTERVAL_SECONDS)
+        intervals_done = int(round(already / BILLING_POINTS_PER_INTERVAL))
+        to_deduct = intervals_due - intervals_done
+
+        if to_deduct > 0:
+            points_to_deduct = to_deduct * BILLING_POINTS_PER_INTERVAL
+            student_ref = db.collection('users').document(student_id)
+            student_snap = student_ref.get(transaction=transaction)
+            if not student_snap.exists:
+                raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
+            current_points = student_snap.to_dict().get('points', 0) or 0
+            new_points = max(0, current_points - points_to_deduct)
+
+            update['pointsDeducted'] = already + points_to_deduct
+            update['lastDeductionAt'] = firestore.SERVER_TIMESTAMP
+            if new_points <= 0:
+                ended_reason = 'out_of_points'
+
+    ended = finish or ended_reason is not None
+    if ended:
+        update['status'] = 'completed'
+        update['completedAt'] = firestore.SERVER_TIMESTAMP
+        if ended_reason:
+            update['endReason'] = ended_reason
+        if s.get('isFreeTrial') and student_id:
+            transaction.update(db.collection('users').document(student_id), {'hasUsedFreeTrial': True})
+
+    # كل القراءات خلصت فوق، هون الكتابة فقط
+    if new_points is not None:
+        transaction.update(student_ref, {'points': new_points})
+    if update:
+        transaction.update(session_ref, update)
+
+    return {"pointsDeducted": update.get('pointsDeducted', already), "sessionEnded": ended}
+
 @router.post("/api/session/deduct/{sessionId}")
 async def deduct_session_points(sessionId: str, uid: str = Depends(get_current_user)):
     try:
         session_ref = db.collection('sessions').document(sessionId)
-        session_snap = session_ref.get()
-
-        if not session_snap.exists:
-            raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
-
-        session_data = session_snap.to_dict()
-
-        if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
-            raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء.")
-
-        # ✨ إيقاف الخصم فوراً إذا كانت الحصة تجريبية مجانية
-        if session_data.get('isFreeTrial'):
-            return {"message": "جلسة تجريبية مجانية، لا يتم الخصم", "pointsDeducted": 0}
-
-        # 🎓 مقابلة تجريبية للمعلم: ما في طالب ولا خصم
-        if session_data.get('isTrialInterview'):
-            return {"message": "مقابلة تجريبية للمعلم، لا يتم الخصم", "pointsDeducted": 0}
-
-        now_utc = datetime.now(timezone.utc)
-        log_ts = now_utc.strftime('%H:%M:%S')
-
-        timer_started_at = session_data.get('timerStartedAt')
-        if timer_started_at is None or session_data.get('status') != 'active':
-            print(f"🕐 [{log_ts}] session={sessionId} DEDUCT SKIPPED → "
-                  f"timerStartedAt={timer_started_at} status={session_data.get('status')}")
-            return {"message": "التايمر لم يبدأ بعد", "pointsDeducted": session_data.get('pointsDeducted', 0)}
-
-        # عدد الفواصل (كل 5 دقائق) التي يجب أن تكون قد تم خصمها حتى الآن
-        elapsed_seconds = (now_utc - timer_started_at).total_seconds()
-        intervals_due = int(elapsed_seconds // 300)  # كل 300 ثانية = 5 دقائق
-
-        already_deducted = session_data.get('pointsDeducted', 0)
-        intervals_already_done = int(round(already_deducted / 0.5))  # كل 5 دقائق = نص نقطة
-
-        intervals_to_deduct = intervals_due - intervals_already_done
-
-        print(f"🕐 [{log_ts}] session={sessionId} elapsed={elapsed_seconds:.0f}s "
-              f"intervals_due={intervals_due} intervals_already_done={intervals_already_done} "
-              f"already_deducted={already_deducted} intervals_to_deduct={intervals_to_deduct}")
-
-        if intervals_to_deduct <= 0:
-            print(f"🕐 [{log_ts}] session={sessionId} → لا يوجد خصم مستحق الآن")
-            return {"message": "لا يوجد خصم مستحق الآن", "pointsDeducted": already_deducted}
-
-        points_to_deduct = intervals_to_deduct * 0.5  # نص نقطة لكل 5 دقائق
-        student_id = session_data.get('studentId')
-        student_ref = db.collection('users').document(student_id)
-        student_snap = student_ref.get()
-
-        if not student_snap.exists:
-            print(f"🕐 [{log_ts}] session={sessionId} ❌ student {student_id} not found")
-            raise HTTPException(status_code=404, detail="حساب الطالب غير موجود.")
-
-        student_data = student_snap.to_dict()
-        current_points = student_data.get('points', 0)
-        new_points = max(0, current_points - points_to_deduct)
-
-        student_ref.update({'points': new_points})
-
-        session_update = {
-            'pointsDeducted': already_deducted + points_to_deduct,
-            'lastDeductionAt': firestore.SERVER_TIMESTAMP
-        }
-
-        # ⛔ إنهاء الحصة تلقائياً لما النقاط تنفد
-        session_ended = False
-        if new_points <= 0:
-            session_update['status'] = 'completed'
-            session_update['completedAt'] = firestore.SERVER_TIMESTAMP
-            session_update['endReason'] = 'out_of_points'
-            session_ended = True
-
-        session_ref.update(session_update)
-
-        print(f"🕐 [{log_ts}] session={sessionId} ✅ DEDUCTED {points_to_deduct} → "
-              f"totalDeducted={already_deducted + points_to_deduct} studentPointsBefore={current_points} "
-              f"studentPointsAfter={new_points} sessionEnded={session_ended}")
-
-        return {
-            "message": "تم الخصم",
-            "pointsDeducted": already_deducted + points_to_deduct,
-            "studentPoints": new_points,
-            "sessionEnded": session_ended
-        }
+        res = _settle_points_txn(db.transaction(), session_ref, uid, False)
+        return {"message": "تم", **res}
 
     except HTTPException:
         raise
@@ -390,18 +395,8 @@ async def leave_session(sessionId: str, uid: str = Depends(get_current_user)):
         if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
             raise HTTPException(status_code=403, detail="غير مصرح لك بإنهاء هذه الجلسة.")
 
-        if session_data.get('status') not in ('completed', 'cancelled'):
-            session_ref.update({
-                'status': 'completed',
-                'completedAt': firestore.SERVER_TIMESTAMP
-            })  
-            # ✨ تحديث حالة الحصة التجريبية للطالب عند المغادرة
-            if session_data.get('isFreeTrial'):
-                student_id_for_trial = session_data.get('studentId')
-                if student_id_for_trial:
-                    db.collection('users').document(student_id_for_trial).update({
-                        'hasUsedFreeTrial': True
-                    })
+   
+        _settle_points_txn(db.transaction(), session_ref, uid, True)
 
         return {"message": "تم إنهاء الجلسة"}
 
@@ -663,7 +658,7 @@ async def cancel_session_request(sessionId: str, uid: str = Depends(get_current_
 async def accept_session(
     sessionId: str, 
     teacherId: str = Form(...), 
-    teacherName: str = Form(...),
+    teacherName: str = Form(""),  # يُتجاهل: الاسم بيجي من الداتا بيز
     uid: str = Depends(get_current_user)
 ):
     if uid != teacherId:
@@ -717,6 +712,9 @@ async def accept_session(
             if not teacher_supports_language(teacher_teaching_language, session_language):
                 raise HTTPException(status_code=403, detail="لا يمكنك قبول هذا الطلب لأنه لا يطابق لغة التدريس المتاحة لديك.")
         
+        # 🔒 الاسم بيجي من حساب المعلم بالداتا بيز، مش من المتصفح
+        teacherName = ((user_snap.to_dict() or {}).get('name') or 'معلم').strip()[:80]
+
         session_ref.update({
             'teacherId': teacherId,
             'assignedTeacherId': teacherId,
@@ -1770,26 +1768,17 @@ async def complete_session(
     if session_data.get('studentId') != uid and session_data.get('teacherId') != uid:
         raise HTTPException(status_code=403, detail="غير مصرح لك بإنهاء هذه الجلسة.")
 
-    update_data = {
-        'status': 'completed',
-        'completedAt': firestore.SERVER_TIMESTAMP
-    }
+    update_data = {}
     if payload.audioUrl:
         # 🔒 الرابط لازم يكون من Cloudinary تبعنا (عشان ما حدا يحط رابط خبيث للطرف الثاني)
         if not payload.audioUrl.startswith(f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/"):
             raise HTTPException(status_code=400, detail="رابط التسجيل غير صالح.")
         update_data['audioRecordingUrl'] = payload.audioUrl
 
-    session_ref.update(update_data)
-    print("Session completed successfully in Firestore!")
-
-    # ✨ تحديث حالة الحصة التجريبية للطالب لمنع تكرارها
-    if session_data.get('isFreeTrial'):
-        student_id_for_trial = session_data.get('studentId')
-        if student_id_for_trial:
-            db.collection('users').document(student_id_for_trial).update({
-                'hasUsedFreeTrial': True
-            })
+    # تسوية آخر فترة وإنهاء الجلسة بشكل ذري
+    _settle_points_txn(db.transaction(), session_ref, uid, True)
+    if update_data:
+        session_ref.update(update_data)
 
     # ✨ إرسال إشعار للطالب بتوفر ملخص الحصة
     student_id = session_data.get('studentId')
@@ -1805,3 +1794,28 @@ async def complete_session(
             print(f"Failed to send notification: {e}")
 
     return {"message": "تم إنهاء الجلسة بنجاح", "audioUrl": payload.audioUrl}
+
+    # --- 🎙️ توكن Agora (بيتحقق إنك طرف بالجلسة قبل ما يطلعلك توكن) ---
+@router.get("/api/session/agora-token/{sessionId}")
+async def get_agora_token(sessionId: str, agoraUid: int, user_id: str = Depends(get_current_user)):
+    if not AGORA_APP_CERTIFICATE:
+        raise HTTPException(status_code=500, detail="إعدادات الصوت غير مكتملة على السيرفر.")
+    if agoraUid < 0 or agoraUid > 4294967295:
+        raise HTTPException(status_code=400, detail="رقم المستخدم غير صالح.")
+
+    snap = db.collection('sessions').document(sessionId).get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+    s = snap.to_dict() or {}
+
+    if s.get('studentId') != user_id and s.get('teacherId') != user_id:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذه الجلسة.")
+    if s.get('status') in ('completed', 'cancelled'):
+        raise HTTPException(status_code=403, detail="الجلسة منتهية.")
+
+    expire_ts = int(time.time()) + AGORA_TOKEN_TTL_SECONDS
+    # 1 = publisher (نفس صلاحيات "host" اللي بيستخدمها الفرونت)
+    token = RtcTokenBuilder.buildTokenWithUid(
+        AGORA_APP_ID, AGORA_APP_CERTIFICATE, sessionId, agoraUid, 1, expire_ts
+    )
+    return {"token": token}
