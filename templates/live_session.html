@@ -585,7 +585,7 @@
                     screen_share_failed: "فشل مشاركة الشاشة:",
                     files_not_saved_warning: "⚠️ الحصة انتهت لكن حفظ الملفات لم يكتمل. لا تغلق الصفحة، وتواصل مع الدعم الفني إن استمرت المشكلة.",
                     session_ended_other: "⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.",
-                    teacher_disconnected: "❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.",
+                    teacher_disconnected: "⚠️ انقطع اتصال المعلم، انتظر قليلاً وسيرجع تلقائياً.",
                     student_disconnected: "⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.",
                     save_failed_retry: "فشلت عملية الحفظ، اضغط \"إعادة المحاولة\" 🔁",
                     uploading_audio: "جاري رفع التسجيل الصوتي...",
@@ -639,7 +639,7 @@
                     screen_share_failed: "فشل مشاركة الشاشة:",
                     files_not_saved_warning: "⚠️ الحصة انتهت لكن حفظ الملفات لم يكتمل. لا تغلق الصفحة، وتواصل مع الدعم الفني إن استمرت المشكلة.",
                     session_ended_other: "⌛ تم إنهاء الجلسة من قبل الطرف الآخر. سيتم الخروج الآن.",
-                    teacher_disconnected: "❌ انقطع اتصال المعلم، سيتم تحويلك للوحة التحكم.",
+                    teacher_disconnected: "⚠️ انقطع اتصال المعلم، انتظر قليلاً وسيرجع تلقائياً.",
                     student_disconnected: "⚠️ انقطع اتصال الطالب بالإنترنت. يمكنك حفظ السبورة وإنهاء الجلسة.",
                     save_failed_retry: "فشلت عملية الحفظ، اضغط \"إعادة المحاولة\" 🔁",
                     uploading_audio: "جاري رفع التسجيل الصوتي...",
@@ -696,7 +696,7 @@
                     screen_share_failed: "Screen sharing failed:",
                     files_not_saved_warning: "⚠️ The session has ended but saving files did not complete. Do not close the page, and contact support if the issue persists.",
                     session_ended_other: "⌛ The session was ended by the other party. You will be redirected now.",
-                    teacher_disconnected: "❌ The teacher's connection was lost. You will be redirected to your dashboard.",
+                    teacher_disconnected: "⚠️ The teacher's connection was lost. Please wait, they should reconnect shortly.",
                     student_disconnected: "⚠️ The student's internet connection was lost. You can save the board and end the session.",
                     save_failed_retry: "Saving failed, tap \"Retry\" 🔁",
                     uploading_audio: "Uploading audio recording...",
@@ -750,7 +750,7 @@
                     screen_share_failed: "Screen sharing failed:",
                     files_not_saved_warning: "⚠️ The session has ended but saving files did not complete. Do not close the page, and contact support if the issue persists.",
                     session_ended_other: "⌛ The session was ended by the other party. You will be redirected now.",
-                    teacher_disconnected: "❌ The teacher's connection was lost. You will be redirected to your dashboard.",
+                    teacher_disconnected: "⚠️ The teacher's connection was lost. Please wait, they should reconnect shortly.",
                     student_disconnected: "⚠️ The student's internet connection was lost. You can save the board and end the session.",
                     save_failed_retry: "Saving failed, tap \"Retry\" 🔁",
                     uploading_audio: "Uploading audio recording...",
@@ -2986,17 +2986,11 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             return;
                         }
                         if (data.status === 'interrupted') {
+                            // 🔄 الطرف الثاني عمل تحديث أو انقطع: نضل بالغرفة وهو بيرجع لحاله
                             if (!isTeacher && data.interruptedBy === 'teacher') {
-                                showSnackBar(tl('teacher_disconnected'), 'red');
-                                clearInterval(sessionTimer);
-                                setTimeout(() => window.location.href = '/student-dashboard', 3000);
+                                showSnackBar(tl('teacher_disconnected'), 'orange');
                             } else if (isTeacher && data.interruptedBy === 'student') {
                                 showSnackBar(tl('student_disconnected'), 'orange');
-                                // ✨ إغلاق الغرفة للمعلم فوراً إذا كانت الحصة تجريبية
-                                if (isFreeTrialSession) {
-                                    clearInterval(sessionTimer);
-                                    setTimeout(() => window.location.href = '/teacher-dashboard', 3000);
-                                }
                             }
                         }
                         
