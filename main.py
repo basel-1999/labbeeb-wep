@@ -75,7 +75,7 @@ async def auth_flow(request: Request, role: str = "student"):
     return templates.TemplateResponse(request=request, name="auth_flow.html", context={"role": role})
 
 @app.get("/teacher-dashboard", response_class=HTMLResponse, dependencies=[Depends(auth_guard)])
-async def teacher_dashboard(request: Request, name: str = "أ. باسل أبو هدة"):
+async def teacher_dashboard(request: Request, name: str = ""):
     """3️⃣ لوحة تحكم المعلم"""
     return templates.TemplateResponse(request=request, name="teacher_dashboard.html", context={"teacher_name": name})
 

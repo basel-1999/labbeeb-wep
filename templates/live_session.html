@@ -2615,21 +2615,31 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             }
 
 
-                    async function registerSessionJoin() {
-                try {
-                    authToken = await currentUser.getIdToken();
-                    const joinRes = await fetch(`/api/session/join/${sessionId}`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${authToken}` }
-                    });
-                    if (joinRes.ok) {
-                        initRewardsFromJoin(await joinRes.json());
+                        async function registerSessionJoin() {
+                const maxAttempts = 5;
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    try {
+                        authToken = await currentUser.getIdToken();
+                        const joinRes = await fetch(`/api/session/join/${sessionId}`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                        if (joinRes.ok) {
+                            initRewardsFromJoin(await joinRes.json());
+                            return;
+                        }
+                        // خطأ نهائي (مثل 403 أو 404): ما بنعيد المحاولة
+                        if (joinRes.status < 500 && joinRes.status !== 429) {
+                            console.error('Join rejected:', joinRes.status);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error(`Join attempt ${attempt} failed:`, e);
                     }
-                } catch (e) {
-                    console.error('Failed to register session join:', e);
+                    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, attempt * 2000));
                 }
+                console.error('Failed to register session join after retries');
             }
-
 
             let timerSynced = false;
             let timerUnsub = null;
@@ -2693,22 +2703,30 @@ function handleDoubleClick(e) { if (!canDraw()) return;
             // ==========================================
             // 🎙️ Agora Audio & Screen Share
             // ==========================================
-            async function fetchDynamicToken(channelName, uid) {
-                try {
-                    const idToken = await currentUser.getIdToken();
-                    const response = await fetch(`/api/session/agora-token/${channelName}?agoraUid=${uid}`, {
-                        headers: { 'Authorization': `Bearer ${idToken}` }
-                    });
-                    if (response.ok) return (await response.json()).token || '';
-                    return '';
-                } catch (e) { return ''; }
+            async function fetchAgoraCreds(channelName, purpose) {
+                const maxAttempts = 4;
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    try {
+                        const idToken = await currentUser.getIdToken();
+                        const response = await fetch(`/api/session/agora-token/${channelName}?purpose=${purpose}`, {
+                            headers: { 'Authorization': `Bearer ${idToken}` }
+                        });
+                        if (response.ok) {
+                            const d = await response.json();
+                            return { token: d.token || '', uid: d.uid };
+                        }
+                        // خطأ نهائي (مثل 403): ما بنعيد المحاولة
+                        if (response.status < 500 && response.status !== 429) return { token: '', uid: null };
+                    } catch (e) { /* خطأ شبكة: نعيد المحاولة */ }
+                    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, attempt * 1500));
+                }
+                return { token: '', uid: null };
             }
 
             async function initAgora() {
                 try {
                     showSnackBar(tl('connecting_audio'), '#D97706');
-                    const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                    const token = await fetchDynamicToken(sessionId, numericUid);
+                    const { token, uid: numericUid } = await fetchAgoraCreds(sessionId, 'main');
                     if (!token) throw new Error(tl('token_failed'));
                     agoraEngine = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
                     await agoraEngine.setClientRole("host");
@@ -2853,10 +2871,8 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                             return;
                         }
 
-                        const numericUid = Math.abs(hashCode(currentUser.uid)) % 100000;
-                        const screenShareUidLocal = 1000000 + Math.floor(Math.random() * 9000000);   // رقم جديد كل مرة
-                        myScreenShareUid = screenShareUidLocal; 
-                        const token = await fetchDynamicToken(sessionId, screenShareUidLocal);
+                        const { token, uid: screenShareUidLocal } = await fetchAgoraCreds(sessionId, 'screen');
+                        myScreenShareUid = screenShareUidLocal;
                         screenShareClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
                         await screenShareClient.join(AGORA_APP_ID, sessionId, token || null, screenShareUidLocal);
                         const screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1", optimizationMode: "detail" }, "disable");

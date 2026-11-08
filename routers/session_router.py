@@ -46,11 +46,19 @@ STARS_PER_BASKET = 10         # كل 10 نجوم = كأس وبتفضى السل�
 BILLING_INTERVAL_SECONDS = 300      # كل 5 دقائق
 BILLING_POINTS_PER_INTERVAL = 0.5   # نص نقطة
 SETTLE_ON_EXIT = True               # عند الخروج: خصم الفترات المكتملة اللي لسا ما انخصمت (بدون أي جزء ناقص)     # 20 دقيقة + 30 ثانية سماح
+FREE_TRIAL_MAX_SECONDS = 1200       # الحصة التجريبية: 20 دقيقة بالضبط
 
 # 🎙️ إعدادات Agora
 AGORA_APP_ID = os.getenv("AGORA_APP_ID", "3a54c447b558405da3e87b1177ccc463")
 AGORA_APP_CERTIFICATE = os.getenv("AGORA_APP_CERTIFICATE")
 AGORA_TOKEN_TTL_SECONDS = 6 * 3600   # عمر التوكن: 6 ساعات
+# أرقام Agora ثابتة حسب الدور. بالحصة طرفين بس، فمستحيل رقمين يتصادموا
+AGORA_UIDS = {
+    ('student', 'main'): 1,
+    ('teacher', 'main'): 2,
+    ('student', 'screen'): 101,
+    ('teacher', 'screen'): 102,
+}
 
 # 🎓 المقابلة التجريبية للمعلم
 TRIAL_INTERVIEW_SECONDS = 900   # 15 دقيقة بالضبط
@@ -347,6 +355,10 @@ def _settle_points_txn(transaction, session_ref, uid, finish):
             if new_points <= 0:
                 ended_reason = 'out_of_points'
 
+    # 🆓 الحصة التجريبية بتنتهي من السيرفر عند 20 دقيقة بالضبط (مش بس من المتصفح)
+    if (started is not None and status in ('active', 'interrupted') and s.get('isFreeTrial')
+            and (datetime.now(timezone.utc) - started).total_seconds() >= FREE_TRIAL_MAX_SECONDS):
+        ended_reason = 'trial_time_up'
     ended = finish or ended_reason is not None
     if ended:
         update['status'] = 'completed'
@@ -498,8 +510,6 @@ def _award_star_trial_txn(transaction, session_ref, teacher_uid):
         raise HTTPException(status_code=400, detail="المقابلة غير نشطة.")
 
     awarded = int(s.get('starsAwarded', 0))
-    if awarded >= STARS_PER_SESSION_LIMIT:
-        raise HTTPException(status_code=429, detail=f"وصلت للحد الأقصى ({STARS_PER_SESSION_LIMIT} نجوم) لهذه الحصة.")
 
     last_star_at = s.get('lastStarAt')
     if last_star_at is not None:
@@ -1797,11 +1807,11 @@ async def complete_session(
 
     # --- 🎙️ توكن Agora (بيتحقق إنك طرف بالجلسة قبل ما يطلعلك توكن) ---
 @router.get("/api/session/agora-token/{sessionId}")
-async def get_agora_token(sessionId: str, agoraUid: int, user_id: str = Depends(get_current_user)):
+async def get_agora_token(sessionId: str, purpose: str = "main", user_id: str = Depends(get_current_user)):
     if not AGORA_APP_CERTIFICATE:
         raise HTTPException(status_code=500, detail="إعدادات الصوت غير مكتملة على السيرفر.")
-    if agoraUid < 0 or agoraUid > 4294967295:
-        raise HTTPException(status_code=400, detail="رقم المستخدم غير صالح.")
+    if purpose not in ('main', 'screen'):
+        raise HTTPException(status_code=400, detail="نوع الاتصال غير صالح.")
 
     snap = db.collection('sessions').document(sessionId).get()
     if not snap.exists:
@@ -1813,9 +1823,12 @@ async def get_agora_token(sessionId: str, agoraUid: int, user_id: str = Depends(
     if s.get('status') in ('completed', 'cancelled'):
         raise HTTPException(status_code=403, detail="الجلسة منتهية.")
 
+    # 🔢 السيرفر هو اللي بيحدد الرقم حسب دورك بالجلسة (مش المتصفح)
+    role = 'teacher' if s.get('teacherId') == user_id else 'student'
+    agora_uid = AGORA_UIDS[(role, purpose)]
+
     expire_ts = int(time.time()) + AGORA_TOKEN_TTL_SECONDS
-    # 1 = publisher (نفس صلاحيات "host" اللي بيستخدمها الفرونت)
     token = RtcTokenBuilder.buildTokenWithUid(
-        AGORA_APP_ID, AGORA_APP_CERTIFICATE, sessionId, agoraUid, 1, expire_ts
+        AGORA_APP_ID, AGORA_APP_CERTIFICATE, sessionId, agora_uid, 1, expire_ts
     )
-    return {"token": token}
+    return {"token": token, "uid": agora_uid}

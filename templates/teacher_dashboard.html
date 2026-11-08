@@ -95,7 +95,7 @@
                     <img id="teacherProfileImg" src="https://ui-avatars.com/api/?name=Teacher&background=4E6B45&color=fff" class="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover">
                 </div>
                 <div>
-                    <p id="teacherNameDisplay" class="text-xs sm:text-sm font-bold text-textDark truncate">أ. باسل أبو هدة</p>
+                    <p id="teacherNameDisplay" class="text-xs sm:text-sm font-bold text-textDark truncate"></p>
                     <p id="teacherStatusDisplay" class="text-[10px] sm:text-xs text-gray-500 truncate">حساب جديد</p>
                 </div>
 
@@ -350,7 +350,7 @@
         const db = firebase.firestore();
 
         const urlParams = new URLSearchParams(window.location.search);
-        const teacherName = urlParams.get('name') || 'أ. باسل أبو هدة';
+        let teacherName = '';  // الاسم الحقيقي بينقرأ من حساب المعلم بعد تسجيل الدخول
         // ==========================================
         // 🌐 نظام الترجمة (i18n)
         // ==========================================
@@ -760,6 +760,8 @@
                 currentUser = user;
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (userDoc.exists) {
+                    teacherName = userDoc.data().name || '';
+                    document.getElementById('teacherNameDisplay').innerText = teacherName;
                     mySpecialties = userDoc.data().subjects || [];
                     myTargetAges = userDoc.data().targetAge || []; // ✨
                     myTeachingLanguage = userDoc.data().teachingLanguage || 'العربية'; // ✨
