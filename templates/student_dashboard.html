@@ -1847,6 +1847,8 @@
     </div>
 </div>
 <script>
+        // 🔝 نقل الشاشة لجذر الصفحة (عشان ما تنخبّى جوا عنصر مخفي أو متداخل)
+    document.body.appendChild(document.getElementById('sessionDueOverlay'));
     const DUE_ROLE = 'student';   
     const dueDismissed = new Set();
     let dueShownId = null;
