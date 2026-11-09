@@ -2888,10 +2888,26 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                 }
                 showSnackBar(tl('show_board_btn'), 'green');
             }
+            // 📵 مشاركة الشاشة بالمتصفح ما بتشتغل على الهواتف (ميزة غير مدعومة بمتصفحات أندرويد وغيرها)
+            function deviceCanShareScreen() {
+                const isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                const hasApi = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+                return hasApi && !isPhone;
+            }
 
             // ✨ دالة تبديل المشاركة (يستخدمها المعلم: تشغيل/إيقاف)
             async function toggleScreenShare() {
-                if (isTrialInterview) { trialToggleScreenShareDemo(); return; }
+                                if (isTrialInterview) { trialToggleScreenShareDemo(); return; }
+                // 📵 على الهاتف: رسالة واضحة بدل الخطأ الصامت (إيقاف المشاركة الجارية ما بيتأثر)
+                if (!isScreenSharing && !deviceCanShareScreen()) {
+                    showSnackBar(
+                        currentLangLive === 'en'
+                            ? 'Screen sharing is not available from a phone. Please use a computer or laptop to share your screen.'
+                            : 'مشاركة الشاشة غير متاحة من الهاتف. استخدم الكمبيوتر أو اللابتوب لمشاركة شاشتك.',
+                        'orange'
+                    );
+                    return;
+                }
                 if (screenShareBusy) return;   // في عملية مشاركة قيد التنفيذ
                 screenShareBusy = true;
                 try {
@@ -3131,7 +3147,7 @@ function handleDoubleClick(e) { if (!canDraw()) return;
                     setTimeout(() => { try { resizeCanvas(); } catch (e) {} }, 400);
                 });
             })();
-            
+
 
             // 🔔 صوت استقبال رسالة (نغمتين قصيرتين مولّدتين بالكود)
             function playChatSound() {

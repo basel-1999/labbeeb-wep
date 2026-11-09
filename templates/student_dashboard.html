@@ -1023,6 +1023,24 @@
                     renderSimpleSessions('expired', lists.expired, t('expired_access'));
                     renderSimpleSessions('cancelled', lists.cancelled, t('request_cancelled_status'));
 
+                    
+                    // ⏰ شاشة "حان موعد الجلسة" (للحصص المجدولة المقبولة)
+                    window.dueCandidates = sessionsData
+                        .filter(s => !s.isPending)
+                        .map(s => {
+                            const isScheduled = s.data.bookingType === 'schedule';
+                            // المجدولة: وقت الموعد. الفورية: لحظة قبول المعلم
+                            const acceptedMs = (s.data.acceptedAt && typeof s.data.acceptedAt.toDate === 'function')
+                                ? s.data.acceptedAt.toDate().getTime() : Date.now();
+                            return {
+                                id: s.id,
+                                startMs: isScheduled ? s.startTime : acceptedMs,
+                                subject: s.data.subject || '',
+                                otherName: s.data.teacherName || s.data.teacher || ''
+                            };
+                        });
+                    if (window.checkSessionDue) window.checkSessionDue();
+
                     // تشغيل العداد اللحظي
                     if (activeSessionsInterval) clearInterval(activeSessionsInterval);
                     activeSessionsInterval = setInterval(() => {
@@ -1809,5 +1827,70 @@
 
 
     </script>
+
+    <!-- ⏰ شاشة "حان موعد الجلسة" -->
+<style>
+    @keyframes duePop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes dueGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.75); } 50% { box-shadow: 0 0 0 14px rgba(255,255,255,0); } }
+    #sessionDueCard { animation: duePop .35s ease-out; }
+    #sessionDueBtn { animation: dueGlow 1.6s infinite; }
+</style>
+<div id="sessionDueOverlay" style="display:none; z-index:200;" class="fixed inset-0 items-center justify-center p-4 bg-black/60">
+    <div id="sessionDueCard" class="relative w-[88vw] max-w-sm aspect-square bg-gradient-to-br from-green-500 to-green-700 rounded-3xl shadow-2xl flex flex-col items-center justify-center text-center text-white p-6 gap-3">
+        <button onclick="dismissSessionDue()" class="absolute w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold" style="top:12px; inset-inline-end:12px;">✕</button>
+        <div class="text-6xl">⏰</div>
+        <h2 id="sessionDueTitle" class="text-3xl font-extrabold leading-tight"></h2>
+        <p id="sessionDueInfo" class="text-base font-bold opacity-90 break-words max-w-full"></p>
+        <button id="sessionDueBtn" onclick="enterDueSession()" class="mt-2 w-full bg-white text-green-700 font-extrabold text-xl py-3 rounded-2xl">
+            <span id="sessionDueBtnText"></span>
+        </button>
+    </div>
+</div>
+<script>
+    const DUE_ROLE = 'student';   
+    const dueDismissed = new Set();
+    let dueShownId = null;
+    window.dueCandidates = [];
+
+    function checkSessionDue() {
+        const overlay = document.getElementById('sessionDueOverlay');
+        if (!overlay) return;
+        const now = Date.now();
+        const next = (window.dueCandidates || [])
+            .filter(c => !dueDismissed.has(c.id) && now >= c.startMs && now <= c.startMs + 60 * 60 * 1000)
+            .sort((a, b) => a.startMs - b.startMs)[0];
+        if (!next) { overlay.style.display = 'none'; dueShownId = null; return; }
+        if (dueShownId === next.id && overlay.style.display === 'flex') return;
+
+        dueShownId = next.id;
+        const en = document.documentElement.getAttribute('lang') === 'en';
+        const label = DUE_ROLE === 'student' ? (en ? 'Teacher' : 'المعلم') : (en ? 'Student' : 'الطالب');
+        const parts = [];
+        if (next.subject) parts.push(next.subject);
+        if (next.otherName) parts.push((en ? 'with ' : 'مع ') + label + ' ' + next.otherName);
+        document.getElementById('sessionDueTitle').innerText = en ? "It's session time" : 'حان موعد الجلسة';
+        document.getElementById('sessionDueInfo').innerText = parts.join(' • ');
+        document.getElementById('sessionDueBtnText').innerText = en ? 'Enter Session' : 'دخول الجلسة';
+        overlay.style.display = 'flex';
+    }
+
+    function dismissSessionDue() {
+        if (dueShownId) dueDismissed.add(dueShownId);
+        checkSessionDue();
+    }
+
+    function enterDueSession() {
+        const c = (window.dueCandidates || []).find(x => x.id === dueShownId);
+        if (!c) return;
+        if (DUE_ROLE === 'student') {
+            joinSession(c.id);
+        } else {
+            dismissSessionDue();
+            openPreFlightModal(c.id, c.otherName || '');
+        }
+    }
+
+    setInterval(checkSessionDue, 3000);
+</script>
 </body>
 </html>
