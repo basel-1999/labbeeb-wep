@@ -1034,7 +1034,7 @@
                                 ? s.data.acceptedAt.toDate().getTime() : Date.now();
                             return {
                                 id: s.id,
-                                startMs: isScheduled ? s.startTime : acceptedMs,
+                                startMs: isScheduled ? s.startTime : Math.min(acceptedMs, Date.now()),
                                 subject: s.data.subject || '',
                                 otherName: s.data.teacherName || s.data.teacher || ''
                             };

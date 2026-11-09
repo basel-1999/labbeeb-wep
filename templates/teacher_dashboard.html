@@ -1127,9 +1127,15 @@ function processSessions() {
             && (req.data.status === 'accepted' || req.data.status === 'active'))
         .map(req => {
             const d = req.data;
-            // المجدولة: وقت الموعد. الفورية: لحظة قبولي للطلب
-            const ts = (d.bookingType === 'schedule' && d.scheduledAt) ? d.scheduledAt : d.acceptedAt;
-            const startMs = (ts && typeof ts.toDate === 'function') ? ts.toDate().getTime() : Date.now();
+            const isScheduled = d.bookingType === 'schedule' && d.scheduledAt && typeof d.scheduledAt.toDate === 'function';
+            let startMs;
+            if (isScheduled) {
+                startMs = d.scheduledAt.toDate().getTime();   // المجدولة: وقت الموعد
+            } else {
+                // الفورية: فوراً بعد القبول (حتى لو ساعة الجهاز متأخرة عن السيرفر)
+                const acc = (d.acceptedAt && typeof d.acceptedAt.toDate === 'function') ? d.acceptedAt.toDate().getTime() : Date.now();
+                startMs = Math.min(acc, Date.now());
+            }
             return { id: req.id, startMs, subject: d.subject || '', otherName: d.studentName || '' };
         });
     if (window.checkSessionDue) window.checkSessionDue();
