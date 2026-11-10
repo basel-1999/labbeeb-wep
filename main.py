@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # استيراد راوترات الـ API
 from routers.session_router import router as session_router
+from routers.chat_router import router as chat_router
 
 # ==========================================
 # 🚀 تهيئة تطبيق FastAPI
@@ -39,6 +40,7 @@ templates = Jinja2Templates(directory="templates")
 
 # تضمين راوترات الـ API (الخاصة بعمليات الباك-ند)
 app.include_router(session_router)
+app.include_router(chat_router)
 # ==========================================
 # 🔒 نظام الحماية والتوجيه (Redirect Logic)
 # ==========================================

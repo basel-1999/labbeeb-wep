@@ -734,6 +734,13 @@ async def accept_session(
             'teacher': teacherName,
             'instructorName': teacherName,
         })
+        
+        # 💬 فتح محادثة بين الطالب والمعلم (لو مش موجودة)
+        try:
+            from routers.chat_router import ensure_chat
+            ensure_chat(session_data.get('studentId'), teacherId, session_data.get('studentName', ''), teacherName)
+        except Exception as e:
+            print(f"⚠️ ensure_chat failed: {e}")
 
                 # ✨ إرسال إشعار للطالب بقبول الطلب
         student_id = session_data.get('studentId')
