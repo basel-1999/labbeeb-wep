@@ -1039,7 +1039,7 @@
                                 otherName: s.data.teacherName || s.data.teacher || ''
                             };
                         });
-                    if (window.checkSessionDue) window.checkSessionDue();
+                    try { if (window.checkSessionDue) window.checkSessionDue(); } catch (e) { console.error('due popup:', e); }
 
                     // تشغيل العداد اللحظي
                     if (activeSessionsInterval) clearInterval(activeSessionsInterval);
@@ -1848,7 +1848,7 @@
 </div>
 <script>
         // 🔝 نقل الشاشة لجذر الصفحة (عشان ما تنخبّى جوا عنصر مخفي أو متداخل)
-    document.body.appendChild(document.getElementById('sessionDueOverlay'));x
+    document.body.appendChild(document.getElementById('sessionDueOverlay'));
     const DUE_ROLE = 'student';   
     const dueDismissed = new Set();
     let dueShownId = null;

@@ -1138,7 +1138,7 @@ function processSessions() {
             }
             return { id: req.id, startMs, subject: d.subject || '', otherName: d.studentName || '' };
         });
-    if (window.checkSessionDue) window.checkSessionDue();
+    try { if (window.checkSessionDue) window.checkSessionDue(); } catch (e) { console.error('due popup:', e); }
 }
 
                function renderSessionList(tabName, sessions, isAccepted) {
