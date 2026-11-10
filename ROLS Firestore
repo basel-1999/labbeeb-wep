@@ -222,5 +222,39 @@ service cloud.firestore {
       }
     }
 
+    // --- 5. محادثات الطالب والمعلم (خارج الحصة) ---
+    // معرّف المحادثة دايماً: معرّف الطالب + _ + معرّف المعلم (السيرفر هو اللي بينشئها)
+    match /chats/{chatId} {
+      // القراءة: طرفي المحادثة فقط (والأدمن)
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid ||
+        isAdmin()
+      );
+
+      // الإنشاء والحذف من السيرفر فقط
+      allow create, delete: if false;
+
+      // كل طرف بيصفّر عدّاد رسائله غير المقروءة هو بس (ما حدا بيغيّر شي ثاني)
+      allow update: if isAuthenticated() && (
+        (resource.data.studentId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadStudent']) &&
+         request.resource.data.unreadStudent == 0) ||
+        (resource.data.teacherId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadTeacher']) &&
+         request.resource.data.unreadTeacher == 0)
+      );
+
+      // الرسائل: قراءة فقط للطرفين، والكتابة من السيرفر فقط
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (
+          chatId.matches(request.auth.uid + '_.*') ||
+          chatId.matches('.*_' + request.auth.uid) ||
+          isAdmin()
+        );
+        allow write: if false;
+      }
+    }
+
   }
 }

@@ -1894,5 +1894,527 @@
 
     setInterval(checkSessionDue, 3000);
 </script>
+
+
+<!-- ============================================================
+     💬 محادثات الطالب والمعلم (خارج الحصة)
+     الصق هالبلوك كله قبل </body> بالداشبورد. السطر الوحيد اللي بيختلف: CHAT_ROLE
+     ============================================================ -->
+<style>
+    #lbChatFab { position: fixed; right: 16px; bottom: 16px; width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer;
+        background: #4E6B45; color: #fff; font-size: 26px; line-height: 1; display: none; align-items: center; justify-content: center;
+        box-shadow: 0 6px 18px rgba(0,0,0,.28); z-index: 150; }
+    #lbChatFab:hover { background: #708E67; }
+    #lbChatFabBadge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px;
+        background: #DC2626; color: #fff; font: 700 12px/22px Cairo, Inter, sans-serif; text-align: center; display: none; }
+    #lbChatPanel { position: fixed; right: 16px; bottom: 84px; width: 380px; height: min(600px, calc(100vh - 110px)); background: #fff;
+        border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.3); display: none; flex-direction: column; overflow: hidden; z-index: 160;
+        font-family: Cairo, Inter, sans-serif; color: #1E241B; }
+    .lbc-head { display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 52px; background: #4E6B45; color: #fff; flex-shrink: 0; }
+    .lbc-head button { background: transparent; border: 0; color: #fff; font-size: 20px; width: 34px; height: 34px; cursor: pointer; border-radius: 8px; }
+    .lbc-head button:hover { background: rgba(255,255,255,.18); }
+    .lbc-title { flex: 1; font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    html[dir="rtl"] .lbc-back { transform: scaleX(-1); }
+    #lbcListView, #lbcChatView { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #lbcList { flex: 1; overflow-y: auto; }
+    .lbc-empty { padding: 32px 20px; text-align: center; color: #6B7280; font-weight: 600; line-height: 1.8; }
+    .lbc-row { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; border-bottom: 1px solid #EEE9DD; }
+    .lbc-row:hover { background: #F4EFE6; }
+    .lbc-avatar { width: 44px; height: 44px; border-radius: 50%; background: #708E67; color: #fff; font-weight: 800; font-size: 18px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lbc-info { flex: 1; min-width: 0; }
+    .lbc-name { font-weight: 800; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lbc-preview { font-size: 13px; color: #6B7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+    .lbc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; font-size: 11px; color: #9CA3AF; }
+    .lbc-unread { background: #4E6B45; color: #fff; min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px; font: 700 12px/20px Cairo, Inter, sans-serif; text-align: center; }
+    #lbcMessages { flex: 1; overflow-y: auto; padding: 12px; background: #F4EFE6; display: flex; flex-direction: column; }
+    #lbcMsgs { display: flex; flex-direction: column; gap: 8px; }
+    #lbcMore { align-self: center; margin-bottom: 8px; background: #fff; border: 1px solid #D9D2C0; border-radius: 14px; padding: 4px 14px; font: 600 12px Cairo, Inter, sans-serif; cursor: pointer; display: none; }
+    .lbc-msg { max-width: 82%; padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.6; word-break: break-word; }
+    .lbc-msg.mine { align-self: flex-start; background: #4E6B45; color: #fff; }
+    .lbc-msg.theirs { align-self: flex-end; background: #fff; color: #1E241B; }
+    html[dir="ltr"] .lbc-msg.mine { align-self: flex-end; }
+    html[dir="ltr"] .lbc-msg.theirs { align-self: flex-start; }
+    .lbc-text { white-space: pre-wrap; }
+    .lbc-time { font-size: 10px; opacity: .7; margin-top: 2px; }
+    .lbc-msg audio { height: 36px; max-width: 220px; display: block; }
+    .lbc-dur { font-size: 11px; opacity: .8; margin-top: 2px; }
+    #lbcNote { padding: 6px 12px; font-size: 12px; font-weight: 600; display: none; flex-shrink: 0; }
+    #lbcNote.err { background: #FEE2E2; color: #B91C1C; display: block; }
+    #lbcNote.info { background: #E0F2FE; color: #0369A1; display: block; }
+    #lbcComposer, #lbcRecBar { display: flex; align-items: flex-end; gap: 6px; padding: 8px; border-top: 1px solid #EEE9DD; background: #fff; flex-shrink: 0; }
+    #lbcRecBar { display: none; align-items: center; }
+    #lbcInput { flex: 1; resize: none; border: 1px solid #D9D2C0; border-radius: 18px; padding: 8px 14px; font: 500 14px Cairo, Inter, sans-serif; max-height: 100px; outline: none; }
+    #lbcInput:focus { border-color: #4E6B45; }
+    .lbc-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; font-size: 18px; flex-shrink: 0; background: #F4EFE6; color: #1E241B; }
+    .lbc-btn.send { background: #4E6B45; color: #fff; }
+    .lbc-btn:disabled { opacity: .5; cursor: default; }
+    .lbc-rec-dot { width: 12px; height: 12px; border-radius: 50%; background: #DC2626; animation: lbcBlink 1s infinite; }
+    @keyframes lbcBlink { 50% { opacity: .2; } }
+    #lbcRecTime { flex: 1; font-weight: 800; font-size: 15px; }
+    @media (max-width: 640px) {
+        #lbChatFab { width: 52px; height: 52px; }
+        #lbChatPanel { right: 0; left: 0; top: 0; bottom: 0; width: auto; height: 100vh; height: 100dvh; border-radius: 0; }
+    }
+</style>
+
+<button id="lbChatFab" type="button" aria-label="Messages">💬<span id="lbChatFabBadge"></span></button>
+
+<div id="lbChatPanel">
+    <div class="lbc-head">
+        <button id="lbcBack" class="lbc-back" type="button" style="display:none">‹</button>
+        <div id="lbcTitle" class="lbc-title"></div>
+        <button id="lbcClose" type="button">✕</button>
+    </div>
+
+    <div id="lbcListView">
+        <div id="lbcList"></div>
+    </div>
+
+    <div id="lbcChatView" style="display:none">
+        <div id="lbcMessages">
+            <button id="lbcMore" type="button"></button>
+            <div id="lbcMsgs"></div>
+        </div>
+        <div id="lbcNote"></div>
+        <div id="lbcComposer">
+            <button id="lbcMic" class="lbc-btn" type="button" title="🎤">🎤</button>
+            <textarea id="lbcInput" rows="1" dir="auto"></textarea>
+            <button id="lbcSend" class="lbc-btn send" type="button">➤</button>
+        </div>
+        <div id="lbcRecBar">
+            <button id="lbcRecCancel" class="lbc-btn" type="button">🗑</button>
+            <span class="lbc-rec-dot"></span>
+            <span id="lbcRecTime">0:00</span>
+            <button id="lbcRecSend" class="lbc-btn send" type="button">➤</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const CHAT_ROLE = 'student';   // 👈 بملف المعلم غيّرها لـ 'teacher'
+
+    const MY_ID_FIELD = CHAT_ROLE === 'student' ? 'studentId' : 'teacherId';
+    const MY_UNREAD = CHAT_ROLE === 'student' ? 'unreadStudent' : 'unreadTeacher';
+    const OTHER_NAME_FIELD = CHAT_ROLE === 'student' ? 'teacherName' : 'studentName';
+    const PAGE = 30;
+    const MAX_VOICE = 120;
+
+    const fdb = firebase.firestore();
+    const $ = (id) => document.getElementById(id);
+    const isEn = () => document.documentElement.getAttribute('lang') === 'en';
+    const T = (ar, en) => (isEn() ? en : ar);
+    const isMobile = () => window.matchMedia('(max-width: 640px)').matches;
+
+    function h(tag, cls, text) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined) e.textContent = text;
+        return e;
+    }
+    const ms = (ts) => (ts && ts.toMillis ? ts.toMillis() : 0);
+    function fmtTime(ts) {
+        if (!ts || !ts.toMillis) return '';
+        const d = new Date(ts.toMillis());
+        if (d.toDateString() === new Date().toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    }
+    const fmtDur = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    const initialOf = (name) => ((name || '?').trim().replace(/^(أ\.|الأستاذ|Mr\.?|Ms\.?|Mrs\.?)\s*/i, '')[0] || '?').toUpperCase();
+
+    // ---------- الحالة ----------
+    let uid = null;
+    let chats = {};
+    let unsubChats = null, unsubMessages = null;
+    let panelOpen = false, activeChatId = null;
+    let msgDocs = new Map(), nodeMap = new Map();
+    let hasMore = false, sending = false, rec = null, noteTimer = null;
+
+    // ---------- صوت الإشعار (نغمة قصيرة مولّدة بالكود) ----------
+    let audioCtx = null;
+    function unlockAudio() {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (e) { /* ما في دعم للصوت */ }
+    }
+    document.addEventListener('pointerdown', unlockAudio, { passive: true });
+    function playBeep() {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        const t = audioCtx.currentTime;
+        [880, 1175].forEach((f, i) => {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain(), at = t + i * 0.14;
+            o.type = 'sine'; o.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, at);
+            g.gain.exponentialRampToValueAtTime(0.18, at + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(at); o.stop(at + 0.25);
+        });
+    }
+
+    // ---------- رسائل الحالة ----------
+    function showNote(text, kind, autoHideMs) {
+        const n = $('lbcNote');
+        n.textContent = text; n.className = kind;
+        clearTimeout(noteTimer);
+        if (autoHideMs) noteTimer = setTimeout(clearNote, autoHideMs);
+    }
+    function clearNote() { const n = $('lbcNote'); n.textContent = ''; n.className = ''; }
+
+    // ---------- الإرسال (عن طريق السيرفر) ----------
+    async function postSend(body) {
+        const idToken = await firebase.auth().currentUser.getIdToken();
+        let res;
+        try {
+            res = await fetch('/api/chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify(body)
+            });
+        } catch (e) {
+            throw new Error(T('تعذر الاتصال بالسيرفر، تأكد من الإنترنت.', 'Could not reach the server. Check your connection.'));
+        }
+        if (!res.ok) {
+            let msg = T('تعذر إرسال الرسالة، حاول مرة ثانية.', 'Could not send the message. Please try again.');
+            try { const j = await res.json(); if (j && typeof j.detail === 'string') msg = j.detail; } catch (e) { /* نترك الرسالة العامة */ }
+            throw new Error(msg);
+        }
+        return res.json();
+    }
+
+    async function sendText() {
+        const input = $('lbcInput');
+        const text = input.value.trim();
+        if (!text || sending || !activeChatId) return;
+        sending = true; $('lbcSend').disabled = true; clearNote();
+        try {
+            await postSend({ chatId: activeChatId, type: 'text', text: text });
+            input.value = ''; input.style.height = 'auto';
+        } catch (e) {
+            showNote(e.message, 'err', 8000);   // نترك النص عشان يعدّله
+        } finally {
+            sending = false; $('lbcSend').disabled = false; input.focus();
+        }
+    }
+
+    // ---------- الرسائل الصوتية ----------
+    function setRecordingUI(on) {
+        $('lbcComposer').style.display = on ? 'none' : 'flex';
+        $('lbcRecBar').style.display = on ? 'flex' : 'none';
+        if (on) $('lbcRecTime').textContent = '0:00';
+    }
+
+    async function startRecording() {
+        if (rec || sending || !activeChatId) return;
+        unlockAudio();
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+            showNote(T('التسجيل الصوتي غير مدعوم بهذا المتصفح.', 'Voice recording is not supported in this browser.'), 'err', 6000);
+            return;
+        }
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            showNote(T('اسمح للموقع باستخدام المايكروفون وحاول مرة ثانية.', 'Please allow microphone access and try again.'), 'err', 6000);
+            return;
+        }
+        const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+            .find((m) => window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(m)) || '';
+        let mr;
+        try {
+            mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        } catch (e) {
+            stream.getTracks().forEach((t) => t.stop());
+            showNote(T('تعذر بدء التسجيل.', 'Could not start recording.'), 'err', 6000);
+            return;
+        }
+        const state = { mr: mr, stream: stream, chunks: [], start: Date.now(), cancelled: false, timer: null, mime: mr.mimeType || mime, chatId: activeChatId };
+        rec = state;
+        mr.ondataavailable = (e) => { if (e.data && e.data.size) state.chunks.push(e.data); };
+        mr.onstop = () => {
+            clearInterval(state.timer);
+            state.stream.getTracks().forEach((t) => t.stop());
+            const duration = Math.round((Date.now() - state.start) / 1000);
+            if (rec === state) rec = null;
+            setRecordingUI(false);
+            if (state.cancelled) return;
+            if (duration < 1) { showNote(T('الرسالة الصوتية قصيرة جداً.', 'The voice message is too short.'), 'err', 5000); return; }
+            sendVoice(new Blob(state.chunks, { type: state.mime || 'audio/webm' }), Math.min(duration, MAX_VOICE), state.mime || '', state.chatId);
+        };
+        mr.start();
+        setRecordingUI(true);
+        state.timer = setInterval(() => {
+            const s = Math.floor((Date.now() - state.start) / 1000);
+            $('lbcRecTime').textContent = fmtDur(s);
+            if (s >= MAX_VOICE) stopRecording(true);
+        }, 250);
+    }
+
+    function stopRecording(send) {
+        if (!rec) return;
+        rec.cancelled = !send;
+        try { if (rec.mr.state !== 'inactive') rec.mr.stop(); } catch (e) { /* مسجّل أصلاً */ }
+    }
+
+    async function sendVoice(blob, duration, mime, chatId) {
+        sending = true;
+        showNote(T('جاري إرسال الرسالة الصوتية...', 'Sending voice message...'), 'info');
+        try {
+            const idToken = await firebase.auth().currentUser.getIdToken();
+            const ext = /mp4/.test(mime) ? 'm4a' : (/ogg/.test(mime) ? 'ogg' : 'webm');
+            const fd = new FormData();
+            fd.append('file', blob, 'voice.' + ext);
+            fd.append('folder', 'chat_voice');
+            fd.append('resource_type', 'video');
+            const up = await fetch('/api/cloudinary/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken }, body: fd });
+            if (!up.ok) throw new Error(T('تعذر رفع الرسالة الصوتية.', 'Could not upload the voice message.'));
+            const data = await up.json();
+            if (!data || !data.url) throw new Error(T('تعذر رفع الرسالة الصوتية.', 'Could not upload the voice message.'));
+            await postSend({ chatId: chatId, type: 'voice', audioUrl: data.url, duration: duration });
+            clearNote();
+        } catch (e) {
+            showNote(e.message || T('تعذر إرسال الرسالة الصوتية.', 'Could not send the voice message.'), 'err', 8000);
+        } finally {
+            sending = false;
+        }
+    }
+
+    // ---------- بناء الرسالة ----------
+    function audioEl(url) {
+        const m = String(url).match(/\.(webm|ogg|m4a|mp4|mp3|wav)$/i);
+        const ext = m ? m[1].toLowerCase() : 'webm';
+        const types = { webm: 'audio/webm', ogg: 'audio/ogg', m4a: 'audio/mp4', mp4: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav' };
+        const a = document.createElement('audio');
+        a.controls = true; a.preload = 'none';
+        const s1 = document.createElement('source'); s1.src = url; s1.type = types[ext]; a.appendChild(s1);
+        if (ext !== 'mp3') {   // نسخة mp3 احتياطية للمتصفحات اللي ما بتشغّل webm (سفاري)
+            const s2 = document.createElement('source'); s2.src = String(url).replace(/\.[a-z0-9]+$/i, '.mp3'); s2.type = 'audio/mpeg'; a.appendChild(s2);
+        }
+        return a;
+    }
+
+    function buildMsg(m) {
+        const box = h('div', 'lbc-msg ' + (m.senderId === uid ? 'mine' : 'theirs'));
+        if (m.type === 'voice' && m.audioUrl) {
+            box.appendChild(audioEl(m.audioUrl));
+            box.appendChild(h('div', 'lbc-dur', '🎤 ' + fmtDur(Number(m.duration) || 0)));
+        } else {
+            box.appendChild(h('div', 'lbc-text', m.text || ''));
+        }
+        box.appendChild(h('div', 'lbc-time', fmtTime(m.createdAt)));
+        return box;
+    }
+
+    function syncMessages(forceBottom) {
+        const box = $('lbcMessages'), list = $('lbcMsgs');
+        const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+        const sorted = Array.from(msgDocs.values())
+            .map((d) => Object.assign({ id: d.id }, d.data()))
+            .sort((a, b) => ms(a.createdAt) - ms(b.createdAt));
+        let prev = null;
+        sorted.forEach((m) => {
+            let node = nodeMap.get(m.id);
+            if (!node) { node = buildMsg(m); nodeMap.set(m.id, node); }
+            const ref = prev ? prev.nextSibling : list.firstChild;
+            if (node !== ref) list.insertBefore(node, ref);
+            prev = node;
+        });
+        $('lbcMore').style.display = hasMore ? 'block' : 'none';
+        if (forceBottom || nearBottom) box.scrollTop = box.scrollHeight;
+    }
+
+    async function loadOlder() {
+        if (!activeChatId || !hasMore) return;
+        const chatId = activeChatId;
+        const sorted = Array.from(msgDocs.values()).sort((a, b) => ms(a.data().createdAt) - ms(b.data().createdAt));
+        if (!sorted.length) return;
+        const box = $('lbcMessages');
+        const prevHeight = box.scrollHeight;
+        $('lbcMore').disabled = true;
+        try {
+            const snap = await fdb.collection('chats').doc(chatId).collection('messages')
+                .orderBy('createdAt', 'desc').startAfter(sorted[0]).limit(PAGE).get();
+            if (chatId !== activeChatId) return;
+            snap.docs.forEach((d) => msgDocs.set(d.id, d));
+            hasMore = snap.size >= PAGE;
+            syncMessages(false);
+            box.scrollTop = box.scrollHeight - prevHeight;   // نثبّت مكان القراءة
+        } catch (e) {
+            console.error('chat loadOlder', e);
+        } finally {
+            $('lbcMore').disabled = false;
+        }
+    }
+
+    // ---------- فتح/إغلاق ----------
+    function markRead() {
+        if (!activeChatId || !panelOpen || document.hidden) return;
+        const c = chats[activeChatId];
+        if (c && c[MY_UNREAD] > 0) {
+            fdb.collection('chats').doc(activeChatId).update({ [MY_UNREAD]: 0 }).catch((e) => console.error('chat markRead', e));
+        }
+    }
+
+    function openChat(chatId) {
+        leaveChat();
+        activeChatId = chatId;
+        const c = chats[chatId] || {};
+        $('lbcTitle').textContent = c[OTHER_NAME_FIELD] || '';
+        $('lbcBack').style.display = 'block';
+        $('lbcListView').style.display = 'none';
+        $('lbcChatView').style.display = 'flex';
+        $('lbcInput').placeholder = T('اكتب رسالة...', 'Type a message...');
+        $('lbcMore').textContent = T('عرض رسائل أقدم', 'Show older messages');
+        clearNote();
+        let first = true;
+        unsubMessages = fdb.collection('chats').doc(chatId).collection('messages')
+            .orderBy('createdAt', 'desc').limit(PAGE)
+            .onSnapshot((snap) => {
+                // الرسائل ما بتنحذف، فبنتجاهل "removed" (بتصير لما رسالة قديمة بتطلع من نافذة الـ 30)
+                snap.docChanges().forEach((ch) => { if (ch.type !== 'removed') msgDocs.set(ch.doc.id, ch.doc); });
+                if (first) { hasMore = snap.size >= PAGE; first = false; }
+                syncMessages(false);
+                markRead();
+            }, (err) => {
+                console.error('chat messages listener', err);
+                showNote(T('تعذر تحميل الرسائل.', 'Could not load messages.'), 'err');
+            });
+        syncMessages(true);
+        fitPanel();
+        setTimeout(() => { $('lbcMessages').scrollTop = $('lbcMessages').scrollHeight; }, 300);
+    }
+
+    function leaveChat() {
+        stopRecording(false);
+        if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+        activeChatId = null;
+        msgDocs = new Map(); nodeMap = new Map(); hasMore = false;
+        $('lbcMsgs').textContent = '';
+        $('lbcMore').style.display = 'none';
+    }
+
+    function showList() {
+        leaveChat();
+        $('lbcTitle').textContent = T('الرسائل', 'Messages');
+        $('lbcBack').style.display = 'none';
+        $('lbcChatView').style.display = 'none';
+        $('lbcListView').style.display = 'flex';
+        renderList();
+    }
+
+    function fitPanel() {
+        const p = $('lbChatPanel');
+        if (isMobile() && window.visualViewport) p.style.height = window.visualViewport.height + 'px';
+        else p.style.height = '';
+    }
+
+    function openPanel() {
+        panelOpen = true;
+        $('lbChatPanel').style.display = 'flex';
+        fitPanel();
+        if (activeChatId) openChat(activeChatId); else showList();
+        unlockAudio();
+    }
+    function closePanel() {
+        panelOpen = false;
+        leaveChat();
+        $('lbChatPanel').style.display = 'none';
+    }
+
+    // ---------- قائمة المحادثات ----------
+    function renderList() {
+        const list = $('lbcList');
+        list.textContent = '';
+        const items = Object.keys(chats).map((id) => Object.assign({ id: id }, chats[id]))
+            .sort((a, b) => ms(b.lastMessageAt) - ms(a.lastMessageAt));
+        if (!items.length) {
+            list.appendChild(h('div', 'lbc-empty', CHAT_ROLE === 'student'
+                ? T('ما في محادثات بعد. بتظهر المحادثة هون بعد ما يقبل معلم أول حصة معك.', 'No conversations yet. A chat appears here after a teacher accepts your first session.')
+                : T('ما في محادثات بعد. بتظهر المحادثة هون بعد ما تقبل أول حصة مع طالب.', 'No conversations yet. A chat appears here after you accept a student\'s first session.')));
+            return;
+        }
+        items.forEach((c) => {
+            const row = h('div', 'lbc-row');
+            row.appendChild(h('div', 'lbc-avatar', initialOf(c[OTHER_NAME_FIELD])));
+            const info = h('div', 'lbc-info');
+            info.appendChild(h('div', 'lbc-name', c[OTHER_NAME_FIELD] || ''));
+            info.appendChild(h('div', 'lbc-preview', c.lastMessage || T('ابدأ المحادثة', 'Start the conversation')));
+            row.appendChild(info);
+            const meta = h('div', 'lbc-meta');
+            meta.appendChild(h('div', '', c.lastMessage ? fmtTime(c.lastMessageAt) : ''));
+            if (c[MY_UNREAD] > 0) meta.appendChild(h('div', 'lbc-unread', String(c[MY_UNREAD] > 99 ? '99+' : c[MY_UNREAD])));
+            row.appendChild(meta);
+            row.addEventListener('click', () => openChat(c.id));
+            list.appendChild(row);
+        });
+    }
+
+    function updateBadge() {
+        const total = Object.keys(chats).reduce((s, id) => s + (Number(chats[id][MY_UNREAD]) || 0), 0);
+        const b = $('lbChatFabBadge');
+        b.textContent = total > 9 ? '9+' : String(total);
+        b.style.display = total > 0 ? 'block' : 'none';
+    }
+
+    // ---------- الاستماع لمحادثاتي ----------
+    function start(user) {
+        uid = user.uid;
+        chats = {};
+        let initial = true;
+        unsubChats = fdb.collection('chats').where(MY_ID_FIELD, '==', uid).onSnapshot((snap) => {
+            snap.docChanges().forEach((ch) => {
+                const id = ch.doc.id, data = ch.doc.data();
+                if (ch.type === 'removed') { delete chats[id]; return; }
+                const prevUnread = chats[id] ? Number(chats[id][MY_UNREAD]) || 0 : 0;
+                chats[id] = data;
+                // صوت: رسالة جديدة من الطرف الثاني، وأنا مش شايفها
+                const looking = panelOpen && activeChatId === id && !document.hidden;
+                if (!initial && ch.type === 'modified' && (Number(data[MY_UNREAD]) || 0) > prevUnread && !looking) playBeep();
+            });
+            initial = false;
+            updateBadge();
+            if (panelOpen && !activeChatId) renderList();
+            if (panelOpen && activeChatId && chats[activeChatId]) $('lbcTitle').textContent = chats[activeChatId][OTHER_NAME_FIELD] || '';
+            markRead();
+        }, (err) => console.error('chats listener', err));
+        $('lbChatFab').style.display = 'flex';
+    }
+
+    function stop() {
+        if (unsubChats) { unsubChats(); unsubChats = null; }
+        closePanel();
+        chats = {}; uid = null;
+        $('lbChatFab').style.display = 'none';
+        updateBadge();
+    }
+
+    // ---------- الأحداث ----------
+    $('lbChatFab').addEventListener('click', () => { if (panelOpen) closePanel(); else openPanel(); });
+    $('lbcClose').addEventListener('click', closePanel);
+    $('lbcBack').addEventListener('click', showList);
+    $('lbcMore').addEventListener('click', loadOlder);
+    $('lbcSend').addEventListener('click', sendText);
+    $('lbcMic').addEventListener('click', startRecording);
+    $('lbcRecCancel').addEventListener('click', () => stopRecording(false));
+    $('lbcRecSend').addEventListener('click', () => stopRecording(true));
+    $('lbcInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendText(); }
+    });
+    $('lbcInput').addEventListener('input', (e) => {
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
+    });
+    document.addEventListener('visibilitychange', markRead);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (panelOpen) { fitPanel(); const b = $('lbcMessages'); b.scrollTop = b.scrollHeight; } });
+
+    firebase.auth().onAuthStateChanged((user) => {
+        if (unsubChats) stop();
+        if (user) start(user);
+    });
+})();
+</script>
+
 </body>
 </html>
