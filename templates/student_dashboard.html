@@ -1952,6 +1952,8 @@
     .lbc-rec-dot { width: 12px; height: 12px; border-radius: 50%; background: #DC2626; animation: lbcBlink 1s infinite; }
     @keyframes lbcBlink { 50% { opacity: .2; } }
     #lbcRecTime { flex: 1; font-weight: 800; font-size: 15px; }
+    #lbcRecLevelWrap { width: 70px; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+    #lbcRecLevel { height: 100%; width: 0; background: #4E6B45; transition: width .08s linear; }
     @media (max-width: 640px) {
         #lbChatFab { width: 52px; height: 52px; }
         #lbChatPanel { right: 0; left: 0; top: 0; bottom: 0; width: auto; height: 100vh; height: 100dvh; border-radius: 0; }
@@ -1985,6 +1987,7 @@
         <div id="lbcRecBar">
             <button id="lbcRecCancel" class="lbc-btn" type="button">🗑</button>
             <span class="lbc-rec-dot"></span>
+            <div id="lbcRecLevelWrap"><div id="lbcRecLevel"></div></div>
             <span id="lbcRecTime">0:00</span>
             <button id="lbcRecSend" class="lbc-btn send" type="button">➤</button>
         </div>
@@ -2010,7 +2013,7 @@
     // 🔝 نقل الزر واللوحة لجذر الصفحة (عشان ما ينخبّوا جوا عنصر مخفي)
     document.body.appendChild($('lbChatFab'));
     document.body.appendChild($('lbChatPanel'));
-    
+
     function h(tag, cls, text) {
         const e = document.createElement(tag);
         if (cls) e.className = cls;
@@ -2110,6 +2113,30 @@
         if (on) $('lbcRecTime').textContent = '0:00';
     }
 
+    const BAD_DEVICE = /stereo\s*mix|loopback|what\s*u\s*hear|wave\s*out|monitor of|mixage/i;
+    const SILENCE_PEAK = 0.004;   // أقل من هيك = ما في صوت فعلي بالتسجيل
+
+    // أحياناً المتصفح بيختار "Stereo Mix" (بيسجّل صوت السماعات مش المايك)، فبنبدله بمايك حقيقي
+    async function getMicStream() {
+        let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try {
+            const track = stream.getAudioTracks()[0];
+            if (track && BAD_DEVICE.test(track.label || '')) {
+                const devices = (await navigator.mediaDevices.enumerateDevices())
+                    .filter((d) => d.kind === 'audioinput' && !BAD_DEVICE.test(d.label || ''));
+                const pick = devices.find((d) => d.deviceId === 'default')
+                    || devices.find((d) => /mic|microphone|ميكروفون|headset/i.test(d.label))
+                    || devices[0];
+                if (pick) {
+                    const better = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: pick.deviceId } } });
+                    stream.getTracks().forEach((t) => t.stop());
+                    stream = better;
+                }
+            }
+        } catch (e) { console.warn('chat mic: تعذر اختيار مايك بديل', e); }
+        return stream;
+    }
+
     async function startRecording() {
         if (rec || sending || !activeChatId) return;
         unlockAudio();
@@ -2119,7 +2146,7 @@
         }
         let stream;
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream = await getMicStream();
         } catch (e) {
             showNote(T('اسمح للموقع باستخدام المايكروفون وحاول مرة ثانية.', 'Please allow microphone access and try again.'), 'err', 6000);
             return;
@@ -2136,14 +2163,42 @@
         }
         const state = { mr: mr, stream: stream, chunks: [], start: Date.now(), cancelled: false, timer: null, mime: mr.mimeType || mime, chatId: activeChatId };
         rec = state;
+        console.info('chat mic:', (stream.getAudioTracks()[0] || {}).label);
+        // 🎚️ مؤشر مستوى الصوت + كشف التسجيل الصامت
+        state.peak = 0; state.measured = false;
+        try {
+            const mctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (mctx.state === 'suspended') mctx.resume();
+            const analyser = mctx.createAnalyser();
+            analyser.fftSize = 1024;
+            mctx.createMediaStreamSource(stream).connect(analyser);
+            const samples = new Float32Array(analyser.fftSize);
+            state.meterCtx = mctx;
+            state.meterTimer = setInterval(() => {
+                if (mctx.state !== 'running') return;
+                state.measured = true;
+                analyser.getFloatTimeDomainData(samples);
+                let p = 0;
+                for (let i = 0; i < samples.length; i++) { const v = Math.abs(samples[i]); if (v > p) p = v; }
+                if (p > state.peak) state.peak = p;
+                $('lbcRecLevel').style.width = Math.min(100, Math.sqrt(p) * 140) + '%';
+            }, 80);
+        } catch (e) { /* ما في مؤشر: بنكمل بدون كشف الصمت */ }
         mr.ondataavailable = (e) => { if (e.data && e.data.size) state.chunks.push(e.data); };
         mr.onstop = () => {
             clearInterval(state.timer);
+            clearInterval(state.meterTimer);
+            if (state.meterCtx) { try { state.meterCtx.close(); } catch (e) { /* مسكّر أصلاً */ } }
+            $('lbcRecLevel').style.width = '0';
             state.stream.getTracks().forEach((t) => t.stop());
             const duration = Math.round((Date.now() - state.start) / 1000);
             if (rec === state) rec = null;
             setRecordingUI(false);
             if (state.cancelled) return;
+            if (state.measured && state.peak < SILENCE_PEAK) {
+                showNote(T('ما سمعنا أي صوت بالتسجيل. تأكد إنك بتحكي والمايك شغّال، وحاول مرة ثانية.', 'No sound was captured. Make sure you are speaking and the microphone works, then try again.'), 'err', 8000);
+                return;
+            }
             if (duration < 1) { showNote(T('الرسالة الصوتية قصيرة جداً.', 'The voice message is too short.'), 'err', 5000); return; }
             sendVoice(new Blob(state.chunks, { type: state.mime || 'audio/webm' }), Math.min(duration, MAX_VOICE), state.mime || '', state.chatId);
         };
@@ -2418,6 +2473,7 @@
         if (user) start(user);
     });
 })();
+
 </script>
 
 </body>
