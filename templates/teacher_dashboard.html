@@ -1717,6 +1717,10 @@ function processSessions() {
     const isEn = () => document.documentElement.getAttribute('lang') === 'en';
     const T = (ar, en) => (isEn() ? en : ar);
     const isMobile = () => window.matchMedia('(max-width: 640px)').matches;
+    
+    // 🔝 نقل الزر واللوحة لجذر الصفحة (عشان ما ينخبّوا جوا عنصر مخفي)
+    document.body.appendChild($('lbChatFab'));
+    document.body.appendChild($('lbChatPanel'));
 
     function h(tag, cls, text) {
         const e = document.createElement(tag);
