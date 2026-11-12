@@ -1,4 +1,4 @@
-        <!DOCTYPE html>
+<!DOCTYPE html>
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
@@ -2616,6 +2616,7 @@
                 // ⏱️ Timer & Extend (Count Up)
                 // ==========================================
                 function startSessionTimer() {
+                    if (sessionTimer) clearInterval(sessionTimer);
                     sessionTimer = setInterval(() => {
                         elapsedSeconds++;
                         updateTimerUI();
@@ -2701,6 +2702,19 @@
                         }
 
                         const timerStartedAt = data.timerStartedAt;
+
+                        // ⏹ الجلسة انتهت (الطرف الآخر عمل Leave/End): أوقف العداد وحلقة الخصم وثبّت الوقت النهائي
+                        if (data.status === 'completed') {
+                            if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
+                            if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
+                            timerSynced = true; // لا تعيد تشغيل العداد بعد الإيقاف
+                            if (timerStartedAt && data.completedAt && data.completedAt.toDate) {
+                                const finalSecs = Math.floor((data.completedAt.toDate().getTime() - timerStartedAt.toDate().getTime()) / 1000);
+                                if (finalSecs >= 0) elapsedSeconds = finalSecs;
+                            }
+                            updateTimerUI();
+                            return;
+                        }
 
                         if (timerStartedAt && !timerSynced) {
                             timerSynced = true;
@@ -4856,4 +4870,4 @@
             
             </script>
         </body>
-        </html> 
+        </html>
