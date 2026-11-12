@@ -45,6 +45,9 @@
                 @keyframes explode { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
                 
                 #timerDisplay { font-size: 1.125rem; }
+                body.session-paused #chatPanel, body.session-paused #chatShowBtn { z-index: 9100 !important; }
+                #pauseOverlay .pause-resume { width: 96px; height: 96px; border-radius: 9999px; background: #16a34a; color: #fff; font-size: 44px; display: none; align-items: center; justify-content: center; border: 4px solid rgba(255,255,255,.35); cursor: pointer; box-shadow: 0 10px 40px rgba(0,0,0,.5); transition: transform .15s; }
+                #pauseOverlay .pause-resume:hover { transform: scale(1.08); background: #15803d; }
 
                 /* ضبط أبعاد الفيديو */
                 #screenSharePlayer video,
@@ -202,6 +205,9 @@
                 <div class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <span id="timerDisplay" class="font-bold text-amber-400">00:00:00</span>
+                    <button id="pauseBtn" onclick="pauseSession()" data-i18n-l-title="pause_btn_title" title="إيقاف مؤقت" class="hidden mx-2 p-1 rounded-md bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+                    </button>
                 </div>
 
                 <div id="pointsDisplayContainer" class="flex items-center bg-black/40 rounded-lg px-3 py-1.5 border border-white/20 hidden">
@@ -502,6 +508,14 @@
                 </button>
             </footer>
 
+            <!-- ⏸ Pause Overlay -->
+            <div id="pauseOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.78);align-items:center;justify-content:center;flex-direction:column;gap:22px;text-align:center;padding:16px;">
+                <div data-i18n-l="session_paused_label" style="color:#fff;font-size:clamp(18px,3vw,28px);font-weight:700;opacity:.9;">⏸ الجلسة متوقفة مؤقتًا</div>
+                <div id="pauseTimerDisplay" style="font-size:clamp(56px,14vw,160px);font-weight:800;color:#fbbf24;line-height:1;font-variant-numeric:tabular-nums;direction:ltr;">00:00:00</div>
+                <button id="resumeBtn" class="pause-resume" onclick="resumeSession()" data-i18n-l-title="resume_btn_title" title="استمرار">▶</button>
+                <div id="pauseWaitText" data-i18n-l="waiting_teacher_resume" style="display:none;color:#fff;opacity:.7;font-size:clamp(14px,2.2vw,20px);">بانتظار المعلم لاستكمال الجلسة…</div>
+            </div>
+
             <!-- Modals -->
             
 
@@ -587,6 +601,12 @@
                         session_with_teacher: "جلسة مع المعلم",
                         session_with_student: "جلسة مع الطالب:",
                         leave_session_btn: "مغادرة الجلسة",
+                        pause_btn_title: "إيقاف مؤقت",
+                        resume_btn_title: "استمرار",
+                        session_paused_label: "⏸ الجلسة متوقفة مؤقتًا",
+                        waiting_teacher_resume: "بانتظار المعلم لاستكمال الجلسة…",
+                        pause_failed: "تعذّر إيقاف الجلسة مؤقتًا، حاول مرة أخرى",
+                        resume_failed: "تعذّر استكمال الجلسة، حاول مرة أخرى",
                         end_session_btn: "إنهاء الجلسة",
                         new_page_btn: "صفحة جديدة",
                         page_word: "صفحة",
@@ -698,6 +718,12 @@
                         session_with_teacher: "Session with Teacher",
                         session_with_student: "Session with Student:",
                         leave_session_btn: "Leave Session",
+                        pause_btn_title: "Pause",
+                        resume_btn_title: "Resume",
+                        session_paused_label: "⏸ Session paused",
+                        waiting_teacher_resume: "Waiting for the teacher to resume…",
+                        pause_failed: "Couldn't pause the session, please try again",
+                        resume_failed: "Couldn't resume the session, please try again",
                         end_session_btn: "End Session",
                         new_page_btn: "New Page",
                         page_word: "Page",
@@ -2634,7 +2660,9 @@
                     const m = Math.floor((elapsedSeconds % 3600) / 60);
                     const s = elapsedSeconds % 60;
                     const format = (n) => n.toString().padStart(2, '0');
-                    document.getElementById('timerDisplay').innerText = `${format(h)}:${format(m)}:${format(s)}`;
+                    const _ts = `${format(h)}:${format(m)}:${format(s)}`;
+                    document.getElementById('timerDisplay').innerText = _ts;
+                    const _pt = document.getElementById('pauseTimerDisplay'); if (_pt) _pt.innerText = _ts;
                 }
 
 
@@ -2685,6 +2713,56 @@
                 }
 
                 let timerSynced = false;
+                 let livePointsListening = false;
+                 let isSessionPaused = false;
+                 let pauseRequestBusy = false;
+
+                 // ⏸ إظهار/إخفاء طبقة الإيقاف المؤقت + كتم/إعادة الصوت
+                 function applyPauseUI(paused) {
+                     if (paused === isSessionPaused) return;
+                     isSessionPaused = paused;
+                     document.body.classList.toggle('session-paused', paused);
+                     const ov = document.getElementById('pauseOverlay');
+                     if (ov) ov.style.display = paused ? 'flex' : 'none';
+                     const rb = document.getElementById('resumeBtn');
+                     if (rb) rb.style.display = (paused && isTeacher) ? 'flex' : 'none';
+                     const wt = document.getElementById('pauseWaitText');
+                     if (wt) wt.style.display = (paused && !isTeacher) ? 'block' : 'none';
+                     // كتم الصوت عند الطرفين (ميكروفوني + صوت الطرف الآخر)
+                     try { if (localAudioTrack) localAudioTrack.setMuted(paused ? true : isMuted); } catch (e) {}
+                     try {
+                         if (agoraEngine && agoraEngine.remoteUsers) {
+                             agoraEngine.remoteUsers.forEach(u => { if (u.audioTrack) u.audioTrack.setVolume(paused ? 0 : 100); });
+                         }
+                     } catch (e) {}
+                     if (paused) { try { isDrawing = false; } catch (e) {} }
+                 }
+
+                 async function pauseSession() {
+                     if (!isTeacher || pauseRequestBusy || isSessionPaused) return;
+                     pauseRequestBusy = true;
+                     try {
+                         const token = await currentUser.getIdToken();
+                         const res = await fetch(`/api/session/pause/${sessionId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+                         if (!res.ok) throw new Error('HTTP ' + res.status);
+                     } catch (e) {
+                         console.error('Pause failed:', e);
+                         showSnackBar(tl('pause_failed'), 'red');
+                     } finally { pauseRequestBusy = false; }
+                 }
+
+                 async function resumeSession() {
+                     if (!isTeacher || pauseRequestBusy || !isSessionPaused) return;
+                     pauseRequestBusy = true;
+                     try {
+                         const token = await currentUser.getIdToken();
+                         const res = await fetch(`/api/session/resume/${sessionId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+                         if (!res.ok) throw new Error('HTTP ' + res.status);
+                     } catch (e) {
+                         console.error('Resume failed:', e);
+                         showSnackBar(tl('resume_failed'), 'red');
+                     } finally { pauseRequestBusy = false; }
+                 }
                 let timerUnsub = null;
                 let isFinalizingSession = false;
 
@@ -2703,8 +2781,13 @@
 
                         const timerStartedAt = data.timerStartedAt;
 
-                        // ⏹ الجلسة انتهت (الطرف الآخر عمل Leave/End): أوقف العداد وحلقة الخصم وثبّت الوقت النهائي
-                        if (data.status === 'completed') {
+                        // ⏸ زر الإيقاف المؤقت يظهر للمعلم فقط بعد بدء العداد
+                         const _pb = document.getElementById('pauseBtn');
+                         if (_pb) _pb.classList.toggle('hidden', !(isTeacher && timerStartedAt && data.status !== 'completed'));
+
+                         // ⏹ الجلسة انتهت (الطرف الآخر عمل Leave/End): أوقف العداد وحلقة الخصم وثبّت الوقت النهائي
+                         if (data.status === 'completed') {
+                             applyPauseUI(false);
                             if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
                             if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
                             timerSynced = true; // لا تعيد تشغيل العداد بعد الإيقاف
@@ -2716,14 +2799,33 @@
                             return;
                         }
 
-                        if (timerStartedAt && !timerSynced) {
-                            timerSynced = true;
+                        // ⏸ الجلسة موقوفة مؤقتًا: ثبّت العداد على لحظة الإيقاف وأظهر الطبقة
+                         if (data.status === 'paused' && timerStartedAt) {
+                             if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
+                             if (deductionInterval) { clearInterval(deductionInterval); deductionInterval = null; }
+                             timerSynced = true;
+                             const _startMs = timerStartedAt.toDate().getTime();
+                             const _pausedMs = (data.pausedAt && data.pausedAt.toDate) ? data.pausedAt.toDate().getTime() : Date.now();
+                             elapsedSeconds = Math.max(0, Math.floor((_pausedMs - _startMs) / 1000));
+                             updateTimerUI();
+                             if (!livePointsListening) { livePointsListening = true; listenToLivePoints(data.studentId); }
+                             applyPauseUI(true);
+                             return;
+                         }
+                         if (isSessionPaused) {
+                             // ▶ تم الاستكمال: أعد المزامنة من timerStartedAt الجديد
+                             applyPauseUI(false);
+                             timerSynced = false;
+                         }
+
+                         if (timerStartedAt && !timerSynced) {
+                             timerSynced = true;
                             const startMs = timerStartedAt.toDate().getTime();
                             const nowMs = Date.now();
                             elapsedSeconds = Math.max(0, Math.floor((nowMs - startMs) / 1000));
                             startSessionTimer();
                             startPointsDeductionLoop();
-                            listenToLivePoints(data.studentId);
+                             if (!livePointsListening) { livePointsListening = true; listenToLivePoints(data.studentId); }
                         }
                     });
                 }
@@ -2839,6 +2941,7 @@
                         if (localAudioTrack) {
                             await agoraEngine.publish([localAudioTrack]);
                             isMuted = false; updateMicUI();
+                            if (isSessionPaused) { try { localAudioTrack.setMuted(true); } catch (e) {} }
                             showSnackBar(tl('audio_connected'), '#10b981');
                             initAudioMixGraph(localAudioTrack);
                             startAudioRecording();
@@ -2847,7 +2950,7 @@
                 }
 
                 async function toggleMute() {
-                    if (!localAudioTrack) return;
+                     if (!localAudioTrack || isSessionPaused) return;
                     isMuted = !isMuted;
                     localAudioTrack.setMuted(isMuted);
                     updateMicUI();

@@ -13,7 +13,7 @@ import uuid
 from dotenv import load_dotenv
 from typing import Optional, List
 import json 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 import asyncio
 import re
@@ -172,7 +172,7 @@ async def create_session_request(
                 .where('isFreeTrial', '==', True) \
                 .stream()
             for s in existing_trials:
-                if s.to_dict().get('status') in ('pending', 'accepted', 'active', 'interrupted'):
+                if s.to_dict().get('status') in ('pending', 'accepted', 'active', 'interrupted', 'paused'):
                     raise HTTPException(status_code=403, detail="لديك حصة تجريبية قيد الانتظار أو التنفيذ بالفعل.")
         else:
             raw_points = user_data.get('points', 0)
@@ -328,16 +328,21 @@ def _settle_points_txn(transaction, session_ref, uid, finish):
     ended_reason = None
 
     # نفس شروط القديم: بس الحصص المدفوعة الفعّالة (مش التجريبية، ولا مقابلة المعلم)
+    # ⏸ لو الجلسة موقوفة مؤقتًا: الحساب يتم على لحظة الإيقاف (وقت الاستراحة ما بينحسب)
+    now_eff = datetime.now(timezone.utc)
+    if status == 'paused' and s.get('pausedAt') is not None:
+        now_eff = s.get('pausedAt')
+
     billable = (
         started is not None
-        and status == 'active'
+        and status in ('active', 'paused')
         and not s.get('isFreeTrial')
         and not s.get('isTrialInterview')
         and (not finish or SETTLE_ON_EXIT)
     )
 
     if billable:
-        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        elapsed = (now_eff - started).total_seconds()
         intervals_due = int(elapsed // BILLING_INTERVAL_SECONDS)
         intervals_done = int(round(already / BILLING_POINTS_PER_INTERVAL))
         to_deduct = intervals_due - intervals_done
@@ -357,8 +362,8 @@ def _settle_points_txn(transaction, session_ref, uid, finish):
                 ended_reason = 'out_of_points'
 
     # 🆓 الحصة التجريبية بتنتهي من السيرفر عند 20 دقيقة بالضبط (مش بس من المتصفح)
-    if (started is not None and status in ('active', 'interrupted') and s.get('isFreeTrial')
-            and (datetime.now(timezone.utc) - started).total_seconds() >= FREE_TRIAL_MAX_SECONDS):
+    if (started is not None and status in ('active', 'interrupted', 'paused') and s.get('isFreeTrial')
+            and (now_eff - started).total_seconds() >= FREE_TRIAL_MAX_SECONDS):
         ended_reason = 'trial_time_up'
     ended = finish or ended_reason is not None
     if ended:
@@ -421,6 +426,92 @@ async def leave_session(sessionId: str, uid: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"خطأ داخلي في السيرفر: {error_str}")
 
 
+
+@firestore.transactional
+def _pause_txn(transaction, session_ref, uid):
+    snap = session_ref.get(transaction=transaction)
+    if not snap.exists:
+        return "not_found"
+    s = snap.to_dict() or {}
+    if s.get('teacherId') != uid:
+        return "forbidden"
+    status = s.get('status')
+    if status == 'paused':
+        return "ok"
+    if status not in ('active', 'interrupted') or s.get('timerStartedAt') is None:
+        return "not_running"
+    transaction.update(session_ref, {
+        'status': 'paused',
+        'pausedAt': firestore.SERVER_TIMESTAMP,
+        'pausedBy': uid
+    })
+    return "ok"
+
+
+@firestore.transactional
+def _resume_txn(transaction, session_ref, uid):
+    snap = session_ref.get(transaction=transaction)
+    if not snap.exists:
+        return "not_found"
+    s = snap.to_dict() or {}
+    if s.get('teacherId') != uid:
+        return "forbidden"
+    if s.get('status') != 'paused':
+        return "ok"
+    started = s.get('timerStartedAt')
+    paused_at = s.get('pausedAt')
+    update = {
+        'status': 'active',
+        'pausedAt': firestore.DELETE_FIELD,
+        'pausedBy': firestore.DELETE_FIELD,
+        'interruptedBy': firestore.DELETE_FIELD
+    }
+    if started is not None and paused_at is not None:
+        pause_secs = max(0.0, (datetime.now(timezone.utc) - paused_at).total_seconds())
+        # نزحزح بداية العداد للأمام بمقدار مدة الإيقاف عشان ما تنحسب
+        update['timerStartedAt'] = started + timedelta(seconds=pause_secs)
+        update['totalPausedSeconds'] = (s.get('totalPausedSeconds', 0) or 0) + pause_secs
+    transaction.update(session_ref, update)
+    return "ok"
+
+
+def _pause_result_to_http(result):
+    if result == "not_found":
+        raise HTTPException(status_code=404, detail="الجلسة غير موجودة")
+    if result == "forbidden":
+        raise HTTPException(status_code=403, detail="فقط المعلم يستطيع إيقاف الجلسة مؤقتًا.")
+    if result == "not_running":
+        raise HTTPException(status_code=400, detail="الجلسة لم تبدأ بعد أو انتهت.")
+
+
+@router.post("/api/session/pause/{sessionId}")
+async def pause_session(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        result = _pause_txn(db.transaction(), session_ref, uid)
+        _pause_result_to_http(result)
+        return {"message": "تم إيقاف الجلسة مؤقتًا"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in pause_session: {e}")
+        raise HTTPException(status_code=500, detail=f"حدث خطأ في الخادم: {e}")
+
+
+@router.post("/api/session/resume/{sessionId}")
+async def resume_session(sessionId: str, uid: str = Depends(get_current_user)):
+    try:
+        session_ref = db.collection('sessions').document(sessionId)
+        result = _resume_txn(db.transaction(), session_ref, uid)
+        _pause_result_to_http(result)
+        return {"message": "تم استكمال الجلسة"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in resume_session: {e}")
+        raise HTTPException(status_code=500, detail=f"حدث خطأ في الخادم: {e}")
+
+
 @router.post("/api/session/interrupt/{sessionId}")
 async def interrupt_session(sessionId: str, uid: str = Depends(get_current_user)):
     try:
@@ -440,6 +531,10 @@ async def interrupt_session(sessionId: str, uid: str = Depends(get_current_user)
 
         if session_data.get('status') == 'completed':
             return {"message": "الجلسة منتهية بالفعل"}
+
+        # ⏸ الجلسة موقوفة مؤقتًا: لا نغيّر حالتها (حتى لو أحد عمل Refresh)
+        if session_data.get('status') == 'paused':
+            return {"message": "paused"}
 
         session_ref.update({
             'status': 'interrupted',
