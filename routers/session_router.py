@@ -145,6 +145,9 @@ async def create_session_request(
     notes: str = Form(""),  # ملاحظات الطالب للمعلم
     preferredTeacherId: str = Form(""),  # معلم معين (اختياري)
     preferredTeacherName: str = Form(""),
+    bookingType: str = Form("now"),               # now | schedule
+    scheduledAtMs: Optional[int] = Form(None),    # وقت الحجز المجدول (milliseconds)
+    scheduledTime: str = Form(""),
     uid: str = Depends(get_current_user)
 ):
     try:
@@ -187,8 +190,21 @@ async def create_session_request(
             if pref_data.get('role') != 'teacher' or pref_data.get('status') != 'approved':
                 raise HTTPException(status_code=400, detail="المعلم المختار غير متاح حالياً.")
 
+        # 📅 الحجز المجدول بيوصل مع الطلب بخطوة وحدة (ما في تعديل ثاني من المتصفح)
+        booking_type = 'schedule' if bookingType == 'schedule' else 'now'
+        scheduled_dt = None
+        if booking_type == 'schedule':
+            if scheduledAtMs is None:
+                raise HTTPException(status_code=400, detail="موعد الحجز مطلوب.")
+            now_ms = int(time.time() * 1000)
+            if scheduledAtMs < now_ms - 60_000:
+                raise HTTPException(status_code=400, detail="لا يمكن حجز موعد في الماضي.")
+            if scheduledAtMs > now_ms + 365 * 24 * 3600 * 1000:
+                raise HTTPException(status_code=400, detail="موعد الحجز بعيد جدًا.")
+            scheduled_dt = datetime.fromtimestamp(scheduledAtMs / 1000, tz=timezone.utc)
+
         session_ref = db.collection('sessions').document()
-        session_ref.set({
+        session_doc = {
             'studentId': uid,
             'studentName': studentName,
             'teacherId': None,
@@ -206,7 +222,7 @@ async def create_session_request(
             'timerStartedAt': None,
             'pointsDeducted': 0,
             'lastDeductionAt': None,
-            'bookingType': 'now',  
+            'bookingType': booking_type,  
             'createdAt': firestore.SERVER_TIMESTAMP,
             'audioRecordingUrl': None,
             'boardPdfUrl': None,
@@ -214,7 +230,11 @@ async def create_session_request(
             'notes': notes.strip()[:500],
             'preferredTeacherId': preferredTeacherId or None,
             'preferredTeacherName': preferredTeacherName or None,
-        })
+        }
+        if scheduled_dt is not None:
+            session_doc['scheduledAt'] = scheduled_dt
+            session_doc['scheduledTime'] = (scheduledTime or '').strip()[:10]
+        session_ref.set(session_doc)
 
         return {"sessionId": session_ref.id, "message": "تم إنشاء الطلب بنجاح"}
 
@@ -274,7 +294,8 @@ async def join_session(sessionId: str, uid: str = Depends(get_current_user)):
             # رجوع بعد Refresh: استأنف الحصة والخصم
             session_ref.update({
                 'status': 'active',
-                'interruptedBy': firestore.DELETE_FIELD
+                'interruptedBy': firestore.DELETE_FIELD,
+                'interruptedAt': firestore.DELETE_FIELD
             })
 
         # ⭐ بيانات النجوم للواجهة (السلة عند الطالب والمعلم)
@@ -538,7 +559,8 @@ async def interrupt_session(sessionId: str, uid: str = Depends(get_current_user)
 
         session_ref.update({
             'status': 'interrupted',
-            'interruptedBy': 'teacher' if is_teacher else 'student'
+            'interruptedBy': 'teacher' if is_teacher else 'student',
+            'interruptedAt': firestore.SERVER_TIMESTAMP
         })
 
         # ✨ تحديث حالة الحصة التجريبية للطالب عند الانقطاع المفاجئ

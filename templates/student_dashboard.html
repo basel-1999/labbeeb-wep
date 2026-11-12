@@ -511,6 +511,10 @@
                 sec_word: "ث",
                 select_grade_first: "الرجاء اختيار مرحلتك الدراسية",
                 select_date_time: "الرجاء اختيار تاريخ ووقت الحصة",
+                schedule_in_past: "لا يمكن اختيار موعد في الماضي",
+                select_package_first: "اختر الباقة أولاً",
+                session_interrupted_rejoin: "انقطع الاتصال — اضغط انضمام لتكمل الحصة",
+                session_paused_status: "الحصة متوقفة مؤقتًا",
                  free_trial_card_title: "🚀 ابدأ بحصتك التجريبية المجانية الآن!",
                 free_trial_card_desc: "استكشف منصة لبيب مع 20 دقيقة مجانية لكل المواد. (متاحة لمرة واحدة فقط)",
                 achievements_title: "إنجازاتي",
@@ -629,6 +633,10 @@
                 sec_word: "s",
                 select_grade_first: "Please select your grade level",
                 select_date_time: "Please select the session date and time",
+                schedule_in_past: "You can't book a time in the past",
+                select_package_first: "Please choose a package first",
+                session_interrupted_rejoin: "Disconnected — tap Join to continue the session",
+                session_paused_status: "Session paused",
                 free_trial_card_title: "🚀 Start Your Free Trial Session Now!",
                 free_trial_card_desc: "Explore Labeeb Platform with 20 free minutes for all subjects. (Available only once)",
                 achievements_title: "My Achievements",
@@ -983,10 +991,20 @@
                         // الحالة المنطقية الموحدة للانتهاء
                         let isExpired = false;
                         const timerStartedAt = data.timerStartedAt;
+                        // الحصة "حيّة" = شغالة أو موقوفة مؤقتًا أو انقطع اتصال أحد الطرفين (ممكن يرجع ينضم)
+                        const isLive = (status === 'active' || status === 'paused' || status === 'interrupted');
                         if (timerStartedAt && typeof timerStartedAt.toDate === 'function') {
                             const startMs = timerStartedAt.toDate().getTime();
-                            const elapsedMins = (now - startMs) / 60000;
-                            if (elapsedMins > 65) isExpired = true;
+                            if (status === 'interrupted') {
+                                // المنقطعة: بتضل قابلة للانضمام 65 دقيقة من لحظة الانقطاع
+                                const intMs = (data.interruptedAt && typeof data.interruptedAt.toDate === 'function')
+                                    ? data.interruptedAt.toDate().getTime() : startMs;
+                                if ((now - intMs) / 60000 > 65) isExpired = true;
+                            } else {
+                                // الشغالة/الموقوفة: حد أقصى 6 ساعات (حماية من الجلسات العالقة)، وغيرها 65 دقيقة
+                                const maxMins = isLive ? 360 : 65;
+                                if ((now - startMs) / 60000 > maxMins) isExpired = true;
+                            }
                         } else {
                             if (diffMins < -60) isExpired = true;
                         }
@@ -999,12 +1017,12 @@
                             lists.completed.push({ id: sessionId, data, completedMs });
                         } else if (status === 'cancelled') {
                             lists.cancelled.push({ id: sessionId, data });
-                        } else if (status === 'interrupted' || isExpired) {
+                        } else if (isExpired) {
                             lists.expired.push({ id: sessionId, data });
                         } else {
                             const isPending = (status === 'pending');
                             lists.active.push({ id: sessionId, data, isPending, startTime: startTime.getTime() });
-                            sessionsData.push({ id: sessionId, data, isPending, startTime: startTime.getTime() });
+                            sessionsData.push({ id: sessionId, data, isPending, isLive, startTime: startTime.getTime() });
                         }
                     });
 
@@ -1048,7 +1066,7 @@
                             if (s.isPending && s.data.bookingType === 'now') {
                                 updateWaitingTimer(s.id, s.data.createdAt);
                             } else if (!s.isPending) {
-                                updateLiveTimer(s.id, s.startTime);
+                                updateLiveTimer(s.id, s.startTime, s.isLive);
                             }
                         });
                     }, 1000);
@@ -1099,6 +1117,12 @@
                     borderColor = 'border-green-500/50';
                     bgColor = 'bg-green-500/10';
                     iconColor = 'text-green-600';
+                    if (data.status === 'interrupted') {
+                        statusText = t('session_interrupted_rejoin');
+                        statusColor = 'text-orange-600 font-bold';
+                    } else if (data.status === 'paused') {
+                        statusText = t('session_paused_status');
+                    }
 
                     const filesCount = (data.attachedFiles && data.attachedFiles.length > 0) ? data.attachedFiles.length : 0;
                     let filesBtn = `
@@ -1154,7 +1178,7 @@
                             <div class="min-w-0">
                                 <h4 class="text-sm font-bold truncate">${t('lesson_word')} ${escapeHtml(subject)}</h4>
                                 <p class="text-xs text-gray-500 truncate">${t('teacher_label')} ${escapeHtml(teacher)} • ${escapeHtml(date)}</p>
-                                <p class="text-xs text-accentOrange">${t('rating_label')} ${rating}</p>
+                                <p class="text-xs text-accentOrange">${t('rating_label')} ${escapeHtml(rating)}</p>
                             </div>
                         </div>
                         <hr class="my-3">
@@ -1223,7 +1247,7 @@
             }
         }
 
-        function updateLiveTimer(sessionId, startTimeMs) {
+        function updateLiveTimer(sessionId, startTimeMs, isLive = false) {
             const timerDiv = document.getElementById(`timer_${sessionId}`);
             if (!timerDiv) return;
 
@@ -1231,7 +1255,7 @@
             const diffMs = startTimeMs - now;
             const diffMins = diffMs / 60000;
 
-            if (diffMins <= 5 && diffMins >= -60) {
+            if (isLive || (diffMins <= 5 && diffMins >= -60)) {
                 timerDiv.outerHTML = `
                     <button onclick="joinSession('${sessionId}')" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1 w-full justify-center animate-pulse">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1253,7 +1277,7 @@
             } else {
                 const card = document.getElementById(`card_${sessionId}`);
                 if (card && card.parentElement && card.parentElement.id !== 'tab_content_expired') {
-                    const subject = card.querySelector('h4')?.innerText.replace('مادة ', '') || 'درس تعليمي';
+                    const subject = card.querySelector('h4')?.innerText.replace(t('subject_word') + ' ', '').trim() || 'درس تعليمي';
                     card.className = "bg-white p-3 sm:p-5 rounded-2xl border-[1.5px] border-gray-200 flex items-center gap-3 sm:gap-4 opacity-70";
                     card.innerHTML = `
                         <div class="p-2 sm:p-3.5 rounded-xl bg-gray-100 shrink-0">
@@ -1283,7 +1307,11 @@
             document.getElementById(`tab_btn_${tabName}`).classList.add('active');
         }
 
+        const autoCancelInFlight = new Set();
         async function autoCancelSession(sessionId) {
+            // الحماية: المؤقّت بيناديها كل ثانية بعد انتهاء وقت البحث، فنمنع تكرار الطلب لنفس الجلسة
+            if (autoCancelInFlight.has(sessionId)) return;
+            autoCancelInFlight.add(sessionId);
             try {
                 const token = await currentUser.getIdToken();
                 await fetch(`/api/session/cancel/${sessionId}`, {
@@ -1293,6 +1321,7 @@
                 await db.collection('sessions').doc(sessionId).update({ autoCancelled: true });
             } catch (e) {
                 console.error("Auto cancel error:", e);
+                setTimeout(() => autoCancelInFlight.delete(sessionId), 15000); // أعد المحاولة بعد 15 ثانية لو فشل
             }
         }
 
@@ -1438,6 +1467,10 @@
                     return;
                 }
                 scheduledDate = new Date(`${dateVal}T${timeVal}`);
+                if (isNaN(scheduledDate.getTime()) || scheduledDate.getTime() < Date.now()) {
+                    showSnackBar(t('schedule_in_past'), '#D97706');
+                    return;
+                }
             }
 
             // ✨ التحقق من المعلم المختار قبل إنشاء أي شي بالسيرفر
@@ -1471,6 +1504,11 @@
                 formData.append('notes', document.getElementById('bookingNotes').value.trim());
                 formData.append('preferredTeacherId', preferredTeacherId || '');
                 formData.append('preferredTeacherName', preferredTeacherName || '');
+                formData.append('bookingType', bookingType);
+                if (bookingType === 'schedule' && scheduledDate) {
+                    formData.append('scheduledAtMs', String(scheduledDate.getTime()));
+                    formData.append('scheduledTime', `${scheduledDate.getHours()}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`);
+                }
 
                 const response = await fetch('/api/session/create', {
                     method: 'POST',
@@ -1493,17 +1531,6 @@
                 const sessionId = result.sessionId;
 
 
-                const updateData = {};
-
-                if (bookingType === 'schedule') {
-                    updateData['bookingType'] = 'schedule';
-                    updateData['scheduledAt'] = firebase.firestore.Timestamp.fromDate(scheduledDate);
-                    updateData['scheduledTime'] = `${scheduledDate.getHours()}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`;
-                } else {
-                    updateData['bookingType'] = 'now';
-                }
-
-                await db.collection('sessions').doc(sessionId).update(updateData);
 
                 showSnackBar(`${t('request_sent_success')}\n${sessionId.substring(0, 8)}...`, '#4E6B45');
 
@@ -1534,7 +1561,9 @@
         }
 
         async function payWithTap() {
-            const packageVal = document.querySelector('input[name="cardPackage"]:checked').value;
+            const _pkgInput = document.querySelector('input[name="cardPackage"]:checked');
+            if (!_pkgInput) { showSnackBar(t('select_package_first'), '#D97706'); return; }
+            const packageVal = _pkgInput.value;
             const [pointsCountStr, amountStr] = packageVal.split('|');
             const pointsCount = parseInt(pointsCountStr);
             const amount = parseFloat(amountStr);

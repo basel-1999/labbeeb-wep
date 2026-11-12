@@ -330,7 +330,7 @@
 
             <div class="flex justify-between gap-3">
                 <button onclick="closeModal('preFlightModal')" data-i18n-t="cancel_btn" class="text-gray-500 font-bold text-sm">إلغاء</button>
-                <button onclick="startSession()" data-i18n-t="start_session_now_btn" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-green-700">بدء الجلسة الآن 🎓</button>
+                <button id="startSessionBtn" onclick="startSession()" disabled data-i18n-t="start_session_now_btn" class="bg-green-600 text-white font-bold px-6 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600">بدء الجلسة الآن 🎓</button>
             </div>
         </div>
     </div>
@@ -1332,55 +1332,88 @@ function processSessions() {
         .replace(/'/g, '&#39;');
 }
 
+        // 📶 أقصى زمن استجابة (ping) مقبول بالميلي ثانية لتصير "الإنترنت" خضراء. قلّله لتشدّد الفحص أكثر.
+        const MAX_PING_MS = 300;
+        const PREFLIGHT_SAMPLES = 3; // عدد القياسات، ونأخذ الوسيط (median) عشان قفزة وحدة ما تفشل الفحص
+        const PREFLIGHT_GREEN_SVG = {
+            mic: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
+            net: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+        };
+        let preflightInitial = null; // شكل الأيقونات الحمراء الأصلي
+
+        function updateStartButtonState() {
+            const btn = document.getElementById('startSessionBtn');
+            if (btn) btn.disabled = !(micReady && netReady);
+        }
+
+        function setPreflightState(kind, ok, text) {
+            const icon = document.getElementById(kind + 'Icon');
+            const status = document.getElementById(kind + 'Status');
+            icon.classList.toggle('bg-green-100', ok);
+            icon.classList.toggle('bg-red-100', !ok);
+            icon.innerHTML = ok ? PREFLIGHT_GREEN_SVG[kind] : preflightInitial[kind];
+            status.innerText = text;
+            status.classList.toggle('text-green-600', ok);
+            status.classList.toggle('text-gray-500', !ok);
+        }
+
         function openPreFlightModal(sessionId, studentName) {
+            if (!preflightInitial) {
+                preflightInitial = {
+                    mic: document.getElementById('micIcon').innerHTML,
+                    net: document.getElementById('netIcon').innerHTML
+                };
+            }
             selectedSessionData = { id: sessionId, student: studentName };
             micReady = false;
             netReady = false;
-            document.getElementById('micStatus').innerText = tt('mic_not_detected');
-            document.getElementById('netStatus').innerText = tt('net_not_connected');
+            setPreflightState('mic', false, tt('mic_not_detected'));
+            setPreflightState('net', false, tt('net_not_connected'));
+            updateStartButtonState(); // زر البدء معطّل لحد ما يصير الفحصين أخضر
             openModal('preFlightModal');
+        }
+
+        async function measureLatencyMedian() {
+            const samples = [];
+            for (let i = 0; i < PREFLIGHT_SAMPLES; i++) {
+                const ms = await SessionCheckService.checkNetworkLatency();
+                if (!(ms > 0)) return -1; // انقطاع أو timeout بأي قياس = فشل
+                samples.push(ms);
+            }
+            samples.sort((x, y) => x - y);
+            return samples[Math.floor(samples.length / 2)];
         }
 
         async function runPreFlightChecks() {
             document.getElementById('runCheckBtn').classList.add('hidden');
             document.getElementById('checkSpinner').classList.remove('hidden');
+            micReady = false;
+            netReady = false;
+            updateStartButtonState();
 
-            // Check Mic
-            micReady = await SessionCheckService.checkMicrophone();
-            const micIcon = document.getElementById('micIcon');
-            const micStatus = document.getElementById('micStatus');
-            if (micReady) {
-                micIcon.classList.remove('bg-red-100');
-                micIcon.classList.add('bg-green-100');
-                micIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                micStatus.innerText = tt('mic_working');
-                micStatus.classList.remove('text-gray-500');
-                micStatus.classList.add('text-green-600');
+            try {
+                // Check Mic
+                micReady = await SessionCheckService.checkMicrophone();
+                setPreflightState('mic', micReady, micReady ? tt('mic_working') : tt('mic_not_detected'));
+
+                // Check Network
+                const latency = await measureLatencyMedian();
+                netReady = latency > 0 && latency <= MAX_PING_MS;
+                if (netReady) {
+                    setPreflightState('net', true, `${tt('net_excellent')} (${latency} ms)`);
+                } else {
+                    setPreflightState('net', false, tt('net_not_connected') + (latency > 0 ? ` (${latency} ms)` : ''));
+                }
+            } finally {
+                document.getElementById('runCheckBtn').classList.remove('hidden');
+                document.getElementById('checkSpinner').classList.add('hidden');
+                updateStartButtonState();
             }
-
-            // Check Network
-            const latency = await SessionCheckService.checkNetworkLatency();
-            netReady = latency > 0 && latency < 1000;
-            const netIcon = document.getElementById('netIcon');
-            const netStatus = document.getElementById('netStatus');
-            if (netReady) {
-                netIcon.classList.remove('bg-red-100');
-                netIcon.classList.add('bg-green-100');
-                netIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                netStatus.innerText = `${tt('net_excellent')} (${latency} ms)`;
-                netStatus.classList.remove('text-gray-500');
-                netStatus.classList.add('text-green-600');
-            }
-
-            document.getElementById('runCheckBtn').classList.remove('hidden');
-            document.getElementById('checkSpinner').classList.add('hidden');
         }
 
         function startSession() {
+            if (!micReady || !netReady) return; // الحماية: ما بنبدأ إلا لما الفحصين يكونوا خضر
             closeModal('preFlightModal');
-            if (!micReady) {
-                showSnackBar(tt('no_mic_warning'), '#D97706');
-            }
 
             const sessionId = encodeURIComponent(selectedSessionData.id || 'unknown_session');
             const studentName = encodeURIComponent(selectedSessionData.student || tt('default_student'));
