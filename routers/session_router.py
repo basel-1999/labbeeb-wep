@@ -301,7 +301,6 @@ async def join_session(sessionId: str, uid: str = Depends(get_current_user)):
 
 
 @firestore.transactional
-@firestore.transactional
 def _settle_points_txn(transaction, session_ref, uid, finish):
     """
     نفس منطق الخصم القديم بالضبط (نص نقطة لكل 5 دقائق مكتملة)،
