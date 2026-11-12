@@ -2641,11 +2641,48 @@
                 // ==========================================
                 // ⏱️ Timer & Extend (Count Up)
                 // ==========================================
-                function startSessionTimer() {
-                    if (sessionTimer) clearInterval(sessionTimer);
-                    sessionTimer = setInterval(() => {
-                        elapsedSeconds++;
-                        updateTimerUI();
+                // 💰 الخصم الفوري: أول ما العداد يعدّي مضاعف 5 دقائق (يجب أن يطابق BILLING_INTERVAL_SECONDS بالسيرفر)
+                 const BILLING_INTERVAL_SECONDS = 300;
+                 const BILLING_POINTS_PER_INTERVAL = 0.5;
+                 let lastBillingBucket = 0;
+                 let deductBusy = false;
+
+                 async function deductNow(expectedPoints) {
+                     if (deductBusy || isSessionPaused) return;
+                     deductBusy = true;
+                     try {
+                         // نعيد المحاولة كل 1.5 ثانية (حتى ~9 ثواني) لو ساعة السيرفر متأخرة شوي عن ساعة المتصفح
+                         for (let i = 0; i < 6; i++) {
+                             if (isSessionPaused) break;
+                             try {
+                                 authToken = await currentUser.getIdToken();
+                                 const res = await fetch(`/api/session/deduct/${sessionId}`, {
+                                     method: 'POST',
+                                     headers: { 'Authorization': `Bearer ${authToken}` }
+                                 });
+                                 if (res.ok) {
+                                     const d = await res.json().catch(() => null);
+                                     if (d && (d.sessionEnded || (typeof d.pointsDeducted === 'number' && d.pointsDeducted >= expectedPoints))) break;
+                                 }
+                             } catch (e) { console.error('Instant deduction failed:', e); }
+                             await new Promise(r => setTimeout(r, 1500));
+                         }
+                     } finally { deductBusy = false; }
+                 }
+
+                 function startSessionTimer() {
+                     if (sessionTimer) clearInterval(sessionTimer);
+                     lastBillingBucket = Math.floor(elapsedSeconds / BILLING_INTERVAL_SECONDS);
+                     sessionTimer = setInterval(() => {
+                         elapsedSeconds++;
+                         updateTimerUI();
+
+                         // 💰 خصم نصف نقطة بنفس لحظة وصول العداد لـ 5 / 10 / 15 ... دقيقة
+                         const _bucket = Math.floor(elapsedSeconds / BILLING_INTERVAL_SECONDS);
+                         if (_bucket > lastBillingBucket) {
+                             lastBillingBucket = _bucket;
+                             if (!isFreeTrialSession && !isTrialInterview) deductNow(_bucket * BILLING_POINTS_PER_INTERVAL);
+                         }
 
                         // ✨ إنهاء الحصة التجريبية تلقائياً بعد 20 دقيقة (1200 ثانية)
                         if (isFreeTrialSession && elapsedSeconds >= 1200) {
