@@ -1939,6 +1939,12 @@
     .lbc-time { font-size: 10px; opacity: .7; margin-top: 2px; }
     .lbc-msg audio { height: 36px; max-width: 220px; display: block; }
     .lbc-dur { font-size: 11px; opacity: .8; margin-top: 2px; }
+    .lbc-img { display: block; max-width: 220px; max-height: 260px; border-radius: 10px; cursor: pointer; background: #E5E7EB; }
+    .lbc-file { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; max-width: 230px; }
+    .lbc-file-icon { font-size: 26px; }
+    .lbc-file-info { display: flex; flex-direction: column; min-width: 0; }
+    .lbc-file-name { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lbc-file-size { font-size: 11px; opacity: .75; }
     #lbcNote { padding: 6px 12px; font-size: 12px; font-weight: 600; display: none; flex-shrink: 0; }
     #lbcNote.err { background: #FEE2E2; color: #B91C1C; display: block; }
     #lbcNote.info { background: #E0F2FE; color: #0369A1; display: block; }
@@ -1981,6 +1987,8 @@
         <div id="lbcNote"></div>
         <div id="lbcComposer">
             <button id="lbcMic" class="lbc-btn" type="button" title="🎤">🎤</button>
+            <button id="lbcAttach" class="lbc-btn" type="button" title="📎">📎</button>
+            <input id="lbcFile" type="file" style="display:none" accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.odt,.rtf">
             <textarea id="lbcInput" rows="1" dir="auto"></textarea>
             <button id="lbcSend" class="lbc-btn send" type="button">➤</button>
         </div>
@@ -1996,7 +2004,7 @@
 
 <script>
 (function () {
-    const CHAT_ROLE = 'student';   // 👈 بملف المعلم غيّرها لـ 'teacher'
+    const CHAT_ROLE = 'student';   
 
     const MY_ID_FIELD = CHAT_ROLE === 'student' ? 'studentId' : 'teacherId';
     const MY_UNREAD = CHAT_ROLE === 'student' ? 'unreadStudent' : 'unreadTeacher';
@@ -2240,6 +2248,78 @@
         }
     }
 
+    // ---------- الصور والملفات ----------
+    const IMG_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    const DOC_EXT = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'odt', 'rtf'];
+    const MAX_IMG_MB = 5, MAX_DOC_MB = 10;
+    const extOf = (name) => (String(name).split('.').pop() || '').toLowerCase();
+    const isCloud = (u) => typeof u === 'string' && u.startsWith('https://res.cloudinary.com/');
+    const fmtSize = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+
+    // بنصغّر الصور الكبيرة (صور الجوال) قبل الرفع
+    async function shrinkImage(file) {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 600 * 1024 || !window.createImageBitmap) return file;
+        try {
+            const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(bmp, 0, 0, c.width, c.height);
+            const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.82));
+            if (blob && blob.size < file.size) return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+        } catch (e) { /* نرفع الأصلية */ }
+        return file;
+    }
+
+    async function sendAttachment(file) {
+        if (sending || !activeChatId || !file) return;
+        const chatId = activeChatId;
+        const ext = extOf(file.name);
+        let kind = null;
+        if (IMG_EXT.includes(ext)) kind = 'image';
+        else if (DOC_EXT.includes(ext)) kind = 'file';
+        if (!kind) {
+            showNote(T('نوع الملف غير مسموح. المسموح: صور (JPG, PNG, WebP, GIF)، PDF، Word، PowerPoint، Excel، ونص.', 'File type not allowed. Allowed: images (JPG, PNG, WebP, GIF), PDF, Word, PowerPoint, Excel and text.'), 'err', 8000);
+            return;
+        }
+        sending = true; clearNote();
+        showNote(T('جاري رفع الملف...', 'Uploading file...'), 'info');
+        try {
+            const upFile = kind === 'image' ? await shrinkImage(file) : file;
+            const limitMb = kind === 'image' ? MAX_IMG_MB : MAX_DOC_MB;
+            if (upFile.size > limitMb * 1048576) {
+                throw new Error(T('حجم الملف كبير (الحد الأقصى ' + limitMb + ' ميجابايت).', 'File is too large (max ' + limitMb + ' MB).'));
+            }
+            const idToken = await firebase.auth().currentUser.getIdToken();
+            const fd = new FormData();
+            fd.append('file', upFile, upFile.name);
+            if (kind === 'image') {
+                fd.append('folder', 'chat_images'); fd.append('resource_type', 'image');
+            } else {
+                fd.append('folder', 'chat_files'); fd.append('resource_type', 'raw'); fd.append('ext', ext);
+            }
+            const up = await fetch('/api/cloudinary/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken }, body: fd });
+            if (!up.ok) {
+                let msg = T('تعذر رفع الملف.', 'Could not upload the file.');
+                try { const j = await up.json(); if (j && typeof j.detail === 'string') msg = j.detail; } catch (e) { /* رسالة عامة */ }
+                throw new Error(msg);
+            }
+            const data = await up.json();
+            if (!data || !data.url) throw new Error(T('تعذر رفع الملف.', 'Could not upload the file.'));
+            const body = kind === 'image'
+                ? { chatId: chatId, type: 'image', fileUrl: data.url }
+                : { chatId: chatId, type: 'file', fileUrl: data.url, fileName: file.name.slice(0, 100), fileSize: upFile.size };
+            await postSend(body);
+            clearNote();
+        } catch (e) {
+            showNote(e.message || T('تعذر إرسال الملف.', 'Could not send the file.'), 'err', 8000);
+        } finally {
+            sending = false;
+        }
+    }
+
     // ---------- بناء الرسالة ----------
     function audioEl(url) {
         const m = String(url).match(/\.(webm|ogg|m4a|mp4|mp3|wav)$/i);
@@ -2259,6 +2339,23 @@
         if (m.type === 'voice' && m.audioUrl) {
             box.appendChild(audioEl(m.audioUrl));
             box.appendChild(h('div', 'lbc-dur', '🎤 ' + fmtDur(Number(m.duration) || 0)));
+        } else if (m.type === 'image' && isCloud(m.fileUrl)) {
+            const a = document.createElement('a');
+            a.href = m.fileUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
+            const img = document.createElement('img');
+            img.className = 'lbc-img'; img.loading = 'lazy'; img.alt = '';
+            img.src = m.fileUrl.replace('/upload/', '/upload/w_480,c_limit,q_auto,f_auto/');   // نسخة مصغّرة للعرض
+            a.appendChild(img);
+            box.appendChild(a);
+        } else if (m.type === 'file' && isCloud(m.fileUrl)) {
+            const a = h('a', 'lbc-file');
+            a.href = m.fileUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
+            a.appendChild(h('span', 'lbc-file-icon', '📄'));
+            const info = h('span', 'lbc-file-info');
+            info.appendChild(h('span', 'lbc-file-name', m.fileName || ''));
+            if (m.fileSize) info.appendChild(h('span', 'lbc-file-size', fmtSize(Number(m.fileSize))));
+            a.appendChild(info);
+            box.appendChild(a);
         } else {
             box.appendChild(h('div', 'lbc-text', m.text || ''));
         }
@@ -2456,6 +2553,12 @@
     $('lbcMore').addEventListener('click', loadOlder);
     $('lbcSend').addEventListener('click', sendText);
     $('lbcMic').addEventListener('click', startRecording);
+    $('lbcAttach').addEventListener('click', () => { if (!sending && activeChatId) $('lbcFile').click(); });
+    $('lbcFile').addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (f) sendAttachment(f);
+    });
     $('lbcRecCancel').addEventListener('click', () => stopRecording(false));
     $('lbcRecSend').addEventListener('click', () => stopRecording(true));
     $('lbcInput').addEventListener('keydown', (e) => {
@@ -2473,8 +2576,8 @@
         if (user) start(user);
     });
 })();
-
 </script>
+
 
 </body>
 </html>

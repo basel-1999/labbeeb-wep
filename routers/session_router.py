@@ -66,6 +66,8 @@ TRIAL_MIN_SECONDS_TO_COMPLETE = 870   # حد أدنى للقبول (فيه سم�
 CLOUDINARY_CLOUD = os.getenv("CLOUDINARY_CLOUD_NAME", "f4t8ayoq")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://labbeeb-wep.onrender.com").rstrip("/")
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024   # أقصى حجم ملف عبر السيرفر
+# أنواع ملفات المحادثة (raw) المسموحة
+ALLOWED_RAW_EXT = ('pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'odt', 'rtf')
 # إعداد Cloudinary باستخدام متغيرات البيئة (أكثر أماناً)
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -1732,6 +1734,7 @@ async def upload_to_cloudinary(
     file: UploadFile = File(...), 
     folder: str = Form(""), 
     resource_type: str = Form("auto"),
+        ext: str = Form(""),
     uid: str = Depends(get_current_user)
 ):
     """رفع ملف عام إلى Cloudinary باستخدام المفاتيح الآمنة (Signed)"""
@@ -1746,11 +1749,17 @@ async def upload_to_cloudinary(
         if len(file_contents) > MAX_UPLOAD_BYTES:
             raise HTTPException(status_code=413, detail="حجم الملف كبير (الحد الأقصى 15 ميجابايت).")
 
-        upload_result = cloudinary.uploader.upload(
-            file_contents,
-            resource_type=resource_type,
-            folder=folder if folder else None
-        )
+        upload_kwargs = {'resource_type': resource_type}
+        ext = (ext or '').lower().strip()
+        if ext:
+            # ملفات المحادثة: امتداد الملف بيصير جزء من الرابط (عشان يفتح بشكل صحيح)
+            if resource_type != 'raw' or ext not in ALLOWED_RAW_EXT:
+                raise HTTPException(status_code=400, detail="نوع الملف غير مسموح.")
+            upload_kwargs['public_id'] = f"{folder + '/' if folder else ''}{uuid.uuid4().hex}.{ext}"
+        elif folder:
+            upload_kwargs['folder'] = folder
+
+        upload_result = cloudinary.uploader.upload(file_contents, **upload_kwargs)
         return {"url": upload_result.get("secure_url")}
             
     except HTTPException:
