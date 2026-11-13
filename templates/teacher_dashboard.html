@@ -1680,7 +1680,20 @@ function processSessions() {
     html[dir="ltr"] .lbc-msg.mine { align-self: flex-end; }
     html[dir="ltr"] .lbc-msg.theirs { align-self: flex-start; }
     .lbc-text { white-space: pre-wrap; }
-    .lbc-time { font-size: 10px; opacity: .7; margin-top: 2px; }
+    .lbc-time { font-size: 10px; opacity: .7; }
+    .lbc-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
+    .lbc-flag { background: transparent; border: 0; cursor: pointer; font-size: 12px; opacity: .45; padding: 0 2px; color: inherit; }
+    .lbc-flag:hover { opacity: 1; }
+    .lbc-flag:disabled { cursor: default; opacity: .8; color: #16A34A; }
+    #lbcReport { position: absolute; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .lbc-report-box { background: #fff; border-radius: 14px; padding: 16px; width: 100%; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+    .lbc-report-title { font-weight: 800; font-size: 16px; margin-bottom: 10px; }
+    .lbc-reason { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
+    #lbcReportNote { width: 100%; box-sizing: border-box; margin-top: 8px; border: 1px solid #D9D2C0; border-radius: 10px; padding: 8px 10px; font: 500 13px Cairo, Inter, sans-serif; resize: none; outline: none; }
+    .lbc-report-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .lbc-report-actions button { flex: 1; border: 0; border-radius: 10px; padding: 9px; font: 700 14px Cairo, Inter, sans-serif; cursor: pointer; background: #F4EFE6; color: #1E241B; }
+    .lbc-report-actions button#lbcReportSend { background: #DC2626; color: #fff; }
+    .lbc-report-actions button:disabled { opacity: .5; }
     .lbc-msg audio { height: 36px; max-width: 220px; display: block; }
     .lbc-dur { font-size: 11px; opacity: .8; margin-top: 2px; }
     .lbc-img { display: block; max-width: 220px; max-height: 260px; border-radius: 10px; cursor: pointer; background: #E5E7EB; }
@@ -1743,12 +1756,23 @@ function processSessions() {
             <span id="lbcRecTime">0:00</span>
             <button id="lbcRecSend" class="lbc-btn send" type="button">➤</button>
         </div>
+
+    <div id="lbcReport">
+        <div class="lbc-report-box">
+            <div id="lbcReportTitle" class="lbc-report-title"></div>
+            <div id="lbcReasons"></div>
+            <textarea id="lbcReportNote" rows="2" maxlength="300"></textarea>
+            <div class="lbc-report-actions">
+                <button id="lbcReportCancel" type="button"></button>
+                <button id="lbcReportSend" type="button"></button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
 (function () {
-    const CHAT_ROLE = 'teacher';   
+    const CHAT_ROLE = 'teacher';  
 
     const MY_ID_FIELD = CHAT_ROLE === 'student' ? 'studentId' : 'teacherId';
     const MY_UNREAD = CHAT_ROLE === 'student' ? 'unreadStudent' : 'unreadTeacher';
@@ -1789,6 +1813,8 @@ function processSessions() {
     let panelOpen = false, activeChatId = null;
     let msgDocs = new Map(), nodeMap = new Map();
     let hasMore = false, sending = false, rec = null, noteTimer = null;
+    const reported = new Set();   // رسائل بلّغت عنها بهالجلسة
+    let reportTarget = null;
 
     // ---------- صوت الإشعار (نغمة قصيرة مولّدة بالكود) ----------
     let audioCtx = null;
@@ -2064,6 +2090,72 @@ function processSessions() {
         }
     }
 
+    // ---------- الإبلاغ عن رسالة ----------
+    const REASONS = [
+        ['contact', 'طلب تواصل خارج المنصة (رقم، واتساب...)', 'Asking to contact outside the platform (number, WhatsApp...)'],
+        ['abuse', 'كلام مسيء أو تحرش', 'Abusive or harassing language'],
+        ['inappropriate', 'محتوى غير لائق', 'Inappropriate content'],
+        ['other', 'سبب آخر', 'Other'],
+    ];
+
+    function openReport(messageId, flagBtn) {
+        if (!activeChatId) return;
+        reportTarget = { messageId: messageId, flagBtn: flagBtn, chatId: activeChatId };
+        $('lbcReportTitle').textContent = T('إبلاغ عن رسالة', 'Report a message');
+        const box = $('lbcReasons');
+        box.textContent = '';
+        REASONS.forEach((r, i) => {
+            const label = h('label', 'lbc-reason');
+            const radio = document.createElement('input');
+            radio.type = 'radio'; radio.name = 'lbcReason'; radio.value = r[0];
+            if (i === 0) radio.checked = true;
+            label.appendChild(radio);
+            label.appendChild(h('span', '', T(r[1], r[2])));
+            box.appendChild(label);
+        });
+        $('lbcReportNote').value = '';
+        $('lbcReportNote').placeholder = T('ملاحظة (اختياري)', 'Note (optional)');
+        $('lbcReportCancel').textContent = T('إلغاء', 'Cancel');
+        $('lbcReportSend').textContent = T('إرسال البلاغ', 'Send report');
+        $('lbcReport').style.display = 'flex';
+    }
+
+    function closeReport() {
+        $('lbcReport').style.display = 'none';
+        reportTarget = null;
+    }
+
+    async function submitReport() {
+        if (!reportTarget) return;
+        const t = reportTarget;
+        const checked = document.querySelector('input[name="lbcReason"]:checked');
+        const reason = checked ? checked.value : 'other';
+        const note = $('lbcReportNote').value.trim();
+        $('lbcReportSend').disabled = true;
+        try {
+            const idToken = await firebase.auth().currentUser.getIdToken();
+            const res = await fetch('/api/chat/report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ chatId: t.chatId, messageId: t.messageId, reason: reason, note: note })
+            });
+            if (!res.ok) {
+                let msg = T('تعذر إرسال البلاغ، حاول مرة ثانية.', 'Could not send the report. Please try again.');
+                try { const j = await res.json(); if (j && typeof j.detail === 'string') msg = j.detail; } catch (e) { /* رسالة عامة */ }
+                throw new Error(msg);
+            }
+            reported.add(t.messageId);
+            if (t.flagBtn) { t.flagBtn.textContent = '✓'; t.flagBtn.disabled = true; }
+            closeReport();
+            showNote(T('وصل بلاغك للإدارة، شكراً لك.', 'Your report was sent to the admins. Thank you.'), 'info', 5000);
+        } catch (e) {
+            closeReport();
+            showNote(e.message || T('تعذر إرسال البلاغ.', 'Could not send the report.'), 'err', 7000);
+        } finally {
+            $('lbcReportSend').disabled = false;
+        }
+    }
+
     // ---------- بناء الرسالة ----------
     function audioEl(url) {
         const m = String(url).match(/\.(webm|ogg|m4a|mp4|mp3|wav)$/i);
@@ -2103,7 +2195,17 @@ function processSessions() {
         } else {
             box.appendChild(h('div', 'lbc-text', m.text || ''));
         }
-        box.appendChild(h('div', 'lbc-time', fmtTime(m.createdAt)));
+        const foot = h('div', 'lbc-foot');
+        foot.appendChild(h('div', 'lbc-time', fmtTime(m.createdAt)));
+        if (m.senderId !== uid) {   // الإبلاغ بس عن رسائل الطرف الثاني
+            const flag = h('button', 'lbc-flag', reported.has(m.id) ? '✓' : '⚑');
+            flag.type = 'button';
+            flag.title = T('إبلاغ', 'Report');
+            flag.disabled = reported.has(m.id);
+            flag.addEventListener('click', () => openReport(m.id, flag));
+            foot.appendChild(flag);
+        }
+        box.appendChild(foot);
         return box;
     }
 
@@ -2188,6 +2290,7 @@ function processSessions() {
 
     function leaveChat() {
         stopRecording(false);
+        closeReport();
         if (unsubMessages) { unsubMessages(); unsubMessages = null; }
         activeChatId = null;
         msgDocs = new Map(); nodeMap = new Map(); hasMore = false;
@@ -2297,6 +2400,9 @@ function processSessions() {
     $('lbcMore').addEventListener('click', loadOlder);
     $('lbcSend').addEventListener('click', sendText);
     $('lbcMic').addEventListener('click', startRecording);
+    $('lbcReportCancel').addEventListener('click', closeReport);
+    $('lbcReportSend').addEventListener('click', submitReport);
+    $('lbcReport').addEventListener('click', (e) => { if (e.target.id === 'lbcReport') closeReport(); });
     $('lbcAttach').addEventListener('click', () => { if (!sending && activeChatId) $('lbcFile').click(); });
     $('lbcFile').addEventListener('change', (e) => {
         const f = e.target.files && e.target.files[0];
@@ -2321,5 +2427,6 @@ function processSessions() {
     });
 })();
 </script>
+
 </body>
 </html>

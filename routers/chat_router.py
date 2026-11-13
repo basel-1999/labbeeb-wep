@@ -25,6 +25,13 @@ RATE_LIMIT_WINDOW_SECONDS = 60      # ...خلال هالمدة
 
 _recent_sends = defaultdict(deque)
 
+REPORT_REASONS = ('contact', 'abuse', 'inappropriate', 'other')
+MAX_REPORT_NOTE_LENGTH = 300
+REPORT_RATE_LIMIT = 5               # أقصى عدد بلاغات...
+REPORT_RATE_WINDOW_SECONDS = 600    # ...خلال 10 دقائق
+REPORT_CONTEXT_MESSAGES = 10        # عدد الرسائل (للسياق) اللي بتنحفظ مع البلاغ
+_recent_reports = defaultdict(deque)
+
 
 def _check_rate_limit(uid: str):
     now = time.time()
@@ -179,3 +186,106 @@ async def send_chat_message(payload: ChatSendRequest, uid: str = Depends(get_cur
         if "429" in error_str or "Quota" in error_str:
             raise HTTPException(status_code=429, detail="تم تجاوز الحد المجاني لعمليات قاعدة البيانات اليومية. يرجى المحاولة لاحقاً.")
         raise HTTPException(status_code=500, detail="تعذر إرسال الرسالة، حاول مرة ثانية.")
+
+
+# ---------------------------------------------------------------
+# 🚩 إبلاغ عن رسالة (بتنحفظ نسخة من الرسالة وسياقها، حتى لو انحذفت أو انتغيّرت لاحقاً)
+# ---------------------------------------------------------------
+class ChatReportRequest(BaseModel):
+    chatId: str
+    messageId: str
+    reason: str                        # contact | abuse | inappropriate | other
+    note: Optional[str] = None
+
+
+def _check_report_rate(uid: str):
+    now = time.time()
+    q = _recent_reports[uid]
+    while q and now - q[0] > REPORT_RATE_WINDOW_SECONDS:
+        q.popleft()
+    if len(q) >= REPORT_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="بلاغات كثيرة بوقت قصير، حاول بعد شوي.")
+    q.append(now)
+
+
+def _message_snapshot(m: dict) -> dict:
+    """نسخة مبسّطة من الرسالة للبلاغ (بدون أي حقول زيادة)"""
+    out = {
+        'senderId': m.get('senderId'),
+        'senderRole': m.get('senderRole'),
+        'type': m.get('type'),
+        'createdAt': m.get('createdAt'),
+    }
+    for key in ('text', 'audioUrl', 'duration', 'fileUrl', 'fileName'):
+        if m.get(key) is not None:
+            out[key] = m.get(key)
+    return out
+
+
+@router.post("/api/chat/report")
+async def report_chat_message(payload: ChatReportRequest, uid: str = Depends(get_current_user)):
+    try:
+        if payload.reason not in REPORT_REASONS:
+            _bad_request("سبب البلاغ غير صالح.")
+        note = (payload.note or '').strip()[:MAX_REPORT_NOTE_LENGTH]
+
+        chat_ref = db.collection('chats').document(payload.chatId)
+        chat_snap = chat_ref.get()
+        if not chat_snap.exists:
+            raise HTTPException(status_code=404, detail="المحادثة غير موجودة.")
+        chat = chat_snap.to_dict() or {}
+
+        if uid == chat.get('studentId'):
+            role = 'student'
+        elif uid == chat.get('teacherId'):
+            role = 'teacher'
+        else:
+            raise HTTPException(status_code=403, detail="غير مصرح لك بهذه المحادثة.")
+
+        msg_ref = chat_ref.collection('messages').document(payload.messageId)
+        msg_snap = msg_ref.get()
+        if not msg_snap.exists:
+            raise HTTPException(status_code=404, detail="الرسالة غير موجودة.")
+        msg = msg_snap.to_dict() or {}
+        if msg.get('senderId') == uid:
+            _bad_request("ما بتقدر تبلّغ عن رسالتك أنت.")
+
+        # بلاغ واحد لكل شخص عن كل رسالة (معرّف البلاغ ثابت)
+        report_ref = db.collection('chat_reports').document(f"{payload.messageId}_{uid}")
+        if report_ref.get().exists:
+            return {"ok": True, "duplicate": True}
+
+        _check_report_rate(uid)
+
+        # سياق: الرسالة المبلّغ عنها + الرسائل اللي قبلها
+        context = []
+        for d in (chat_ref.collection('messages')
+                  .order_by('createdAt', direction='DESCENDING')
+                  .start_at(msg_snap).limit(REPORT_CONTEXT_MESSAGES).stream()):
+            item = _message_snapshot(d.to_dict() or {})
+            item['id'] = d.id
+            context.append(item)
+        context.reverse()
+
+        report_ref.set({
+            'chatId': payload.chatId,
+            'messageId': payload.messageId,
+            'studentId': chat.get('studentId'),
+            'teacherId': chat.get('teacherId'),
+            'reporterId': uid,
+            'reporterRole': role,
+            'reportedId': msg.get('senderId'),
+            'reason': payload.reason,
+            'note': note,
+            'message': _message_snapshot(msg),
+            'context': context,
+            'status': 'open',
+            'createdAt': firestore.SERVER_TIMESTAMP,
+        })
+        return {"ok": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ ERROR in report_chat_message: {e}")
+        raise HTTPException(status_code=500, detail="تعذر إرسال البلاغ، حاول مرة ثانية.")

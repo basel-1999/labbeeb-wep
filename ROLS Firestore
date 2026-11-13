@@ -256,5 +256,12 @@ service cloud.firestore {
       }
     }
 
+    // --- 6. بلاغات المحادثات (السيرفر يكتب، والأدمن يقرأ ويغلق البلاغ) ---
+    match /chat_reports/{reportId} {
+      allow read: if isAdmin();
+      allow create, delete: if false;
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'adminNote', 'reviewedBy', 'reviewedAt']);
+    }
   }
 }
